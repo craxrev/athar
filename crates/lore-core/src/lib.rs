@@ -12,6 +12,7 @@
 //! evidence outlives the moment. The one requirement is running at least once
 //! inside each source's retention window.
 
+pub mod agent;
 pub mod api;
 pub mod collect;
 pub mod config;

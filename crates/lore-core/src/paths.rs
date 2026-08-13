@@ -30,6 +30,24 @@ pub fn home() -> Result<PathBuf> {
         .to_path_buf())
 }
 
+/// Where `launchd` looks for user agents.
+pub fn launch_agent_file() -> Result<PathBuf> {
+    Ok(home()?
+        .join("Library/LaunchAgents")
+        .join("dev.lore.collector.plist"))
+}
+
+pub fn log_file() -> Result<PathBuf> {
+    Ok(home()?.join("Library/Logs/lore/collector.log"))
+}
+
+/// The collector's own copy of the binary. `launchd` must not point at a build
+/// directory, where a rebuild can replace the binary mid-scan and a clean can
+/// remove it outright.
+pub fn installed_binary() -> Result<PathBuf> {
+    Ok(data_dir()?.join("bin/lore"))
+}
+
 /// Claude Code's own directory. A fixed, standard location — never configured.
 pub fn claude_dir() -> Result<PathBuf> {
     Ok(home()?.join(".claude"))

@@ -51,7 +51,7 @@ This produces two properties a live-observation tracker cannot have:
 - Work done while lore was not running is still captured, because the evidence outlives the moment
 - Retention is unbounded, because the archive is not subject to the sources' cleanup policies
 
-The one requirement this creates: lore must run at least once inside each source's retention window (~30 days) or that window's history is lost for good.
+The one requirement this creates: lore must run at least once inside each source's retention window (~30 days) or that window's history is lost for good. Scanning therefore belongs to the operating system rather than to remembering: a macOS user agent (`dev.lore.collector`) runs the collector on the configured interval and at every login, installed and removed through `lore agent install` / `lore agent uninstall`.
 
 ## Operating Context
 
