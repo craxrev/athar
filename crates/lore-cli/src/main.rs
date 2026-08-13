@@ -490,7 +490,13 @@ fn print_agent(s: &lore_core::agent::AgentStatus) {
     println!(
         "binary     {}{}",
         s.binary.display(),
-        if s.binary_present { "" } else { "  (missing)" }
+        if !s.binary_present {
+            "  (missing)"
+        } else if s.binary_stale {
+            "  (older than this build — run `lore agent install`)"
+        } else {
+            ""
+        }
     );
     println!("schedule   every {} min, and at login", s.interval_mins);
     println!("log        {}", s.log.display());

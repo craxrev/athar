@@ -30,6 +30,10 @@ pub struct AgentStatus {
     pub binary_present: bool,
     pub log: PathBuf,
     pub interval_mins: u64,
+    /// True when the installed copy differs from the binary now running. The
+    /// agent keeps using its own copy, so a collector change is not scheduled
+    /// until `lore agent install` runs again.
+    pub binary_stale: bool,
 }
 
 /// Installs a copy of the running binary and registers the agent against it.
@@ -74,10 +78,23 @@ pub fn uninstall(config: &Config) -> Result<AgentStatus> {
 pub fn status(config: &Config) -> Result<AgentStatus> {
     let plist_path = paths::launch_agent_file()?;
     let binary = paths::installed_binary()?;
+    let binary_stale = match (std::env::current_exe(), binary.exists()) {
+        (Ok(current), true) if current != binary => {
+            let same = std::fs::read(&current)
+                .ok()
+                .zip(std::fs::read(&binary).ok())
+                .map(|(a, b)| a == b)
+                .unwrap_or(false);
+            !same
+        }
+        _ => false,
+    };
+
     Ok(AgentStatus {
         installed: plist_path.exists(),
         loaded: is_loaded(),
         binary_present: binary.exists(),
+        binary_stale,
         binary,
         log: paths::log_file()?,
         interval_mins: config.scan_interval_mins,

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { BlockDetail, CommitSummary, SessionSummary } from './archive';
-	import { clock, day, dayKey, duration, fullDay, shortPath, tokens } from './format';
+	import { clock, day, dayKey, duration, fullDay, tokens } from './format';
 	import { clusterMoments, type Moment } from './moments';
 	import { archive, type CommitFile } from './archive';
 
@@ -91,6 +91,8 @@
 	 *  been deleted and for commits git has already garbage-collected, which a live
 	 *  diff cannot. */
 	let expanded = $state<Record<string, CommitFile[] | 'loading' | 'error'>>({});
+	/** Save-moments carry their files already, so disclosure is just open/closed. */
+	let openMoments = $state<Record<string, boolean>>({});
 
 	async function toggleFiles(sha: string) {
 		if (expanded[sha]) {
@@ -253,7 +255,12 @@
 								</div>
 							{/if}
 						{:else}
-							<div class="item files">
+							<button
+								class="item files"
+								class:open={openMoments[entry.key]}
+								onclick={() => (openMoments[entry.key] = !openMoments[entry.key])}
+								aria-expanded={!!openMoments[entry.key]}
+							>
 								<span class="num at">{clock(entry.at)}</span>
 								<Icon name="file" size={17} />
 								<span class="body">
@@ -261,19 +268,28 @@
 										{entry.moment.files.length} file{entry.moment.files.length === 1 ? '' : 's'}
 										saved, not committed
 									</span>
-									<span class="meta paths">
-										{#each entry.moment.files.slice(0, 3) as f, i (i)}
-											<span class="path" title={f.path}>
-												{shortPath(f.path)}
-												<span class="state" data-state={f.state}>{f.state}</span>
-											</span>
-										{/each}
-										{#if entry.moment.files.length > 3}
-											<span>+{entry.moment.files.length - 3} more</span>
-										{/if}
+									<span class="meta">
+										{[...new Set(entry.moment.files.map((f) => f.state))].join(' · ')}
 									</span>
 								</span>
-							</div>
+								<span class="chev disclose" class:turned={openMoments[entry.key]}>
+									<Icon name="chevron" size={16} />
+								</span>
+							</button>
+
+							{#if openMoments[entry.key]}
+								<div class="touched">
+									<p class="inhead">Saved, not committed</p>
+									<ul>
+										{#each entry.moment.files as f, i (i)}
+											<li>
+												<span class="fpath" title={f.path}>{f.path}</span>
+												<span class="state" data-state={f.state}>{f.state}</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/if}
 						{/if}
 					{/each}
 
@@ -480,16 +496,6 @@
 		color: var(--amber);
 	}
 
-	.paths {
-		gap: 12px;
-	}
-	.path {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 5px;
-		font-family: var(--mono);
-		font-size: var(--fs-min);
-	}
 	.state {
 		font-family: var(--sans);
 		font-size: 13px;
@@ -551,6 +557,9 @@
 		align-items: baseline;
 		gap: 12px;
 	}
+	.touched .state {
+		flex: none;
+	}
 	.fpath {
 		flex: 1;
 		min-width: 0;
@@ -560,8 +569,6 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
-		direction: rtl;
-		text-align: left;
 	}
 	.binary {
 		font-size: 13px;
