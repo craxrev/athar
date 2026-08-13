@@ -22,6 +22,11 @@ pub struct Config {
     /// Directory names pruned during the walk, in addition to `.gitignore`.
     pub exclude: Vec<String>,
 
+    /// Extra email addresses whose commits count as the user's own. Repository
+    /// and global git config are read automatically; this covers addresses used
+    /// on another machine.
+    pub identities: Vec<String>,
+
     pub sources: Sources,
 }
 
@@ -75,6 +80,7 @@ impl Default for Config {
             .iter()
             .map(|s| s.to_string())
             .collect(),
+            identities: Vec::new(),
             sources: Sources::default(),
         }
     }

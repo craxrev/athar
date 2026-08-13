@@ -114,14 +114,14 @@ pub fn ingest_file(conn: &mut Connection, source: &str, path: &Path) -> Result<S
         .map(|d| d.as_millis() as i64)
         .unwrap_or_default();
 
-    let mut cursor = db::file_cursor(conn, source, &key)?;
+    let mut cursor = db::origin_cursor(conn, source, &key)?;
 
     // Rotation or truncation invalidates line numbering, so that one file is
     // re-read from the start. Transcripts are append-only in normal operation,
     // making this the rare path.
     let rotated = cursor.inode.is_some_and(|i| i != inode) || size < cursor.byte_offset;
     if rotated {
-        db::forget_file(conn, cursor.id)?;
+        db::forget_origin(conn, cursor.id)?;
         cursor.byte_offset = 0;
         cursor.line_no = 0;
         stats.files_reset += 1;
@@ -155,7 +155,7 @@ pub fn ingest_file(conn: &mut Connection, source: &str, path: &Path) -> Result<S
     {
         let mut insert = tx.prepare(
             "INSERT OR IGNORE INTO raw_records
-                 (file_id, line_no, ts_ms, kind, session_id, project_id,
+                 (origin_id, line_no, ts_ms, kind, session_id, project_id,
                   json, bytes_original, truncated)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
@@ -220,7 +220,7 @@ pub fn ingest_file(conn: &mut Connection, source: &str, path: &Path) -> Result<S
         cursor.mtime_ms = mtime_ms;
         cursor.byte_offset = start_offset + complete_len as u64;
         cursor.line_no = line_no;
-        db::set_file_cursor(&tx, &cursor)?;
+        db::set_origin_cursor(&tx, &cursor)?;
     }
     tx.commit()?;
 

@@ -23,7 +23,7 @@ pub fn archive(conn: &Connection) -> Result<Archive> {
         "SELECT count(DISTINCT session_id) FROM raw_records WHERE session_id IS NOT NULL",
     )?;
     s.projects = one(conn, "SELECT count(*) FROM projects")?;
-    s.files_tracked = one(conn, "SELECT count(*) FROM files WHERE line_no > 0")?;
+    s.files_tracked = one(conn, "SELECT count(*) FROM origins WHERE line_no > 0")?;
     s.truncated = one(conn, "SELECT count(*) FROM raw_records WHERE truncated = 1")?;
     s.bytes_original = one(conn, "SELECT coalesce(sum(bytes_original), 0) FROM raw_records")?;
     s.bytes_stored = one(conn, "SELECT coalesce(sum(length(json)), 0) FROM raw_records")?;

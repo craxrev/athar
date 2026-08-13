@@ -8,9 +8,9 @@ use crate::paths;
 
 const SCHEMA: &str = include_str!("schema.sql");
 
-/// A file lore has read, and where it stopped.
+/// An origin lore has read, and where it stopped.
 #[derive(Debug, Clone, Copy)]
-pub struct FileCursor {
+pub struct OriginCursor {
     pub id: i64,
     pub inode: Option<u64>,
     pub size: u64,
@@ -30,7 +30,7 @@ pub fn open_writable(path: &Path) -> Result<Connection> {
         Connection::open(path).with_context(|| format!("opening database at {}", path.display()))?;
     conn.pragma_update(None, "journal_mode", "WAL")?;
     conn.pragma_update(None, "synchronous", "NORMAL")?;
-    // Records are removed only by cascade from `files`, when a file was rotated.
+    // Records are removed only by cascade from `origins`, when a file was rotated.
     conn.pragma_update(None, "foreign_keys", "ON")?;
     conn.execute_batch(SCHEMA).context("applying schema")?;
     Ok(conn)
@@ -40,18 +40,18 @@ pub fn open_default() -> Result<Connection> {
     open_writable(&paths::db_file()?)
 }
 
-/// Returns the file's row, creating it on first sight.
-pub fn file_cursor(conn: &Connection, source: &str, path: &str) -> Result<FileCursor> {
+/// Returns the origin's row, creating it on first sight.
+pub fn origin_cursor(conn: &Connection, source: &str, path: &str) -> Result<OriginCursor> {
     conn.execute(
-        "INSERT OR IGNORE INTO files (source, path) VALUES (?1, ?2)",
+        "INSERT OR IGNORE INTO origins (source, path) VALUES (?1, ?2)",
         (source, path),
     )?;
     let cursor = conn.query_row(
         "SELECT id, inode, size, mtime_ms, byte_offset, line_no
-           FROM files WHERE source = ?1 AND path = ?2",
+           FROM origins WHERE source = ?1 AND path = ?2",
         (source, path),
         |r| {
-            Ok(FileCursor {
+            Ok(OriginCursor {
                 id: r.get(0)?,
                 inode: r.get::<_, Option<i64>>(1)?.map(|v| v as u64),
                 size: r.get::<_, i64>(2)? as u64,
@@ -64,9 +64,9 @@ pub fn file_cursor(conn: &Connection, source: &str, path: &str) -> Result<FileCu
     Ok(cursor)
 }
 
-pub fn set_file_cursor(conn: &Connection, cursor: &FileCursor) -> Result<()> {
+pub fn set_origin_cursor(conn: &Connection, cursor: &OriginCursor) -> Result<()> {
     conn.execute(
-        "UPDATE files
+        "UPDATE origins
             SET inode = ?2, size = ?3, mtime_ms = ?4,
                 byte_offset = ?5, line_no = ?6, updated_at_ms = ?7
           WHERE id = ?1",
@@ -83,13 +83,13 @@ pub fn set_file_cursor(conn: &Connection, cursor: &FileCursor) -> Result<()> {
     Ok(())
 }
 
-/// Drops everything archived from one file and resets its cursor. Used only when
-/// a file was rotated or truncated, which invalidates its line numbering.
-pub fn forget_file(conn: &Connection, file_id: i64) -> Result<usize> {
-    let removed = conn.execute("DELETE FROM raw_records WHERE file_id = ?1", [file_id])?;
+/// Drops everything archived from one origin and resets its cursor. Used only
+/// when a file was rotated or truncated, which invalidates its line numbering.
+pub fn forget_origin(conn: &Connection, origin_id: i64) -> Result<usize> {
+    let removed = conn.execute("DELETE FROM raw_records WHERE origin_id = ?1", [origin_id])?;
     conn.execute(
-        "UPDATE files SET byte_offset = 0, line_no = 0 WHERE id = ?1",
-        [file_id],
+        "UPDATE origins SET byte_offset = 0, line_no = 0 WHERE id = ?1",
+        [origin_id],
     )?;
     Ok(removed)
 }

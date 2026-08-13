@@ -5,7 +5,11 @@
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use lore_core::{collect::claude, config::Config, db, paths, stats};
+use lore_core::{
+    collect::{claude, git},
+    config::Config,
+    db, paths, stats,
+};
 
 #[derive(Parser)]
 #[command(name = "lore", about = "A permanent record of developer work", version)]
@@ -103,41 +107,65 @@ fn expand_home(raw: &str) -> Result<std::path::PathBuf> {
 fn scan() -> Result<()> {
     let config = Config::load()?;
     let mut conn = db::open_default()?;
-
-    if !config.sources.claude.enabled {
-        println!("claude source disabled in config; nothing to do");
-        return Ok(());
-    }
-
-    let claude_dir = config.claude_dir()?;
-    if !claude_dir.is_dir() {
-        println!("no Claude Code directory at {}", claude_dir.display());
-        return Ok(());
-    }
-
     let started = std::time::Instant::now();
-    let s = claude::scan(&mut conn, &claude_dir)
-        .with_context(|| format!("scanning {}", claude_dir.display()))?;
-    let elapsed = started.elapsed();
 
-    println!("claude    {} files seen, {} read", s.files_seen, s.files_read);
-    println!("archived  {} records ({} lines read)", s.inserted, s.lines_read);
-    if s.duplicates > 0 {
-        println!("already   {} records (rescan is a no-op)", s.duplicates);
+    if config.sources.claude.enabled {
+        let claude_dir = config.claude_dir()?;
+        if claude_dir.is_dir() {
+            let s = claude::scan(&mut conn, &claude_dir)
+                .with_context(|| format!("scanning {}", claude_dir.display()))?;
+            println!("claude");
+            println!("  files       {} seen, {} read", s.files_seen, s.files_read);
+            println!("  archived    {} records ({} lines)", s.inserted, s.lines_read);
+            if s.duplicates > 0 {
+                println!("  already had {} records", s.duplicates);
+            }
+            println!("  dropped     {} transient records", s.dropped);
+            println!("  truncated   {} oversized blobs", s.truncated);
+            if s.unparsed > 0 {
+                println!("  unparsed    {} lines archived verbatim", s.unparsed);
+            }
+            if s.files_reset > 0 {
+                println!("  reset       {} rotated files re-read", s.files_reset);
+            }
+            println!("  read        {}", human_bytes(s.bytes_read as i64));
+        } else {
+            println!("claude      no directory at {}", claude_dir.display());
+        }
     }
-    println!("dropped   {} transient records", s.dropped);
-    println!("truncated {} records with oversized blobs", s.truncated);
-    if s.unparsed > 0 {
-        println!("unparsed  {} lines archived verbatim", s.unparsed);
+
+    if config.roots.is_empty() {
+        println!("git         no roots configured — run `lore config init --root ...`");
+    } else {
+        let g = git::scan(&mut conn, &config)?;
+        println!("git");
+        println!(
+            "  repos       {} found, {} read, {} unchanged",
+            g.repos_seen, g.repos_read, g.repos_unchanged
+        );
+        println!("  archived    {} commits", g.commits_inserted);
+        if g.commits_known > 0 {
+            println!("  already had {} commits", g.commits_known);
+        }
+        println!(
+            "  unreachable {} commits git will collect (deleted branches, rewrites)",
+            g.commits_unreachable
+        );
+        if g.commits_foreign > 0 {
+            println!("  skipped     {} commits by other authors", g.commits_foreign);
+        }
+        if g.repos_without_identity > 0 {
+            println!(
+                "  no identity {} repos skipped — set user.email or config identities",
+                g.repos_without_identity
+            );
+        }
+        if g.errors > 0 {
+            println!("  errors      {} repos could not be read", g.errors);
+        }
     }
-    if s.files_reset > 0 {
-        println!("reset     {} rotated files re-read", s.files_reset);
-    }
-    println!(
-        "read      {} in {:.1}s",
-        human_bytes(s.bytes_read as i64),
-        elapsed.as_secs_f64()
-    );
+
+    println!("\nfinished in {:.1}s", started.elapsed().as_secs_f64());
     Ok(())
 }
 
@@ -200,6 +228,10 @@ fn doctor() -> Result<()> {
     if claude_dir.is_dir() {
         let found = claude::discover(&claude_dir)?;
         println!("            {} transcript files discoverable", found.len());
+    }
+
+    for (category, repos) in git::by_category(&config) {
+        println!("repos       {} in [{}]", repos.len(), category);
     }
 
     if config.roots.is_empty() {
