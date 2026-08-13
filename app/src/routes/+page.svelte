@@ -41,6 +41,12 @@
 
 	let filterField = $state<HTMLInputElement | null>(null);
 
+	/// Bumped when the collector has written since the last check, which makes the
+	/// data effect below refetch. Plain `let`, not state: reading it inside the
+	/// polling effect would make that effect depend on itself.
+	let lastSeenScan: number | null = null;
+	let archiveVersion = $state(0);
+
 	let range = $derived.by(() => {
 		const now = Date.now();
 		switch (scope) {
@@ -60,17 +66,42 @@
 		localStorage.setItem('lore.scope', scope);
 	});
 
+	// The collector is a separate process writing on its own schedule, so the
+	// window has to ask. Without this the status footer reports the moment the
+	// window opened for as long as it stays open — and that footer is the only
+	// place collector health is visible, since there is no tray.
 	$effect(() => {
-		archive
-			.status()
-			.then((s) => (status = s))
-			.catch((e: Error) => (error = e.message));
+		const poll = async () => {
+			try {
+				const next = await archive.status();
+				if (next.last_scan_ms !== lastSeenScan) {
+					lastSeenScan = next.last_scan_ms;
+					archiveVersion += 1;
+				}
+				status = next;
+				error = null;
+			} catch (e) {
+				error = (e as Error).message;
+			}
+		};
+
+		void poll();
+		const timer = setInterval(poll, 30_000);
+		// Coming back to the window is exactly when a stale reading is noticed.
+		const onFocus = () => void poll();
+		window.addEventListener('focus', onFocus);
+		return () => {
+			clearInterval(timer);
+			window.removeEventListener('focus', onFocus);
+		};
 	});
 
 	// Reloads whenever the range, the filters or the view change.
 	$effect(() => {
 		const { from, to } = range;
 		const wanted = view;
+		// Refetch when the collector has archived something new.
+		void archiveVersion;
 		loading = true;
 
 		// Both queries run unfiltered. Filtering happens below, on what is already
