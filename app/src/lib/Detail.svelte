@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Moments from './Moments.svelte';
 	import type { BlockDetail } from './archive';
 	import { clock, duration, fullDay, shortPath, tokens } from './format';
 
@@ -96,15 +97,7 @@
 			{#if block.file_changes.length}
 				<section>
 					<h3>File changes <span class="num floor">{block.file_changes.length} recorded</span></h3>
-					<ul class="files">
-						{#each block.file_changes as f (f.path + f.ts_ms)}
-							<li>
-								<span class="num time">{clock(f.ts_ms)}</span>
-								<span class="path" title={f.path}>{shortPath(f.path, 2)}</span>
-								<span class="state" data-state={f.state}>{f.state}</span>
-							</li>
-						{/each}
-					</ul>
+					<Moments changes={block.file_changes} />
 					<p class="caveat">
 						A count of changes is a floor: saves between two scans leave only the most
 						recent timestamp behind.
@@ -284,47 +277,6 @@
 		color: var(--amber);
 	}
 
-	.files {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-		display: flex;
-		flex-direction: column;
-		gap: 1px;
-	}
-	.files li {
-		display: flex;
-		align-items: baseline;
-		gap: 9px;
-		padding: 4px 2px;
-		font-size: 13px;
-	}
-	.time {
-		color: var(--text-faint);
-		flex: none;
-	}
-	.path {
-		flex: 1;
-		min-width: 0;
-		font-family: var(--mono);
-		font-size: var(--fs-min);
-		color: var(--text-dim);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-	.state {
-		flex: none;
-		font-size: var(--fs-min);
-		font-weight: 540;
-		color: var(--text-faint);
-	}
-	.state[data-state='dirty'] {
-		color: var(--amber);
-	}
-	.state[data-state='untracked'] {
-		color: var(--text-dim);
-	}
 
 	.caveat {
 		margin: 10px 0 0;

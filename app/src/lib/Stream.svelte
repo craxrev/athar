@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Moments from './Moments.svelte';
 	import type { BlockDetail } from './archive';
-	import { clock, day, dayKey, duration, fullDay, shortPath, tokens } from './format';
+	import { clock, day, dayKey, duration, fullDay, tokens } from './format';
 
 	let {
 		blocks,
@@ -133,14 +134,7 @@
 								<span class="title">
 									{block.file_changes.length} file change{block.file_changes.length === 1 ? '' : 's'}
 								</span>
-								<span class="meta paths">
-									{#each block.file_changes.slice(0, 3) as f (f.path + f.ts_ms)}
-										<span class="path">{shortPath(f.path)}<span class="state">{f.state}</span></span>
-									{/each}
-									{#if block.file_changes.length > 3}
-										<span class="more">+{block.file_changes.length - 3} more</span>
-									{/if}
-								</span>
+								<Moments changes={block.file_changes} limit={3} />
 							</span>
 						</div>
 					{/if}
@@ -325,23 +319,6 @@
 		color: var(--amber);
 	}
 
-	.paths {
-		gap: 10px;
-	}
-	.path {
-		display: inline-flex;
-		align-items: baseline;
-		gap: 5px;
-		font-family: var(--mono);
-		font-size: var(--fs-min);
-	}
-	.state {
-		color: var(--text-faint);
-		opacity: 0.75;
-	}
-	.more {
-		font-size: var(--fs-meta);
-	}
 
 	.flag {
 		display: inline-flex;

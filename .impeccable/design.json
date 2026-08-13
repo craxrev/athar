@@ -103,7 +103,13 @@
     "honesty-flag": ".flag.amber { color: #f2a93b; background: rgba(242,169,59,0.14); border-radius: 999px; padding: 2px 8px; font-size: 13px; font-weight: 540; }",
     "focus-ring": ":focus-visible { outline: 2px solid #e93d97; outline-offset: 2px; border-radius: 6px; }",
     "scrollbar": "::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }",
-    "digest-metric": ".digest > span { white-space: nowrap; } /* atomic, so a wrap lands between metrics and never inside a phrase */"
+    "digest-metric": ".digest > span { white-space: nowrap; } /* atomic, so a wrap lands between metrics and never inside a phrase */",
+    "moment-spine": ".spine::before { position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--line-strong); } .mark { width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); box-shadow: 0 0 0 3px var(--surface); }"
+  },
+  "timeAsStructure": {
+    "rule": "Where records carry a time, time structures the layout — it is never merely a column of labels. A run of file changes is grouped into moments (saves within one minute) hung off a continuous spine, and an idle stretch past five minutes prints its own duration, because the pause is part of the record.",
+    "appliesTo": ["file-change lists in the detail pane and the stream"],
+    "counterExample": "A flat table with a time column reads as a list, not a timeline; that was the first attempt and it was wrong."
   },
   "dos": [
     "Show how a claim was established, next to the claim.",
