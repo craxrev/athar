@@ -35,9 +35,23 @@ use crate::truncate;
 
 pub const SOURCE: &str = "git";
 
-/// Commits touching more files than this store a marker instead of the full
-/// list. Generated or vendored bulk changes should not dominate the archive.
-const MAX_FILES_PER_COMMIT: usize = 500;
+/// Bumped whenever the archived record's shape changes.
+///
+/// It is part of every repository's fingerprint, so improving this adapter re-reads
+/// history that is still on disk instead of leaving old records in their old shape.
+/// A repository that no longer exists keeps whatever was archived from it — the
+/// evidence cannot be re-read, and lore does not discard it.
+const ADAPTER_VERSION: u32 = 2;
+
+/// Commits touching more files than this store a marker instead of the full list.
+///
+/// Set from the measured shape of real history: the largest genuine commit in
+/// these repositories touches 1,168 files, while the outliers above this line are
+/// vendored dependency drops — a single "remove pods from source" commit moves
+/// 17,349 files under `ios/`. Removing the cap entirely would triple the per-file
+/// table for five commits of no evidentiary value; 500 was low enough to truncate
+/// real work. Whatever is dropped is counted in `files_omitted`, never silently.
+const MAX_FILES_PER_COMMIT: usize = 2_000;
 
 /// Field and record separators for `git log --format`. Neither appears in commit
 /// messages in practice, which lets a message keep its newlines.
@@ -52,6 +66,7 @@ pub struct GitStats {
     pub repos_without_identity: usize,
     pub commits_inserted: u64,
     pub commits_known: u64,
+    pub commits_refreshed: u64,
     pub commits_unreachable: u64,
     pub commits_foreign: u64,
     pub errors: usize,
@@ -65,6 +80,7 @@ impl GitStats {
         self.repos_without_identity += other.repos_without_identity;
         self.commits_inserted += other.commits_inserted;
         self.commits_known += other.commits_known;
+        self.commits_refreshed += other.commits_refreshed;
         self.commits_unreachable += other.commits_unreachable;
         self.commits_foreign += other.commits_foreign;
         self.errors += other.errors;
@@ -164,6 +180,11 @@ pub fn ingest_repo(conn: &mut Connection, repo: &Path, extra_identities: &[Strin
                   bytes_original, truncated)
              VALUES (?1, ?2, ?3, 'commit', ?4, ?5, ?6, ?7)",
         )?;
+        let mut refresh = tx.prepare(
+            "UPDATE raw_records
+                SET json = ?3, bytes_original = ?4, truncated = ?5, ts_ms = ?6
+              WHERE origin_id = ?1 AND ext_id = ?2 AND json <> ?3",
+        )?;
 
         for commit in commits {
             if !identities.contains(&commit.author_email.to_lowercase()) {
@@ -192,7 +213,21 @@ pub fn ingest_repo(conn: &mut Connection, repo: &Path, extra_identities: &[Strin
             if changed == 1 {
                 stats.commits_inserted += 1;
             } else {
-                stats.commits_known += 1;
+                // Already archived. Refresh it only if this adapter produces a
+                // different record than the one on file.
+                let updated = refresh.execute((
+                    origin.id,
+                    &commit.sha,
+                    value.to_string(),
+                    bytes_original as i64,
+                    truncated as i64,
+                    commit.authored_at_ms,
+                ))?;
+                if updated == 1 {
+                    stats.commits_refreshed += 1;
+                } else {
+                    stats.commits_known += 1;
+                }
             }
         }
 
@@ -234,6 +269,7 @@ fn fingerprint(repo: &Path, identities: &HashSet<String>) -> Result<String> {
     sorted.sort_unstable();
 
     let mut hasher = Sha256::new();
+    hasher.update(ADAPTER_VERSION.to_le_bytes());
     hasher.update(refs.as_bytes());
     hasher.update(reflog_size.to_le_bytes());
     for id in sorted {
@@ -256,7 +292,8 @@ struct Commit {
     committed_at_ms: i64,
     author_name: String,
     author_email: String,
-    refs: String,
+    refs_at_scan: String,
+    branch_from_reflog: Option<String>,
     message: String,
     files: Vec<FileChange>,
     files_omitted: usize,
@@ -286,7 +323,13 @@ impl Commit {
             "committed_at_ms": self.committed_at_ms,
             "author_name": self.author_name,
             "author_email": self.author_email,
-            "refs": self.refs,
+            // What pointed at this commit when lore scanned — not the branch it
+            // was made on, which a commit object does not record.
+            "refs_at_scan": self.refs_at_scan,
+            // The branch it was actually made on, recovered from the reflog. Only
+            // available while the reflog still holds the entry, and only on the
+            // machine where the commit happened.
+            "branch": self.branch_from_reflog,
             "message": self.message,
             "files": files,
             // A commit no ref can reach: a deleted branch or rewritten history.
@@ -300,9 +343,46 @@ impl Commit {
     }
 }
 
+/// The branch each commit was actually made on, from the per-branch reflogs.
+///
+/// A commit object records no branch, so this is the only place the answer exists
+/// — and only while the reflog still holds the entry, on the machine where the
+/// commit happened. Absent for anything older than the reflog window, which is
+/// honest: lore does not guess a branch it cannot see.
+fn reflog_branches(repo: &Path) -> HashMap<String, String> {
+    let Ok(out) = git(repo, &["reflog", "--all", "--format=%H\x1f%gD\x1f%gs"]) else {
+        return HashMap::new();
+    };
+
+    let mut out_map = HashMap::new();
+    for line in out.lines() {
+        let mut parts = line.split('\u{1f}');
+        let (Some(sha), Some(selector), Some(subject)) =
+            (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        // Only entries that created a commit, and only on a real branch.
+        if !subject.starts_with("commit") {
+            continue;
+        }
+        let Some(rest) = selector.strip_prefix("refs/heads/") else {
+            continue;
+        };
+        let branch = rest.split('@').next().unwrap_or(rest).trim();
+        if branch.is_empty() {
+            continue;
+        }
+        // The most recent entry for a sha wins; earlier ones are rewrites.
+        out_map.entry(sha.to_string()).or_insert_with(|| branch.to_string());
+    }
+    out_map
+}
+
 /// Reads every commit from every ref *and* the reflog, so work on deleted
 /// branches and pre-rebase history is archived while it still exists.
 fn read_commits(repo: &Path) -> Result<Vec<Commit>> {
+    let reflog_branches = reflog_branches(repo);
     let format = format!(
         "{RS}%H{US}%P{US}%at{US}%ct{US}%an{US}%ae{US}%D{US}%B{US}"
     );
@@ -332,7 +412,7 @@ fn read_commits(repo: &Path) -> Result<Vec<Commit>> {
         let committed = next();
         let author_name = next();
         let author_email = next();
-        let refs = next();
+        let refs_at_scan = next();
         let message = next();
         let numstat = next();
 
@@ -359,6 +439,7 @@ fn read_commits(repo: &Path) -> Result<Vec<Commit>> {
             });
         }
 
+        let branch_from_reflog = reflog_branches.get(&sha).cloned();
         commits.push(Commit {
             sha,
             parents: parents.split_whitespace().map(str::to_string).collect(),
@@ -366,7 +447,8 @@ fn read_commits(repo: &Path) -> Result<Vec<Commit>> {
             committed_at_ms: committed.trim().parse::<i64>().unwrap_or_default() * 1000,
             author_name,
             author_email: author_email.trim().to_string(),
-            refs,
+            refs_at_scan,
+            branch_from_reflog,
             message: message.trim_end().to_string(),
             files,
             files_omitted,
@@ -555,6 +637,76 @@ mod tests {
             .query_row("SELECT count(*) FROM raw_records", [], |r| r.get(0))
             .unwrap();
         assert_eq!(total, 2);
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn recovers_the_branch_a_commit_was_made_on() {
+        let dir = temp();
+        let repo = dir.join("repo");
+        init_repo(&repo);
+        commit(&repo, "a.txt", "x", "on main");
+        git(&repo, &["checkout", "-q", "-b", "feature/side"]).unwrap();
+        commit(&repo, "b.txt", "y", "on the feature branch");
+
+        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        ingest_repo(&mut conn, &repo, &[]).unwrap();
+
+        // A commit object records no branch; the reflog is the only witness.
+        let branch: String = conn
+            .query_row(
+                "SELECT json_extract(json,'$.branch') FROM raw_records
+                  WHERE json_extract(json,'$.message') = 'on the feature branch'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(branch, "feature/side");
+
+        let main_branch: String = conn
+            .query_row(
+                "SELECT json_extract(json,'$.branch') FROM raw_records
+                  WHERE json_extract(json,'$.message') = 'on main'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(main_branch, "main");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn refreshes_a_record_when_the_adapter_changes_but_not_otherwise() {
+        let dir = temp();
+        let repo = dir.join("repo");
+        init_repo(&repo);
+        commit(&repo, "a.txt", "x", "only commit");
+
+        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        ingest_repo(&mut conn, &repo, &[]).unwrap();
+
+        // An unchanged repository read by the same adapter refreshes nothing.
+        conn.execute("DELETE FROM meta WHERE key LIKE 'git:refs:%'", []).unwrap();
+        let again = ingest_repo(&mut conn, &repo, &[]).unwrap();
+        assert_eq!(again.commits_refreshed, 0);
+        assert_eq!(again.commits_known, 1);
+
+        // A record left in an older shape is brought up to date in place.
+        conn.execute(
+            "UPDATE raw_records SET json = json_remove(json, '$.branch')",
+            [],
+        )
+        .unwrap();
+        conn.execute("DELETE FROM meta WHERE key LIKE 'git:refs:%'", []).unwrap();
+        let refreshed = ingest_repo(&mut conn, &repo, &[]).unwrap();
+        assert_eq!(refreshed.commits_refreshed, 1);
+
+        let total: i64 = conn
+            .query_row("SELECT count(*) FROM raw_records", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(total, 1, "refreshing must not duplicate the record");
 
         std::fs::remove_dir_all(&dir).ok();
     }

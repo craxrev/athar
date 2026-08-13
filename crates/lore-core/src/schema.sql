@@ -140,8 +140,10 @@ CREATE TABLE IF NOT EXISTS commits (
 CREATE INDEX IF NOT EXISTS commits_time ON commits (ts_ms);
 
 CREATE TABLE IF NOT EXISTS commit_files (
-    sha  TEXT NOT NULL,
-    path TEXT NOT NULL,
+    sha     TEXT NOT NULL,
+    path    TEXT NOT NULL,
+    added   INTEGER,
+    deleted INTEGER,
     PRIMARY KEY (sha, path)
 );
 

@@ -3,6 +3,7 @@
 	import type { BlockDetail, CommitSummary, SessionSummary } from './archive';
 	import { clock, day, dayKey, duration, fullDay, shortPath, tokens } from './format';
 	import { clusterMoments, type Moment } from './moments';
+	import { archive, type CommitFile } from './archive';
 
 	let {
 		blocks,
@@ -31,10 +32,11 @@
 		return out;
 	});
 
-	type Entry =
-		| { at: number; kind: 'session'; session: SessionSummary }
-		| { at: number; kind: 'commit'; commit: CommitSummary }
-		| { at: number; kind: 'files'; moment: Moment };
+	type Entry = { at: number; key: string } & (
+		| { kind: 'session'; session: SessionSummary }
+		| { kind: 'commit'; commit: CommitSummary }
+		| { kind: 'files'; moment: Moment }
+	);
 
 	/** A block's contents in the order they happened.
 	 *
@@ -50,16 +52,17 @@
 				at:
 					session.first_seen_ms ??
 					Math.max(session.started_ms ?? block.started_ms, block.started_ms),
+				key: `session\u0000${session.id}`,
 				kind: 'session',
 				session
 			});
 		}
 		for (const commit of block.commits) {
-			out.push({ at: commit.ts_ms, kind: 'commit', commit });
+			out.push({ at: commit.ts_ms, key: `commit\u0000${commit.sha}`, kind: 'commit', commit });
 		}
-		for (const moment of clusterMoments(block.file_changes)) {
-			out.push({ at: moment.at, kind: 'files', moment });
-		}
+		clusterMoments(block.file_changes).forEach((moment, i) => {
+			out.push({ at: moment.at, key: `files\u0000${i}`, kind: 'files', moment });
+		});
 		return out.sort((a, b) => a.at - b.at);
 	}
 
@@ -81,6 +84,26 @@
 		strong: "Inferred — the commit's files were written in this session",
 		weak: 'Inferred from timing alone; likely committed by hand'
 	};
+
+	/** Files a commit touched, loaded on demand and kept once loaded.
+	 *
+	 *  From the archive, not from git: this answers for a repository that has since
+	 *  been deleted and for commits git has already garbage-collected, which a live
+	 *  diff cannot. */
+	let expanded = $state<Record<string, CommitFile[] | 'loading' | 'error'>>({});
+
+	async function toggleFiles(sha: string) {
+		if (expanded[sha]) {
+			delete expanded[sha];
+			return;
+		}
+		expanded[sha] = 'loading';
+		try {
+			expanded[sha] = await archive.commitFiles(sha);
+		} catch {
+			expanded[sha] = 'error';
+		}
+	}
 
 	/** A resumed session can begin days before the block it continues into, so the
 	 *  date shows whenever the clock alone would mislead. */
@@ -109,13 +132,7 @@
 						<span class="num span">{duration(block.ended_ms - block.started_ms)}</span>
 					</button>
 
-					{#each entriesOf(block) as entry (entry.kind +
-						entry.at +
-						(entry.kind === 'session'
-							? entry.session.id
-							: entry.kind === 'commit'
-								? entry.commit.sha
-								: ''))}
+					{#each entriesOf(block) as entry (entry.key)}
 						{#if entry.kind === 'session'}
 							<button
 								class="item session"
@@ -156,7 +173,12 @@
 								<span class="chev"><Icon name="chevron" size={16} /></span>
 							</button>
 						{:else if entry.kind === 'commit'}
-							<div class="item commit">
+							<button
+								class="item commit"
+								class:open={!!expanded[entry.commit.sha]}
+								onclick={() => toggleFiles(entry.commit.sha)}
+								aria-expanded={!!expanded[entry.commit.sha]}
+							>
 								<span class="num at">{clock(entry.at)}</span>
 								<Icon name="commit" size={17} />
 								<span class="body">
@@ -194,7 +216,41 @@
 										<Icon name="warn" size={14} /> only in lore
 									</span>
 								{/if}
-							</div>
+								<span class="chev" class:turned={!!expanded[entry.commit.sha]}>
+									<Icon name="chevron" size={16} />
+								</span>
+							</button>
+
+							{#if expanded[entry.commit.sha]}
+								{@const files = expanded[entry.commit.sha]}
+								<div class="touched">
+									{#if files === 'loading'}
+										<p class="note">Reading the archive…</p>
+									{:else if files === 'error'}
+										<p class="note">This commit's file list could not be read.</p>
+									{:else}
+										<ul>
+											{#each files as f, i (i)}
+												<li>
+													<span class="fpath" title={f.path}>{f.path}</span>
+													{#if f.added === null && f.deleted === null}
+														<span class="binary">binary</span>
+													{:else}
+														<span class="num add">+{f.added ?? 0}</span>
+														<span class="num del">−{f.deleted ?? 0}</span>
+													{/if}
+												</li>
+											{/each}
+										</ul>
+										{#if entry.commit.file_count > files.length}
+											<p class="note">
+												{entry.commit.file_count - files.length} more files were in this
+												commit than the archive kept.
+											</p>
+										{/if}
+									{/if}
+								</div>
+							{/if}
 						{:else}
 							<div class="item files">
 								<span class="num at">{clock(entry.at)}</span>
@@ -205,7 +261,7 @@
 										changed
 									</span>
 									<span class="meta paths">
-										{#each entry.moment.files.slice(0, 3) as f (f.path)}
+										{#each entry.moment.files.slice(0, 3) as f, i (i)}
 											<span class="path" title={f.path}>
 												{shortPath(f.path)}
 												<span class="state" data-state={f.state}>{f.state}</span>
@@ -234,7 +290,8 @@
 
 <style>
 	.stream {
-		height: 100%;
+		flex: 1;
+		min-height: 0;
 		overflow-y: auto;
 		padding: 4px 20px 40px;
 	}
@@ -464,6 +521,56 @@
 	}
 	button.item:hover .chev {
 		color: var(--text);
+	}
+
+	/* The archived file list, opened in place. Indented to the same column as the
+	   row's body so it reads as that commit's contents. */
+	.touched {
+		padding: 2px 14px 12px 66px;
+		border-top: 1px solid var(--line);
+		background: rgba(0, 0, 0, 0.16);
+	}
+	.touched ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.touched li {
+		display: flex;
+		align-items: baseline;
+		gap: 12px;
+	}
+	.fpath {
+		flex: 1;
+		min-width: 0;
+		font-family: var(--mono);
+		font-size: var(--fs-min);
+		color: var(--text-dim);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		direction: rtl;
+		text-align: left;
+	}
+	.binary {
+		font-size: 13px;
+		color: var(--text-faint);
+	}
+	.note {
+		margin: 6px 0 0;
+		font-size: 13px;
+		color: var(--text-faint);
+	}
+
+	.chev.turned {
+		transform: rotate(90deg);
+		color: var(--text);
+	}
+	.chev :global(svg) {
+		transition: transform 120ms ease-out;
 	}
 
 	.bare {

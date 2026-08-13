@@ -70,9 +70,18 @@ fn timeline(
     to_ms: i64,
     project: Option<String>,
     category: Option<String>,
+    limit: Option<usize>,
 ) -> Reply<Vec<api::BlockDetail>> {
     with_conn(&archive, |c, cfg| {
-        api::timeline(c, cfg, from_ms, to_ms, project.as_deref(), category.as_deref())
+        api::timeline(
+            c,
+            cfg,
+            from_ms,
+            to_ms,
+            project.as_deref(),
+            category.as_deref(),
+            limit,
+        )
     })
 }
 
@@ -86,6 +95,11 @@ fn lanes(
     with_conn(&archive, |c, cfg| {
         api::lanes(c, cfg, from_ms, to_ms, category.as_deref())
     })
+}
+
+#[tauri::command]
+fn commit_files(archive: State<Archive>, sha: String) -> Reply<Vec<api::CommitFile>> {
+    with_conn(&archive, |c, _| api::commit_files(c, &sha))
 }
 
 #[tauri::command]
@@ -111,7 +125,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            status, projects, summary, timeline, lanes, session
+            status, projects, summary, timeline, lanes, session, commit_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running lore");

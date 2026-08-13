@@ -32,8 +32,36 @@ pub fn open_writable(path: &Path) -> Result<Connection> {
     conn.pragma_update(None, "synchronous", "NORMAL")?;
     // Records are removed only by cascade from `origins`, when a file was rotated.
     conn.pragma_update(None, "foreign_keys", "ON")?;
+    drop_outdated_derived(&conn)?;
     conn.execute_batch(SCHEMA).context("applying schema")?;
     Ok(conn)
+}
+
+/// Drops a derived table whose shape has changed, so the schema below recreates
+/// it and the next rebuild refills it. Derived tables are projections; replacing
+/// one costs a rebuild, and migrating one would be pretending it held truth.
+fn drop_outdated_derived(conn: &Connection) -> Result<()> {
+    let needs_drop = |table: &str, column: &str| -> Result<bool> {
+        let exists: i64 = conn.query_row(
+            "SELECT count(*) FROM sqlite_master WHERE type='table' AND name = ?1",
+            [table],
+            |r| r.get(0),
+        )?;
+        if exists == 0 {
+            return Ok(false);
+        }
+        let has_column: i64 = conn.query_row(
+            &format!("SELECT count(*) FROM pragma_table_info('{table}') WHERE name = ?1"),
+            [column],
+            |r| r.get(0),
+        )?;
+        Ok(has_column == 0)
+    };
+
+    if needs_drop("commit_files", "added")? {
+        conn.execute("DROP TABLE commit_files", [])?;
+    }
+    Ok(())
 }
 
 pub fn open_default() -> Result<Connection> {

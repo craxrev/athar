@@ -393,8 +393,16 @@ pub struct Commit {
     pub unreachable: bool,
     pub insertions: i64,
     pub deletions: i64,
-    /// Absolute paths, so a commit can be compared with what a session wrote.
-    pub files: Vec<String>,
+    /// Absolute paths, so a commit can be compared with what a session wrote,
+    /// each with the lines it changed.
+    pub files: Vec<CommitFile>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CommitFile {
+    pub path: String,
+    pub added: Option<i64>,
+    pub deleted: Option<i64>,
 }
 
 fn read_commits(conn: &Connection, canonical: &HashMap<i64, i64>) -> Result<Vec<Commit>> {
@@ -426,7 +434,11 @@ fn read_commits(conn: &Connection, canonical: &HashMap<i64, i64>) -> Result<Vec<
                 insertions += f.get("added").and_then(Value::as_i64).unwrap_or(0);
                 deletions += f.get("deleted").and_then(Value::as_i64).unwrap_or(0);
                 if let Some(p) = f.get("path").and_then(Value::as_str) {
-                    files.push(format!("{project_path}/{p}"));
+                    files.push(CommitFile {
+                        path: format!("{project_path}/{p}"),
+                        added: f.get("added").and_then(Value::as_i64),
+                        deleted: f.get("deleted").and_then(Value::as_i64),
+                    });
                 }
             }
         }
@@ -620,7 +632,7 @@ fn link_commits(
                     commit
                         .files
                         .iter()
-                        .filter(|p| files.get(*p).is_some_and(|t| t.writes > 0))
+                        .filter(|f| files.get(&f.path).is_some_and(|t| t.writes > 0))
                         .count() as i64
                 })
                 .unwrap_or(0);
@@ -777,8 +789,10 @@ fn write_all(
                   file_count, insertions, deletions)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         )?;
-        let mut insert_file =
-            tx.prepare("INSERT OR IGNORE INTO commit_files (sha, path) VALUES (?1, ?2)")?;
+        let mut insert_file = tx.prepare(
+            "INSERT OR IGNORE INTO commit_files (sha, path, added, deleted)
+             VALUES (?1, ?2, ?3, ?4)",
+        )?;
         let mut insert_link = tx.prepare(
             "INSERT OR IGNORE INTO commit_links (sha, session_id, tier, shared_files)
              VALUES (?1, ?2, ?3, ?4)",
@@ -796,8 +810,8 @@ fn write_all(
                 c.insertions,
                 c.deletions,
             ))?;
-            for path in &c.files {
-                insert_file.execute((&c.sha, path))?;
+            for file in &c.files {
+                insert_file.execute((&c.sha, &file.path, file.added, file.deleted))?;
             }
             if let Some(link) = links.get(&c.sha) {
                 insert_link.execute((

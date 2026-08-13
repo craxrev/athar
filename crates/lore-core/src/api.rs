@@ -88,6 +88,15 @@ pub struct CommitSummary {
 }
 
 #[derive(Debug, Serialize)]
+pub struct CommitFile {
+    /// Relative to the repository, which is how a commit names its own files.
+    pub path: String,
+    pub name: String,
+    pub added: Option<i64>,
+    pub deleted: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
 pub struct FileChangeSummary {
     pub path: String,
     pub ts_ms: i64,
@@ -298,9 +307,10 @@ pub fn timeline(
     to_ms: i64,
     project_filter: Option<&str>,
     category_filter: Option<&str>,
+    limit: Option<usize>,
 ) -> Result<Vec<BlockDetail>> {
     let mut out = Vec::new();
-    for block in crate::stats::blocks_between(conn, from_ms, to_ms)? {
+    for block in crate::stats::blocks_between(conn, from_ms, to_ms, limit)? {
         // Matched on the full path: leaf names collide across trees, and two
         // projects called `profile-next` are not the same project.
         if project_filter.is_some_and(|p| p != block.project) {
@@ -694,6 +704,39 @@ fn read_text(value: Option<&Value>) -> Option<(String, bool)> {
         )),
         _ => None,
     }
+}
+
+/// The files a commit touched, from the archive rather than from git.
+///
+/// Read from `commit_files`, so it answers for a repository that has since been
+/// deleted and for the 622 commits git will garbage-collect — which is why this
+/// exists instead of a live diff.
+pub fn commit_files(conn: &Connection, sha: &str) -> Result<Vec<CommitFile>> {
+    let mut stmt = conn.prepare(
+        "SELECT cf.path, cf.added, cf.deleted, coalesce(p.path, '')
+           FROM commit_files cf
+           JOIN commits c ON c.sha = cf.sha
+           LEFT JOIN projects p ON p.id = c.project_id
+          WHERE cf.sha = ?1
+          ORDER BY coalesce(cf.added, 0) + coalesce(cf.deleted, 0) DESC, cf.path",
+    )?;
+    let rows = stmt.query_map([sha], |r| {
+        let stored: String = r.get(0)?;
+        let project: String = r.get(3)?;
+        // Stored absolute so a commit can be matched against what a session
+        // wrote; shown relative, because that is how the commit names it.
+        let relative = stored
+            .strip_prefix(&format!("{project}/"))
+            .unwrap_or(&stored)
+            .to_string();
+        Ok(CommitFile {
+            name: leaf(&relative),
+            added: r.get(1)?,
+            deleted: r.get(2)?,
+            path: relative,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {

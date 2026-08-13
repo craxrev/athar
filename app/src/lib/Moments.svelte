@@ -34,7 +34,7 @@
 					</span>
 				</span>
 				<span class="files">
-					{#each moment.files as f (f.path + f.ts_ms)}
+					{#each moment.files as f, i (i)}
 						<span class="file">
 							<span class="path" title={f.path}>{shortPath(f.path, 2)}</span>
 							<span class="state" data-state={f.state}>{f.state}</span>

@@ -41,6 +41,9 @@ enum Command {
     /// Manage the background collector that keeps the archive current.
     #[command(subcommand)]
     Agent(AgentCommand),
+    /// Exercise every query the desktop app makes, against the real archive.
+    /// A failure here is a failure the app can only show as a stuck window.
+    Check,
 }
 
 #[derive(Subcommand)]
@@ -79,6 +82,7 @@ fn main() -> Result<()> {
         Command::Day { date } => day_view(date.as_deref()),
         Command::Config(cmd) => config(cmd),
         Command::Agent(cmd) => agent_command(cmd),
+        Command::Check => check(),
     }
 }
 
@@ -173,6 +177,9 @@ fn scan() -> Result<()> {
         println!("  archived    {} commits", g.commits_inserted);
         if g.commits_known > 0 {
             println!("  already had {} commits", g.commits_known);
+        }
+        if g.commits_refreshed > 0 {
+            println!("  refreshed   {} commits re-read by a newer adapter", g.commits_refreshed);
         }
         println!(
             "  unreachable {} commits git will collect (deleted branches, rewrites)",
@@ -279,7 +286,7 @@ fn day_view(date: Option<&str>) -> Result<()> {
         sum.projects
     );
 
-    let rows = stats::blocks_between(&conn, from, to)?;
+    let rows = stats::blocks_between(&conn, from, to, None)?;
     if rows.is_empty() {
         println!("\nnothing recorded. lore may not have been running, or nothing happened.");
         return Ok(());
@@ -369,6 +376,65 @@ fn duration(ms: i64) -> String {
     } else {
         format!("{}h {:02}m", mins / 60, mins % 60)
     }
+}
+
+fn check() -> Result<()> {
+    use lore_core::api;
+    let config = Config::load()?;
+    let conn = api::open_readonly(&paths::db_file()?)?;
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let week = now - 7 * 86_400_000;
+
+    macro_rules! step {
+        ($label:expr, $body:expr) => {{
+            let started = std::time::Instant::now();
+            let value = $body;
+            match value {
+                Ok(v) => {
+                    println!("  ok    {:<16} {:>6}ms", $label, started.elapsed().as_millis());
+                    v
+                }
+                Err(e) => {
+                    println!("  FAIL  {:<16} {e:#}", $label);
+                    return Err(e);
+                }
+            }
+        }};
+    }
+
+    println!("app read path:");
+    step!("status", api::status(&conn, &config));
+    step!("projects", api::projects(&conn, &config));
+    step!("summary", api::summary(&conn, week, now));
+    let lanes = step!("lanes", api::lanes(&conn, &config, week, now, None));
+    let blocks = step!("timeline", api::timeline(&conn, &config, week, now, None, None, None));
+    println!("        {} lanes, {} blocks", lanes.len(), blocks.len());
+
+    // The range the app offers as "All time", which is the widest query it can be
+    // asked for and therefore the one that has to be measured.
+    let earliest = api::status(&conn, &config)?.earliest_ms.unwrap_or(week);
+    let all = step!("timeline all", api::timeline(&conn, &config, earliest, now, None, None, None));
+    println!("        {} blocks over all time (uncapped)", all.len());
+    let capped = step!(
+        "timeline capped",
+        api::timeline(&conn, &config, earliest, now, None, None, Some(300))
+    );
+    println!("        {} blocks with the app's cap", capped.len());
+
+    if let Some(block) = blocks.iter().find(|b| !b.commits.is_empty()) {
+        let sha = block.commits[0].sha.clone();
+        let files = step!("commit_files", api::commit_files(&conn, &sha));
+        println!("        {} files for {}", files.len(), &sha[..7]);
+    }
+    if let Some(block) = blocks.iter().find(|b| !b.sessions.is_empty()) {
+        let id = block.sessions[0].id.clone();
+        let detail = step!("session", api::session(&conn, &config, &id));
+        println!("        {} turns", detail.map(|d| d.turns.len()).unwrap_or(0));
+    }
+
+    println!("\nall queries answered");
+    Ok(())
 }
 
 fn agent_command(cmd: AgentCommand) -> Result<()> {

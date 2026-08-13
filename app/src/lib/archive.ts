@@ -71,6 +71,13 @@ export interface CommitSummary {
 	shared_files: number;
 }
 
+export interface CommitFile {
+	path: string;
+	name: string;
+	added: number | null;
+	deleted: number | null;
+}
+
 export interface FileChangeSummary {
 	path: string;
 	ts_ms: number;
@@ -155,14 +162,16 @@ export const archive = {
 	status: () => call<CollectorStatus>('status'),
 	projects: () => call<ProjectInfo[]>('projects'),
 	summary: (fromMs: number, toMs: number) => call<Summary>('summary', { fromMs, toMs }),
-	timeline: (fromMs: number, toMs: number, project?: string, category?: string) =>
+	timeline: (fromMs: number, toMs: number, limit?: number, project?: string, category?: string) =>
 		call<BlockDetail[]>('timeline', {
 			fromMs,
 			toMs,
 			project: project ?? null,
-			category: category ?? null
+			category: category ?? null,
+			limit: limit ?? null
 		}),
 	lanes: (fromMs: number, toMs: number, category?: string) =>
 		call<Lane[]>('lanes', { fromMs, toMs, category: category ?? null }),
-	session: (id: string) => call<SessionDetail | null>('session', { id })
+	session: (id: string) => call<SessionDetail | null>('session', { id }),
+	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha })
 };

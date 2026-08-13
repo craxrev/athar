@@ -15,6 +15,10 @@
 	} from '$lib/archive';
 	import { compactDuration, duration, startOfDay, startOfMonth, startOfWeek, tokens } from '$lib/format';
 
+	/** How many blocks the Stream renders at once. Beyond this the view says what
+	 *  it is not showing rather than trying to draw a year. */
+	const STREAM_LIMIT = 300;
+
 	type Scope = 'day' | 'week' | 'month' | 'all';
 	type View = 'lanes' | 'stream';
 
@@ -37,6 +41,10 @@
 	let selectedBlock = $state<number | null>(null);
 	let reader = $state<SessionDetail | null>(null);
 	let error = $state<string | null>(null);
+	let statusError = $state<string | null>(null);
+	/** Anything that escaped a handler. Every failure so far in this app has been
+	 *  silent — a stuck view with no cause on screen — which is worse than a crash. */
+	let crash = $state<string | null>(null);
 	let loading = $state(true);
 
 	let filterField = $state<HTMLInputElement | null>(null);
@@ -47,18 +55,40 @@
 	let lastSeenScan: number | null = null;
 	let archiveVersion = $state(0);
 
-	let range = $derived.by(() => {
+	/** The range as two numbers rather than an object.
+	 *
+	 *  An object is compared by reference, so a fresh one on every status poll
+	 *  re-triggered the data effect; on the widest range that restarted a query
+	 *  before the previous had finished and the view never settled. Numbers are
+	 *  compared by value, and the end is quantised to the end of today so a
+	 *  recomputation does not shift it by milliseconds. */
+	let fromMs = $derived.by(() => {
 		const now = Date.now();
 		switch (scope) {
 			case 'day':
-				return { from: startOfDay(now), to: startOfDay(now) + 86_400_000 };
+				return startOfDay(now);
 			case 'week':
-				return { from: startOfWeek(now), to: startOfWeek(now) + 7 * 86_400_000 };
+				return startOfWeek(now);
 			case 'month':
-				return { from: startOfMonth(now), to: now + 86_400_000 };
+				return startOfMonth(now);
 			default:
-				return { from: status?.earliest_ms ?? now - 365 * 86_400_000, to: now + 86_400_000 };
+				return status?.earliest_ms ?? now - 365 * 86_400_000;
 		}
+	});
+	let toMs = $derived(
+		scope === 'day' ? startOfDay(Date.now()) + 86_400_000 : startOfDay(Date.now()) + 86_400_000
+	);
+
+	$effect(() => {
+		const onError = (e: ErrorEvent) => (crash = `${e.message} — ${e.filename}:${e.lineno}`);
+		const onRejection = (e: PromiseRejectionEvent) =>
+			(crash = `unhandled rejection: ${String(e.reason)}`);
+		window.addEventListener('error', onError);
+		window.addEventListener('unhandledrejection', onRejection);
+		return () => {
+			window.removeEventListener('error', onError);
+			window.removeEventListener('unhandledrejection', onRejection);
+		};
 	});
 
 	$effect(() => {
@@ -79,9 +109,11 @@
 					archiveVersion += 1;
 				}
 				status = next;
-				error = null;
+				statusError = null;
 			} catch (e) {
-				error = (e as Error).message;
+				// Reported separately: a failing status poll must not mask, or be
+				// masked by, a failure to read the timeline.
+				statusError = (e as Error).message;
 			}
 		};
 
@@ -98,7 +130,8 @@
 
 	// Reloads whenever the range, the filters or the view change.
 	$effect(() => {
-		const { from, to } = range;
+		const from = fromMs;
+		const to = toMs;
 		const wanted = view;
 		// Refetch when the collector has archived something new.
 		void archiveVersion;
@@ -110,7 +143,11 @@
 		Promise.all([
 			archive.summary(from, to),
 			archive.lanes(from, to),
-			wanted === 'stream' ? archive.timeline(from, to) : Promise.resolve<BlockDetail[]>([])
+			// Capped: the widest range holds thousands of blocks, and rendering
+			// them all is neither useful nor fast.
+			wanted === 'stream'
+				? archive.timeline(from, to, STREAM_LIMIT)
+				: Promise.resolve<BlockDetail[]>([])
 		])
 			.then(([s, l, b]) => {
 				summary = s;
@@ -118,7 +155,7 @@
 				blocks = b;
 				error = null;
 			})
-			.catch((e: Error) => (error = e.message))
+			.catch((e: Error) => (error = e.message ?? String(e)))
 			.finally(() => (loading = false));
 	});
 
@@ -133,7 +170,7 @@
 			return;
 		}
 		try {
-			const found = await archive.timeline(range.from, range.to, undefined, category ?? undefined);
+			const found = await archive.timeline(fromMs, toMs);
 			selectedDetail = found.find((b) => b.id === blockId) ?? null;
 		} catch (e) {
 			error = (e as Error).message;
@@ -385,14 +422,23 @@
 			{/if}
 
 			<div class="stage">
-				{#if error}
+				{#if crash}
+					<div class="state">
+						<h2>lore hit an error it could not recover from</h2>
+						<p class="mono">{crash}</p>
+						<p>The archive is intact — this is the window, not the data.</p>
+					</div>
+				{:else if error}
 					<div class="state">
 						<h2>The archive could not be read</h2>
 						<p class="mono">{error}</p>
 						<p>Run <code>lore scan</code> in a terminal, then reopen this window.</p>
 					</div>
 				{:else if loading && !summary}
-					<div class="state"><p>Reading the archive…</p></div>
+					<div class="state">
+						<p>Reading the archive…</p>
+						{#if statusError}<p class="mono">{statusError}</p>{/if}
+					</div>
 				{:else if isEmpty}
 					<div class="state">
 						<h2>Nothing recorded in this range</h2>
@@ -411,14 +457,21 @@
 					{#key `${scope}-${category}-${query}`}
 						<Lanes
 							lanes={filteredLanes}
-							fromMs={range.from}
-							toMs={range.to}
+							{fromMs}
+							{toMs}
 							{scope}
 							selected={selectedBlock}
 							onSelect={select}
 						/>
 					{/key}
 				{:else}
+					{#if summary && blocks.length >= STREAM_LIMIT && summary.blocks > blocks.length}
+						<p class="truncated">
+							Showing the most recent <b class="num">{blocks.length}</b> of
+							<b class="num">{summary.blocks}</b> blocks in this range. Narrow the range to
+							see the rest — the archive holds all of it.
+						</p>
+					{/if}
 					<Stream
 						blocks={filteredBlocks}
 						selected={selectedBlock}
@@ -588,6 +641,25 @@
 	.stage {
 		flex: 1;
 		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* A view that cannot show everything says so, rather than implying the archive
+	   ends where the list does. */
+	.truncated {
+		flex: none;
+		margin: 0;
+		padding: 9px 20px;
+		border-bottom: 1px solid var(--line);
+		background: var(--amber-soft);
+		color: var(--amber);
+		font-size: 13px;
+		line-height: 1.45;
+	}
+	.truncated b {
+		font-family: var(--mono);
+		font-weight: 620;
 	}
 
 	.state {

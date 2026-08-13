@@ -109,15 +109,28 @@ pub struct CommitRow {
     pub session_id: Option<String>,
 }
 
-pub fn blocks_between(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Vec<BlockRow>> {
+/// Blocks overlapping the range, oldest first.
+///
+/// `limit` keeps the most recent N, because a truncated view of history should
+/// end at the far past rather than stop before yesterday. It applies here rather
+/// than at the caller: every block kept costs three further queries, so trimming
+/// afterwards would pay the whole price anyway.
+pub fn blocks_between(
+    conn: &Connection,
+    from_ms: i64,
+    to_ms: i64,
+    limit: Option<usize>,
+) -> Result<Vec<BlockRow>> {
     let mut stmt = conn.prepare(
         "SELECT b.id, p.path, b.started_ms, b.ended_ms, b.sessions, b.commits,
                 b.file_changes, b.records
            FROM blocks b JOIN projects p ON p.id = b.project_id
           WHERE b.started_ms < ?2 AND b.ended_ms >= ?1
-          ORDER BY b.started_ms",
+          ORDER BY b.started_ms DESC
+          LIMIT ?3",
     )?;
-    let rows = stmt.query_map([from_ms, to_ms], |r| {
+    let cap = limit.unwrap_or(usize::MAX).min(i64::MAX as usize) as i64;
+    let rows = stmt.query_map([from_ms, to_ms, cap], |r| {
         Ok(BlockRow {
             id: r.get(0)?,
             project: r.get(1)?,
@@ -129,7 +142,9 @@ pub fn blocks_between(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Vec
             records: r.get(7)?,
         })
     })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let mut out = rows.collect::<Result<Vec<_>, _>>()?;
+    out.reverse();
+    Ok(out)
 }
 
 pub fn sessions_in_block(conn: &Connection, block_id: i64) -> Result<Vec<SessionRow>> {
