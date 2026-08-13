@@ -133,25 +133,24 @@ fn write_config(config: Config) -> Reply<Config> {
     Ok(config)
 }
 
+/// The collector this window would schedule: its bundled sidecar, or the CLI
+/// built beside it in a development tree.
+fn collector() -> Option<std::path::PathBuf> {
+    agent::beside(&std::env::current_exe().ok()?)
+}
+
 #[tauri::command]
-fn agent_state(archive: State<Archive>) -> Reply<AgentView> {
+fn agent_state(_archive: State<Archive>) -> Reply<AgentView> {
     let config = Config::load().unwrap_or_default();
-    let s = agent::status(&config)?;
-    // Compare recorded revisions, not binaries: the window and the collector are
-    // different executables, so `current_exe` can never match.
-    let written_by = archive
-        .conn
-        .lock()
-        .ok()
-        .and_then(|g| g.as_ref().and_then(lore_core::db::collector_revision));
-    let stale = written_by
-        .as_deref()
-        .map(|v| v != lore_core::COLLECTOR_REVISION)
-        .unwrap_or(true);
+    // Judged against the collector this window ships, so "stale" means the bytes
+    // on the schedule differ from the bytes it would install — which two builds
+    // of the same uncommitted tree do, and a version label would not.
+    let source = collector();
+    let s = agent::status_from(&config, source.as_deref())?;
     Ok(AgentView {
         installed: s.installed,
         loaded: s.loaded,
-        binary_stale: stale,
+        binary_stale: s.binary_stale,
         interval_mins: s.interval_mins,
         scheduled_interval_mins: s.scheduled_interval_mins,
         log: s.log.to_string_lossy().to_string(),
@@ -179,7 +178,12 @@ struct AgentView {
 #[tauri::command(async)]
 fn install_agent() -> Reply<()> {
     let config = Config::load()?;
-    agent::install(&config)?;
+    let source = collector().ok_or_else(|| Failure {
+        message: "no collector ships with this build of the window — \
+                  install the agent with `lore agent install`"
+            .into(),
+    })?;
+    agent::install_from(&config, &source)?;
     Ok(())
 }
 

@@ -6,6 +6,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "collector": "cargo build --release -p lore-cli && mkdir -p src-tauri/binaries && cp ../target/release/lore \"src-tauri/binaries/lore-collector-$(rustc -vV | sed -n 's/^host: //p')\"",
     "tauri": "tauri"
   },
   "dependencies": {

@@ -8,3 +8,6 @@ app/node_modules/
 app/build/
 app/.svelte-kit/
 app/src-tauri/icon-source.png
+# Built by `npm run collector` from the CLI in this repo, so a clone stays small
+# and the bundled collector can never be older than the source beside it.
+app/src-tauri/binaries/

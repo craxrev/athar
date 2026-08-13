@@ -43,12 +43,17 @@ pub struct AgentStatus {
     pub binary_stale: bool,
 }
 
-/// Installs a copy of the running binary and registers the agent against it.
+/// Installs the collector the caller names, and registers the agent against it.
+///
+/// The source is passed in rather than guessed. A guess is what scheduled the
+/// desktop window as a collector: its executable is called `lore` too, so no
+/// inspection of the running process could tell them apart. Each caller knows
+/// which binary it means — the CLI its own, the window its bundled collector.
 ///
 /// The copy matters: pointing `launchd` at a build directory means a rebuild can
 /// replace the binary mid-scan, and a `cargo clean` silently stops the collector.
-pub fn install(config: &Config) -> Result<AgentStatus> {
-    let binary = install_binary()?;
+pub fn install_from(config: &Config, source: &Path) -> Result<AgentStatus> {
+    let binary = install_binary(source)?;
     let plist_path = paths::launch_agent_file()?;
     let log = paths::log_file()?;
 
@@ -67,7 +72,20 @@ pub fn install(config: &Config) -> Result<AgentStatus> {
     let _ = bootout();
     bootstrap(&plist_path)?;
 
-    status(config)
+    status_from(config, Some(source))
+}
+
+/// Installs the running binary. The CLI *is* the collector, so it needs no
+/// resolution; the window must use [`install_from`] with its bundled one.
+pub fn install(config: &Config) -> Result<AgentStatus> {
+    let current = std::env::current_exe().context("locating the running binary")?;
+    install_from(config, &current)
+}
+
+/// The agent's state as the CLI sees it, comparing against itself.
+pub fn status(config: &Config) -> Result<AgentStatus> {
+    let current = std::env::current_exe().ok();
+    status_from(config, current.as_deref())
 }
 
 pub fn uninstall(config: &Config) -> Result<AgentStatus> {
@@ -82,12 +100,18 @@ pub fn uninstall(config: &Config) -> Result<AgentStatus> {
     status(config)
 }
 
-pub fn status(config: &Config) -> Result<AgentStatus> {
+/// The agent's state, judged against the collector `source` would install.
+///
+/// Staleness is a byte comparison, not a version label: two builds from the same
+/// uncommitted tree carry the same commit and differ only in their contents, and
+/// telling those apart is the whole point while a change is being tried out.
+/// `None` means the caller has no collector to compare, so it claims nothing.
+pub fn status_from(config: &Config, source: Option<&Path>) -> Result<AgentStatus> {
     let plist_path = paths::launch_agent_file()?;
     let binary = paths::installed_binary()?;
-    let binary_stale = match (collector_source(), binary.exists()) {
-        (Ok(current), true) if current != binary => {
-            let same = std::fs::read(&current)
+    let binary_stale = match (source, binary.exists()) {
+        (Some(current), true) if current != binary => {
+            let same = std::fs::read(current)
                 .ok()
                 .zip(std::fs::read(&binary).ok())
                 .map(|(a, b)| a == b)
@@ -145,34 +169,37 @@ pub fn run_now() -> Result<()> {
     Ok(())
 }
 
-/// The collector binary to schedule.
+/// The collector shipped beside `current`, for a caller that is not itself one.
 ///
-/// Not simply the running process: the desktop window can ask for an install too,
-/// and its own executable is the app. Copying that produced a schedule that
-/// launched a *window* every interval and archived nothing, so the binary is
-/// identified by name rather than assumed.
-fn collector_source() -> Result<PathBuf> {
-    let current = std::env::current_exe().context("locating the running binary")?;
-    if current.file_name().and_then(|n| n.to_str()) == Some(COLLECTOR_BIN) {
-        return Ok(current);
+/// The bundled name differs from the CLI's on purpose. A macOS bundle puts the
+/// app's executable in the same directory as its sidecars, and the app is called
+/// `lore` — so a sidecar with that name could not exist there, and a lookup by
+/// that name would find the window instead. That is the bug this whole path
+/// exists to prevent, so the fallback refuses to return `current` itself.
+pub fn beside(current: &Path) -> Option<PathBuf> {
+    let dir = current.parent()?;
+
+    let bundled = dir.join(SIDECAR_BIN);
+    if bundled.is_file() {
+        return Some(bundled);
     }
-    // A sibling of the running binary: how both the dev build tree and a bundle
-    // that ships the collector alongside the app are laid out.
-    if let Some(sibling) = current.parent().map(|d| d.join(COLLECTOR_BIN)) {
-        if sibling.is_file() {
-            return Ok(sibling);
-        }
+    // A development tree, where the CLI is built next to the window under target/.
+    let sibling = dir.join(COLLECTOR_BIN);
+    if sibling.is_file() && sibling != current {
+        return Some(sibling);
     }
-    bail!(
-        "no `{COLLECTOR_BIN}` binary beside {} — install the agent with `{COLLECTOR_BIN} agent install`",
-        current.display()
-    )
+    None
 }
 
+/// What the CLI is called, and what it is called inside the app bundle.
 const COLLECTOR_BIN: &str = "lore";
+const SIDECAR_BIN: &str = "lore-collector";
 
-fn install_binary() -> Result<PathBuf> {
-    let current = collector_source()?;
+fn install_binary(source: &Path) -> Result<PathBuf> {
+    let current = source.to_path_buf();
+    if !current.is_file() {
+        bail!("no collector at {}", current.display());
+    }
     let target = paths::installed_binary()?;
     if let Some(parent) = target.parent() {
         fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
@@ -292,17 +319,38 @@ mod tests {
         assert!(body.contains("<string>Background</string>"));
     }
 
+    /// The shape of a macOS bundle: the app's executable and its sidecars share
+    /// one directory, and the app here is called `lore`, exactly like the CLI.
     #[test]
-    fn a_binary_that_is_not_the_collector_is_refused() {
-        // The test harness is not named `lore`, and has no `lore` beside it, so
-        // this exercises the case that scheduled the window as a collector.
-        let refused = collector_source();
-        assert!(
-            refused.is_err(),
-            "a non-collector binary must not be installable as one"
-        );
-        let message = refused.unwrap_err().to_string();
-        assert!(message.contains("agent install"), "got: {message}");
+    fn an_app_named_like_the_collector_never_resolves_to_itself() {
+        let dir = std::env::temp_dir().join(format!("lore-beside-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let app = dir.join("lore");
+        std::fs::write(&app, b"the window").unwrap();
+
+        // Only the app is present: this is the state that scheduled a window as
+        // the collector, and it must resolve to nothing at all.
+        assert_eq!(beside(&app), None, "the app must never be its own collector");
+
+        let sidecar = dir.join("lore-collector");
+        std::fs::write(&sidecar, b"the collector").unwrap();
+        assert_eq!(beside(&app), Some(sidecar));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A development tree: the window is `lore-desktop` and the CLI is `lore`.
+    #[test]
+    fn a_build_tree_resolves_the_cli_beside_the_window() {
+        let dir = std::env::temp_dir().join(format!("lore-beside-dev-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let window = dir.join("lore-desktop");
+        let cli = dir.join("lore");
+        std::fs::write(&window, b"the window").unwrap();
+        std::fs::write(&cli, b"the collector").unwrap();
+
+        assert_eq!(beside(&window), Some(cli));
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

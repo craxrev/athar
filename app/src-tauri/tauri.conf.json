@@ -7,7 +7,7 @@
     "frontendDist": "../build",
     "devUrl": "http://localhost:5183",
     "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "beforeBuildCommand": "npm run build && npm run collector"
   },
   "app": {
     "macOSPrivateApi": true,
@@ -36,6 +36,7 @@
   "bundle": {
     "active": true,
     "targets": ["app", "dmg"],
-    "icon": ["icons/icon.png"]
+    "icon": ["icons/icon.png"],
+    "externalBin": ["binaries/lore-collector"]
   }
 }
