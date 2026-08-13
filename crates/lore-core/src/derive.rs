@@ -89,10 +89,23 @@ fn canonical_projects(conn: &Connection, config: &Config) -> Result<HashMap<i64,
     let mut out = HashMap::new();
     let mut interned: HashMap<String, i64> = HashMap::new();
     for (id, path) in rows {
-        let canonical = config
-            .canonical_project(std::path::Path::new(&path))
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| path.clone());
+        let on_disk = std::path::Path::new(&path).exists();
+        let remembered = remembered_fold(conn, &path)?;
+
+        // A path still on disk is re-folded every time, so changing the roots is
+        // a rebuild. A path whose folder is gone keeps the decision made while
+        // lore could still see its repository.
+        let canonical = match (on_disk, remembered) {
+            (false, Some(stored)) => stored,
+            _ => {
+                let computed = config
+                    .canonical_project(std::path::Path::new(&path))
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| path.clone());
+                remember_fold(conn, &path, &computed, on_disk)?;
+                computed
+            }
+        };
 
         let canonical_id = if canonical == path {
             id
@@ -110,6 +123,35 @@ fn canonical_projects(conn: &Connection, config: &Config) -> Result<HashMap<i64,
     }
 
     Ok(out)
+}
+
+fn remembered_fold(conn: &Connection, raw: &str) -> Result<Option<String>> {
+    use rusqlite::OptionalExtension;
+    Ok(conn
+        .query_row(
+            "SELECT canonical_path FROM project_map WHERE raw_path = ?1",
+            [raw],
+            |r| r.get(0),
+        )
+        .optional()?)
+}
+
+fn remember_fold(conn: &Connection, raw: &str, canonical: &str, from_disk: bool) -> Result<()> {
+    conn.execute(
+        "INSERT INTO project_map (raw_path, canonical_path, decided_at_ms, from_disk)
+         VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(raw_path) DO UPDATE SET
+             canonical_path = excluded.canonical_path,
+             decided_at_ms = excluded.decided_at_ms,
+             from_disk = excluded.from_disk",
+        (
+            raw,
+            canonical,
+            chrono::Utc::now().timestamp_millis(),
+            from_disk as i64,
+        ),
+    )?;
+    Ok(())
 }
 
 /// Translates a recorded project id to the project it belongs to.
@@ -1076,6 +1118,68 @@ mod tests {
             )
             .unwrap();
         assert_eq!(counts, (1, 1, 1));
+    }
+
+    #[test]
+    fn a_deleted_project_keeps_the_grouping_decided_while_it_existed() {
+        use crate::config::Root;
+
+        let dir = std::env::temp_dir().join(format!("lore-fold-{}", std::process::id()));
+        let root = dir.join("freelance");
+        let malek = root.join("beecoop/malek");
+        std::fs::create_dir_all(malek.join(".git")).unwrap();
+        std::fs::create_dir_all(root.join("beecoop/colocqui/.git")).unwrap();
+
+        let config = Config {
+            idle_gap_mins: 20,
+            roots: vec![Root {
+                path: root.clone(),
+                category: "freelance".into(),
+            }],
+            ..Default::default()
+        };
+
+        let mut conn = temp_db();
+        let origin = db::origin_cursor(&conn, "claude", "/t.jsonl").unwrap().id;
+        // Recorded from a subdirectory of the repository, as a session would be.
+        let deep = malek.join("src");
+        let project = db::project_id(&conn, &deep.to_string_lossy()).unwrap();
+        conn.execute(
+            "INSERT INTO raw_records (origin_id, line_no, ts_ms, kind, session_id, project_id, json, bytes_original)
+             VALUES (?1, 1, 1780000000000, 'user', 's1', ?2, '{}', 0)",
+            (origin, project),
+        )
+        .unwrap();
+
+        rebuild(&mut conn, &config).unwrap();
+        let folded: String = conn
+            .query_row(
+                "SELECT p.path FROM blocks b JOIN projects p ON p.id = b.project_id",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(folded, malek.to_string_lossy(), "folds into its repository");
+
+        // The project is deleted. Its repository can no longer be seen, so a
+        // recomputed fold would land on `beecoop` and merge this history with
+        // colocqui's. The remembered decision must hold instead.
+        std::fs::remove_dir_all(&malek).unwrap();
+        rebuild(&mut conn, &config).unwrap();
+        let after: String = conn
+            .query_row(
+                "SELECT p.path FROM blocks b JOIN projects p ON p.id = b.project_id",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            after,
+            malek.to_string_lossy(),
+            "a deleted project must not be re-folded into its parent folder"
+        );
+
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

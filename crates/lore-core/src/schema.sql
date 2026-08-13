@@ -159,3 +159,19 @@ CREATE TABLE IF NOT EXISTS commit_links (
     tier         TEXT NOT NULL,
     shared_files INTEGER NOT NULL DEFAULT 0
 );
+
+-- The project each recorded path was folded into, and when that was decided.
+--
+-- Folding reads the filesystem to find the shallowest repository in a path's
+-- chain. That evidence disappears when a project is deleted, so the decision is
+-- remembered: a path that still exists is re-folded on every rebuild and follows
+-- changes to the configured roots, while a path whose folder is gone keeps the
+-- grouping decided when lore could still see it. Without this, deleting a
+-- project silently re-folded its history into the parent folder and merged it
+-- with unrelated siblings.
+CREATE TABLE IF NOT EXISTS project_map (
+    raw_path       TEXT PRIMARY KEY,
+    canonical_path TEXT    NOT NULL,
+    decided_at_ms  INTEGER NOT NULL,
+    from_disk      INTEGER NOT NULL DEFAULT 1
+);
