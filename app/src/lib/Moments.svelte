@@ -1,36 +1,14 @@
 <script lang="ts">
 	import type { FileChangeSummary } from './archive';
 	import { clock, duration, shortPath } from './format';
+	import { clusterMoments, GAP_MS } from './moments';
 
 	let {
 		changes,
 		limit = 0
 	}: { changes: FileChangeSummary[]; limit?: number } = $props();
 
-	/** Files saved together share a moment. Listing each one as its own row made a
-	 *  burst of six saves look like six separate events, which is what turned this
-	 *  into a table with a time column instead of a timeline. */
-	const CLUSTER_MS = 60_000;
-	/** Below this the gap is rhythm, not information. */
-	const GAP_MS = 5 * 60_000;
-
-	let moments = $derived.by(() => {
-		const sorted = [...changes].sort((a, b) => a.ts_ms - b.ts_ms);
-		const out: { at: number; files: FileChangeSummary[]; gapFromPrevious: number }[] = [];
-		for (const change of sorted) {
-			const last = out[out.length - 1];
-			if (last && change.ts_ms - last.at <= CLUSTER_MS) {
-				last.files.push(change);
-				continue;
-			}
-			out.push({
-				at: change.ts_ms,
-				files: [change],
-				gapFromPrevious: last ? change.ts_ms - last.at : 0
-			});
-		}
-		return out;
-	});
+	let moments = $derived(clusterMoments(changes));
 
 	let shown = $derived(limit > 0 ? moments.slice(0, limit) : moments);
 	let hiddenFiles = $derived(

@@ -59,6 +59,10 @@ pub struct SessionSummary {
     pub files_written: i64,
     /// False when only the prompt history survives; Claude Code deleted the rest.
     pub has_transcript: bool,
+    /// When this session was first seen inside the block being listed. A resumed
+    /// session's `started_ms` can be days earlier, so that is the wrong value to
+    /// order a block's contents by.
+    pub first_seen_ms: Option<i64>,
     /// True when this block is not where the session began. A conversation that
     /// pauses past the idle gap spans several blocks; repeating its full row in
     /// each one reads as several conversations, so later blocks mark it as a
@@ -412,6 +416,7 @@ fn session_row(conn: &Connection, sql: &str, params: &[&dyn rusqlite::ToSql]) ->
             has_transcript: r.get::<_, i64>(10)? == 1,
             files_written: r.get(11)?,
             continued: r.get::<_, i64>(12).unwrap_or(0) == 1,
+            first_seen_ms: r.get(13).unwrap_or(None),
             id,
         })
     })?;
@@ -430,7 +435,10 @@ const SESSION_COLUMNS_IN_BLOCK: &str = "
     s.tool_calls, s.input_tokens, s.models, s.output_tokens, s.has_transcript,
     (SELECT count(*) FROM session_files f
       WHERE f.session_id = s.session_id AND f.writes > 0),
-    CASE WHEN s.started_ms < b.started_ms THEN 1 ELSE 0 END";
+    CASE WHEN s.started_ms < b.started_ms THEN 1 ELSE 0 END,
+    (SELECT min(rr.ts_ms) FROM raw_records rr
+      WHERE rr.session_id = s.session_id
+        AND rr.ts_ms BETWEEN b.started_ms AND b.ended_ms)";
 
 /// Sessions that overlap the block, not merely those that started in it.
 ///

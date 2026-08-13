@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
-	import Moments from './Moments.svelte';
-	import type { BlockDetail } from './archive';
-	import { clock, day, dayKey, duration, fullDay, tokens } from './format';
+	import type { BlockDetail, CommitSummary, SessionSummary } from './archive';
+	import { clock, day, dayKey, duration, fullDay, shortPath, tokens } from './format';
+	import { clusterMoments, type Moment } from './moments';
 
 	let {
 		blocks,
@@ -31,6 +31,57 @@
 		return out;
 	});
 
+	type Entry =
+		| { at: number; kind: 'session'; session: SessionSummary }
+		| { at: number; kind: 'commit'; commit: CommitSummary }
+		| { at: number; kind: 'files'; moment: Moment };
+
+	/** A block's contents in the order they happened.
+	 *
+	 *  Grouping by kind put every file change below every commit regardless of when
+	 *  either occurred, so a block announcing a time span read as three buckets. A
+	 *  session is placed at its first record *inside* this block: a resumed
+	 *  session's own start can be days earlier and would sort it to the top of a
+	 *  block it merely overlaps. */
+	function entriesOf(block: BlockDetail): Entry[] {
+		const out: Entry[] = [];
+		for (const session of block.sessions) {
+			out.push({
+				at:
+					session.first_seen_ms ??
+					Math.max(session.started_ms ?? block.started_ms, block.started_ms),
+				kind: 'session',
+				session
+			});
+		}
+		for (const commit of block.commits) {
+			out.push({ at: commit.ts_ms, kind: 'commit', commit });
+		}
+		for (const moment of clusterMoments(block.file_changes)) {
+			out.push({ at: moment.at, kind: 'files', moment });
+		}
+		return out.sort((a, b) => a.at - b.at);
+	}
+
+	/** The buckets used to convey a block's shape by their size. With the contents
+	 *  interleaved, the header carries it instead. */
+	function composition(block: BlockDetail): string {
+		const parts: string[] = [];
+		const sessions = block.sessions.filter((s) => !s.continued).length;
+		if (sessions) parts.push(`${sessions} session${sessions === 1 ? '' : 's'}`);
+		if (block.commits.length)
+			parts.push(`${block.commits.length} commit${block.commits.length === 1 ? '' : 's'}`);
+		if (block.file_changes.length)
+			parts.push(`${block.file_changes.length} file${block.file_changes.length === 1 ? '' : 's'}`);
+		return parts.join(' · ');
+	}
+
+	const tierLabel: Record<string, string> = {
+		certain: 'The transcript records the assistant running this commit',
+		strong: "Inferred — the commit's files were written in this session",
+		weak: 'Inferred from timing alone; likely committed by hand'
+	};
+
 	/** A resumed session can begin days before the block it continues into, so the
 	 *  date shows whenever the clock alone would mislead. */
 	function continuedFrom(startedMs: number | null, blockMs: number): string {
@@ -38,12 +89,6 @@
 		const sameDay = new Date(startedMs).toDateString() === new Date(blockMs).toDateString();
 		return sameDay ? clock(startedMs) : `${day(startedMs)} ${clock(startedMs)}`;
 	}
-
-	const tierLabel: Record<string, string> = {
-		certain: 'Committed by the assistant',
-		strong: 'From this session — files match',
-		weak: 'Same session window only'
-	};
 </script>
 
 <div class="stream">
@@ -60,83 +105,126 @@
 						<span class="num when">{clock(block.started_ms)}</span>
 						<span class="project">{block.project}</span>
 						<span class="swatch" data-category={block.category}>{block.category}</span>
+						<span class="composition">{composition(block)}</span>
 						<span class="num span">{duration(block.ended_ms - block.started_ms)}</span>
 					</button>
 
-					{#each block.sessions as s (s.id)}
-						<button
-							class="item session"
-							class:continued={s.continued}
-							onclick={() => onOpenSession(s.id)}
-						>
-							<Icon name="session" size={17} />
-							<span class="body">
-								<span class="title">{s.title}</span>
-								<span class="meta">
-									{#if s.continued}
-										continues from {continuedFrom(s.started_ms, block.started_ms)} — its
-										figures count once, at the block where it began
-									{:else}
-										<span class="num">{s.prompts}</span> prompts ·
-										<span class="num">{s.tool_calls}</span> tools ·
-										<span class="num">{tokens(s.input_tokens + s.output_tokens)}</span> tokens
-										{#if s.models.length}· {s.models.join(', ')}{/if}
-									{/if}
+					{#each entriesOf(block) as entry (entry.kind +
+						entry.at +
+						(entry.kind === 'session'
+							? entry.session.id
+							: entry.kind === 'commit'
+								? entry.commit.sha
+								: ''))}
+						{#if entry.kind === 'session'}
+							<button
+								class="item session"
+								class:continued={entry.session.continued}
+								onclick={() => onOpenSession(entry.session.id)}
+							>
+								<span class="num at">{clock(entry.at)}</span>
+								<Icon name="session" size={17} />
+								<span class="body">
+									<span class="title">{entry.session.title}</span>
+									<span
+										class="meta"
+										title={entry.session.continued
+											? 'This block is not where the session began, so its prompts, tools and tokens are counted once, at the block where it started.'
+											: undefined}
+									>
+										{#if entry.session.continued}
+											continues from {continuedFrom(entry.session.started_ms, block.started_ms)}
+										{:else}
+											<span class="num">{entry.session.prompts}</span> prompts ·
+											<span class="num">{entry.session.tool_calls}</span> tools ·
+											<span class="num">
+												{tokens(entry.session.input_tokens + entry.session.output_tokens)}
+											</span>
+											tokens
+											{#if entry.session.models.length}· {entry.session.models.join(', ')}{/if}
+										{/if}
+									</span>
 								</span>
-							</span>
-							{#if !s.has_transcript}
-								<span class="flag amber" title="Claude Code deleted this transcript; only the prompt history survives">
-									<Icon name="warn" size={14} /> prompts only
+								{#if !entry.session.has_transcript}
+									<span
+										class="flag amber"
+										title="Claude Code deleted this transcript; only the prompt history survives"
+									>
+										<Icon name="warn" size={14} /> prompts only
+									</span>
+								{/if}
+								<span class="chev"><Icon name="chevron" size={16} /></span>
+							</button>
+						{:else if entry.kind === 'commit'}
+							<div class="item commit">
+								<span class="num at">{clock(entry.at)}</span>
+								<Icon name="commit" size={17} />
+								<span class="body">
+									<span class="title">{entry.commit.subject}</span>
+									<span class="meta">
+										<span class="num sha">{entry.commit.short}</span>
+										<span class="num add">+{entry.commit.insertions}</span>
+										<span class="num del">−{entry.commit.deletions}</span>
+										{#if entry.commit.tier}
+											<span
+												class="tier"
+												data-tier={entry.commit.tier}
+												title={tierLabel[entry.commit.tier]}
+											>
+												<Icon
+													name={entry.commit.tier === 'certain' ? 'witnessed' : 'inferred'}
+													size={13}
+												/>
+												{entry.commit.tier === 'certain'
+													? 'witnessed'
+													: entry.commit.tier === 'strong'
+														? 'files match'
+														: 'inferred'}
+											</span>
+										{:else}
+											<span class="tier" data-tier="none">unattributed</span>
+										{/if}
+									</span>
 								</span>
-							{/if}
-							<span class="chev"><Icon name="chevron" size={16} /></span>
-						</button>
-					{/each}
-
-					{#each block.commits as c (c.sha)}
-						<div class="item commit">
-							<Icon name="commit" size={17} />
-							<span class="body">
-								<span class="title">{c.subject}</span>
-								<span class="meta">
-									<span class="num sha">{c.short}</span>
-									<span class="num add">+{c.insertions}</span>
-									<span class="num del">−{c.deletions}</span>
-									{#if c.tier}
-										<span class="tier" data-tier={c.tier} title={tierLabel[c.tier]}>
-											<Icon name={c.tier === 'certain' ? 'witnessed' : 'inferred'} size={13} />
-											{c.tier === 'certain' ? 'witnessed' : c.tier === 'strong' ? 'files match' : 'inferred'}
-										</span>
-									{:else}
-										<span class="tier" data-tier="none">unattributed</span>
-									{/if}
+								{#if entry.commit.unreachable}
+									<span
+										class="flag amber"
+										title="No ref reaches this commit. Git will collect it; lore has already kept it."
+									>
+										<Icon name="warn" size={14} /> only in lore
+									</span>
+								{/if}
+							</div>
+						{:else}
+							<div class="item files">
+								<span class="num at">{clock(entry.at)}</span>
+								<Icon name="file" size={17} />
+								<span class="body">
+									<span class="title">
+										{entry.moment.files.length} file{entry.moment.files.length === 1 ? '' : 's'}
+										changed
+									</span>
+									<span class="meta paths">
+										{#each entry.moment.files.slice(0, 3) as f (f.path)}
+											<span class="path" title={f.path}>
+												{shortPath(f.path)}
+												<span class="state" data-state={f.state}>{f.state}</span>
+											</span>
+										{/each}
+										{#if entry.moment.files.length > 3}
+											<span>+{entry.moment.files.length - 3} more</span>
+										{/if}
+									</span>
 								</span>
-							</span>
-							{#if c.unreachable}
-								<span class="flag amber" title="No ref reaches this commit. Git will collect it; lore has already kept it.">
-									<Icon name="warn" size={14} /> only in lore
-								</span>
-							{/if}
-						</div>
+							</div>
+						{/if}
 					{/each}
 
 					{#if !block.sessions.length && !block.commits.length && !block.file_changes.length}
 						<p class="bare">
-							<span class="num">{block.records}</span> records archived here — harness
-							state and prompt history, with nothing the timeline itemises.
+							<span class="num">{block.records}</span> records archived here — harness state and
+							prompt history, with nothing the timeline itemises.
 						</p>
-					{/if}
-
-					{#if block.file_changes.length}
-						<div class="item files">
-							<Icon name="file" size={17} />
-							<span class="body">
-								<span class="title">
-									{block.file_changes.length} file change{block.file_changes.length === 1 ? '' : 's'}
-								</span>
-								<Moments changes={block.file_changes} limit={3} />
-							</span>
-						</div>
 					{/if}
 				</article>
 			{/each}
@@ -230,8 +318,15 @@
 		background: var(--cat-freelance-fill);
 	}
 
-	.span {
+	/* What the buckets used to say by their size. */
+	.composition {
 		margin-left: auto;
+		font-size: 13px;
+		color: var(--text-faint);
+		white-space: nowrap;
+	}
+
+	.span {
 		color: var(--text-dim);
 		font-weight: 550;
 	}
@@ -255,13 +350,21 @@
 	.session :global(svg) {
 		color: var(--accent);
 	}
-	/* A continuation is the same conversation, not another one. */
 	.session.continued :global(svg) {
 		color: var(--text-faint);
 	}
 	.session.continued .title {
 		color: var(--text-dim);
 		font-weight: 500;
+	}
+
+	/* The leading time is what makes the column read as a sequence, so it holds a
+	   fixed width and every row aligns to it. */
+	.at {
+		flex: none;
+		width: 42px;
+		margin-top: 1px;
+		color: var(--text-faint);
 	}
 
 	.body {
@@ -319,6 +422,25 @@
 		color: var(--amber);
 	}
 
+	.paths {
+		gap: 12px;
+	}
+	.path {
+		display: inline-flex;
+		align-items: baseline;
+		gap: 5px;
+		font-family: var(--mono);
+		font-size: var(--fs-min);
+	}
+	.state {
+		font-family: var(--sans);
+		font-size: 13px;
+		font-weight: 540;
+		color: var(--text-faint);
+	}
+	.state[data-state='dirty'] {
+		color: var(--amber);
+	}
 
 	.flag {
 		display: inline-flex;
@@ -335,15 +457,6 @@
 		background: var(--amber-soft);
 	}
 
-	.bare {
-		margin: 0;
-		padding: 9px 14px;
-		border-top: 1px solid var(--line);
-		font-size: 13px;
-		line-height: 1.45;
-		color: var(--text-faint);
-	}
-
 	.chev {
 		flex: none;
 		color: var(--text-faint);
@@ -351,5 +464,14 @@
 	}
 	button.item:hover .chev {
 		color: var(--text);
+	}
+
+	.bare {
+		margin: 0;
+		padding: 9px 14px;
+		border-top: 1px solid var(--line);
+		font-size: 13px;
+		line-height: 1.45;
+		color: var(--text-faint);
 	}
 </style>

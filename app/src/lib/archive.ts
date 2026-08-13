@@ -53,6 +53,8 @@ export interface SessionSummary {
 	files_written: number;
 	has_transcript: boolean;
 	continued?: boolean;
+	/** First record of this session inside the block being listed. */
+	first_seen_ms?: number | null;
 }
 
 export interface CommitSummary {
