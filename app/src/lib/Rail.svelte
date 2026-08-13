@@ -139,7 +139,10 @@
 		   here, and only here. Dense content lives on solid ground. */
 		display: flex;
 		flex-direction: column;
+		width: 244px;
+		flex: none;
 		min-height: 0;
+		overflow: hidden;
 		border-right: 1px solid var(--line);
 		background: rgba(255, 255, 255, 0.022);
 	}

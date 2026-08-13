@@ -70,17 +70,16 @@
 	// Reloads whenever the range, the filters or the view change.
 	$effect(() => {
 		const { from, to } = range;
-		const cat = category ?? undefined;
-		const proj = project ?? undefined;
 		const wanted = view;
 		loading = true;
 
-		// Lanes load in both views: they are cheap, and they are what the rail and
-		// the category totals describe.
+		// Both queries run unfiltered. Filtering happens below, on what is already
+		// loaded, so the rail can keep offering every category and project in the
+		// range — including the one that would clear the current filter.
 		Promise.all([
 			archive.summary(from, to),
-			archive.lanes(from, to, cat),
-			wanted === 'stream' ? archive.timeline(from, to, proj, cat) : Promise.resolve<BlockDetail[]>([])
+			archive.lanes(from, to),
+			wanted === 'stream' ? archive.timeline(from, to) : Promise.resolve<BlockDetail[]>([])
 		])
 			.then(([s, l, b]) => {
 				summary = s;
@@ -96,6 +95,7 @@
 	let selectedDetail = $state<BlockDetail | null>(null);
 	async function select(blockId: number, projectPath: string) {
 		selectedBlock = blockId;
+		detailOpen = true;
 		const known = blocks.find((b) => b.id === blockId);
 		if (known) {
 			selectedDetail = known;
@@ -122,8 +122,13 @@
 	 *  reach for: project, session title, commit subject, file path. */
 	let filteredBlocks = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		if (!q) return blocks;
-		return blocks.filter(
+		const scoped = blocks.filter(
+			(b) =>
+				(!category || b.category === category) &&
+				(!project || b.project_path === project)
+		);
+		if (!q) return scoped;
+		return scoped.filter(
 			(b) =>
 				b.project.toLowerCase().includes(q) ||
 				b.category.includes(q) ||
@@ -135,9 +140,13 @@
 
 	let filteredLanes = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		const base = project ? lanes.filter((l) => l.project_path === project) : lanes;
-		if (!q) return base;
-		return base.filter((l) => l.project.toLowerCase().includes(q) || l.category.includes(q));
+		const scoped = lanes.filter(
+			(l) =>
+				(!category || l.category === category) &&
+				(!project || l.project_path === project)
+		);
+		if (!q) return scoped;
+		return scoped.filter((l) => l.project.toLowerCase().includes(q) || l.category.includes(q));
 	});
 
 	let categories = $derived.by(() => {
@@ -154,6 +163,7 @@
 		const seen = new Map<string, number>();
 		for (const l of lanes) seen.set(l.project, (seen.get(l.project) ?? 0) + 1);
 		return lanes
+			.filter((l) => !category || l.category === category)
 			.map((l) => ({
 				path: l.project_path,
 				// A duplicate leaf name keeps its parent, so two different projects
@@ -251,10 +261,9 @@
 <main
 	class="shell"
 	class:rail-closed={!railOpen}
-	class:detail-closed={!detailOpen || !!reader}
 	class:reading={!!reader}
 >
-	{#if !reader}
+	{#if !reader && railOpen}
 		<Rail
 			{scope}
 			projects={railProjects}
@@ -397,39 +406,21 @@
 
 <style>
 	.shell {
-		display: grid;
-		grid-template-columns: 244px minmax(0, 1fr) 372px;
+		display: flex;
 		height: 100vh;
 		background: var(--ground);
-	}
-	.shell.rail-closed {
-		grid-template-columns: 0 minmax(0, 1fr) 372px;
-	}
-	.shell.detail-closed {
-		grid-template-columns: 244px minmax(0, 1fr);
-	}
-	.shell.rail-closed.detail-closed {
-		grid-template-columns: 0 minmax(0, 1fr);
-	}
-	/* Reading takes the whole window; the middle pane never disappears. */
-	.shell.reading {
-		grid-template-columns: minmax(0, 1fr);
+		overflow: hidden;
 	}
 
 	/* Below these widths a pane costs more than it gives: at 900px the three-pane
-	   grid left the timeline about 280px, which is not a timeline. */
+	   layout left the timeline about 280px, which is not a timeline. A pane taken
+	   out here leaves no reserved space and nothing showing through. */
 	@media (max-width: 1120px) {
-		.shell:not(.reading) {
-			grid-template-columns: 244px minmax(0, 1fr);
-		}
 		.shell:not(.reading) :global(aside.detail) {
 			display: none;
 		}
 	}
 	@media (max-width: 880px) {
-		.shell:not(.reading) {
-			grid-template-columns: minmax(0, 1fr);
-		}
 		.shell:not(.reading) :global(nav.rail) {
 			display: none;
 		}
@@ -441,6 +432,7 @@
 	.centre {
 		display: flex;
 		flex-direction: column;
+		flex: 1;
 		min-width: 0;
 		min-height: 0;
 	}

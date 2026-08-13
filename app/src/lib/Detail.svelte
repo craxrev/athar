@@ -123,7 +123,10 @@
 	.detail {
 		display: flex;
 		flex-direction: column;
+		width: 372px;
+		flex: none;
 		min-height: 0;
+		overflow: hidden;
 		border-left: 1px solid var(--line);
 		background: var(--surface);
 	}

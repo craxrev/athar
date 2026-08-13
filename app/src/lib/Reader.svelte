@@ -137,6 +137,8 @@
 	.reader {
 		display: flex;
 		flex-direction: column;
+		flex: 1;
+		min-width: 0;
 		min-height: 0;
 		background: var(--ground);
 		/* Content is visible from the first frame and settles up; the reader
