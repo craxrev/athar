@@ -10,6 +10,7 @@
 		categories,
 		lastScanMs,
 		intervalMins,
+		running,
 		onScope,
 		onCategory,
 		onProject
@@ -21,6 +22,9 @@
 		categories: { name: string; ms: number }[];
 		lastScanMs: number | null;
 		intervalMins: number;
+		/** Set while a collector is working, whether this window started it or the
+		 *  schedule did. The footer is the only place a background scan is visible. */
+		running: string | null;
 		onScope: (s: 'day' | 'week' | 'month' | 'all') => void;
 		onCategory: (c: string | null) => void;
 		onProject: (p: string | null) => void;
@@ -121,9 +125,18 @@
 	</section>
 
 	<footer>
-		<span class="dot" class:stale={lastScanMs === null} aria-hidden="true"></span>
+		<span
+			class="dot"
+			class:stale={lastScanMs === null}
+			class:busy={!!running}
+			aria-hidden="true"
+		></span>
 		<span>
-			{#if lastScanMs === null}
+			{#if running === 'rebuild'}
+				Rebuilding…
+			{:else if running}
+				Scanning…
+			{:else if lastScanMs === null}
 				Never scanned
 			{:else}
 				Scanned {relative(lastScanMs)}
@@ -300,6 +313,26 @@
 	}
 	.dot.stale {
 		background: var(--amber);
+	}
+	/* The one moving thing in the window, and only while work is actually
+	   happening — a scan runs for minutes and otherwise shows nothing at all. */
+	.dot.busy {
+		background: var(--accent);
+		animation: pulse 1.6s ease-in-out infinite;
+	}
+	@keyframes pulse {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.35;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.dot.busy {
+			animation: none;
+		}
 	}
 
 	.faint {

@@ -53,6 +53,19 @@ fn status(archive: State<Archive>) -> Reply<api::CollectorStatus> {
     with_conn(&archive, api::status)
 }
 
+/// Just "is a collector working", cheap enough to ask often.
+///
+/// The full status counts every row in the archive, so it can only be polled
+/// slowly — and a warm scan finishes in seconds, falling between two of those
+/// polls. This reads four rows of `meta`, and only checks the recorded process
+/// for life when the mark says a run is open, so an idle archive costs nothing.
+#[tauri::command]
+fn collector_run(archive: State<Archive>) -> Reply<Option<String>> {
+    with_conn(&archive, |c, _| {
+        Ok(lore_core::db::current_run(c).map(|r| r.action))
+    })
+}
+
 #[tauri::command]
 fn projects(archive: State<Archive>) -> Reply<Vec<api::ProjectInfo>> {
     with_conn(&archive, api::projects)
@@ -139,6 +152,8 @@ fn agent_state(archive: State<Archive>) -> Reply<AgentView> {
         installed: s.installed,
         loaded: s.loaded,
         binary_stale: stale,
+        interval_mins: s.interval_mins,
+        scheduled_interval_mins: s.scheduled_interval_mins,
         log: s.log.to_string_lossy().to_string(),
         config_path: paths::config_file()?.to_string_lossy().to_string(),
         db_path: paths::db_file()?.to_string_lossy().to_string(),
@@ -150,12 +165,18 @@ struct AgentView {
     installed: bool,
     loaded: bool,
     binary_stale: bool,
+    /// Asked for, and actually scheduled. They differ whenever the interval was
+    /// saved without reinstalling, which is the case settings has to warn about.
+    interval_mins: u64,
+    scheduled_interval_mins: Option<u64>,
     log: String,
     config_path: String,
     db_path: String,
 }
 
-#[tauri::command]
+// `async` so `launchctl` runs off the main thread. Tauri executes a plain
+// synchronous command on the UI event loop, where any wait is a frozen window.
+#[tauri::command(async)]
 fn install_agent() -> Reply<()> {
     let config = Config::load()?;
     agent::install(&config)?;
@@ -167,7 +188,11 @@ fn install_agent() -> Reply<()> {
 /// The window never writes to the archive itself — it asks the collector binary
 /// to, which keeps the single-writer rule intact even when the request comes from
 /// a button.
-#[tauri::command]
+///
+/// `async` is load-bearing rather than stylistic: a synchronous command runs on
+/// the main thread, so waiting here would freeze the window for the length of a
+/// scan — minutes, on a run that finds real work.
+#[tauri::command(async)]
 fn run_collector(action: String) -> Reply<String> {
     let binary = paths::installed_binary()?;
     if !binary.exists() {
@@ -218,6 +243,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             status,
+            collector_run,
             projects,
             summary,
             timeline,

@@ -6,6 +6,7 @@
 	import Reader from '$lib/Reader.svelte';
 	import Settings from '$lib/Settings.svelte';
 	import Stream from '$lib/Stream.svelte';
+	import { collector } from '$lib/collector.svelte';
 	import {
 		archive,
 		type BlockDetail,
@@ -112,6 +113,9 @@
 				archiveVersion += 1;
 			}
 			status = next;
+			// A scheduled scan is invisible otherwise: it starts outside the window
+			// and nothing else here would ever know it was happening.
+			collector.observed = next.running;
 			statusError = null;
 		} catch (e) {
 			// Reported separately: a failing status poll must not mask, or be
@@ -135,11 +139,28 @@
 	$effect(() => {
 		void pollStatus();
 		const timer = setInterval(pollStatus, 30_000);
+		// A separate, much cheaper beat: a warm scan lasts a few seconds and would
+		// fall between two full polls, so the one thing the footer shows live is
+		// asked for on its own schedule.
+		const runTimer = setInterval(async () => {
+			try {
+				const action = await archive.collectorRun();
+				collector.observed = action;
+				// A finished scan means new data; the last-scan time and counts come
+				// from the full poll, so bring that forward rather than wait for it.
+				if (!action && collector.wasObserved) void pollStatus();
+				collector.wasObserved = !!action;
+			} catch {
+				// A failing liveness check is not worth reporting: the full poll
+				// already surfaces an unreadable archive.
+			}
+		}, 2_000);
 		// Coming back to the window is exactly when a stale reading is noticed.
 		const onFocus = () => void pollStatus();
 		window.addEventListener('focus', onFocus);
 		return () => {
 			clearInterval(timer);
+			clearInterval(runTimer);
 			window.removeEventListener('focus', onFocus);
 		};
 	});
@@ -361,7 +382,8 @@
 			{project}
 			{categories}
 			lastScanMs={status?.last_scan_ms ?? null}
-			intervalMins={status?.scan_interval_mins ?? 60}
+			running={collector.busy}
+			intervalMins={status?.scheduled_interval_mins ?? status?.scan_interval_mins ?? 60}
 			onScope={(s) => {
 				scope = s;
 				selectedBlock = null;

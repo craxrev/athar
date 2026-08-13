@@ -14,6 +14,10 @@ export interface CollectorStatus {
 	earliest_ms: number | null;
 	latest_ms: number | null;
 	scan_interval_mins: number;
+	/** What the installed schedule really runs, which config alone cannot say. */
+	scheduled_interval_mins: number | null;
+	/** 'scan' or 'rebuild' while a collector is working, whoever started it. */
+	running: string | null;
 	roots: string[];
 	sessions_only_in_lore: number;
 }
@@ -164,6 +168,10 @@ export interface AgentView {
 	installed: boolean;
 	loaded: boolean;
 	binary_stale: boolean;
+	/** What the configuration asks for, and what the schedule was actually told.
+	 *  Editing the interval changes only the first until the agent is reinstalled. */
+	interval_mins: number;
+	scheduled_interval_mins: number | null;
 	log: string;
 	config_path: string;
 	db_path: string;
@@ -184,6 +192,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 
 export const archive = {
 	status: () => call<CollectorStatus>('status'),
+	collectorRun: () => call<string | null>('collector_run'),
 	projects: () => call<ProjectInfo[]>('projects'),
 	summary: (fromMs: number, toMs: number) => call<Summary>('summary', { fromMs, toMs }),
 	timeline: (fromMs: number, toMs: number, limit?: number, project?: string, category?: string) =>

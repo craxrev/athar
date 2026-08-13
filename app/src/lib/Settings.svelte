@@ -2,6 +2,7 @@
 	import { open } from '@tauri-apps/plugin-dialog';
 	import Icon from './Icon.svelte';
 	import { archive, type AgentView, type LoreConfig } from './archive';
+	import { collector } from './collector.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
 
@@ -9,13 +10,18 @@
 	let agent = $state<AgentView | null>(null);
 	let error = $state<string | null>(null);
 	let saved = $state(false);
-	let running = $state<string | null>(null);
-	let result = $state<string | null>(null);
 
-	/** Which stored values need which action before they take effect. Changing the
-	 *  idle gap only re-derives; adding a root means reading something new. */
-	let needsRebuild = $state(false);
-	let needsScan = $state(false);
+	/** The schedule macOS is running, against the one now configured.
+	 *
+	 *  Saving an interval writes the file; the schedule was baked in when the agent
+	 *  was installed and is never re-read, so the two silently disagree until it is
+	 *  reinstalled. Read back rather than remembered, so it survives a restart. */
+	let scheduleDrifted = $derived(
+		!!agent &&
+			agent.installed &&
+			agent.scheduled_interval_mins !== null &&
+			agent.scheduled_interval_mins !== agent.interval_mins
+	);
 
 	$effect(() => {
 		archive
@@ -32,6 +38,9 @@
 		if (!config) return;
 		try {
 			config = await archive.saveConfig($state.snapshot(config));
+			// Re-read the agent: saving an interval is exactly when the running
+			// schedule starts disagreeing with the configured one.
+			agent = await archive.agentState();
 			error = null;
 			saved = true;
 			setTimeout(() => (saved = false), 2000);
@@ -45,33 +54,15 @@
 		if (typeof picked !== 'string' || !config) return;
 		const name = picked.split('/').filter(Boolean).pop() ?? 'uncategorized';
 		config.roots = [...config.roots, { path: picked, category: name.toLowerCase() }];
-		needsScan = true;
+		collector.needsScan = true;
 		await save();
 	}
 
 	async function removeRoot(path: string) {
 		if (!config) return;
 		config.roots = config.roots.filter((r) => r.path !== path);
-		needsRebuild = true;
+		collector.needsRebuild = true;
 		await save();
-	}
-
-	async function run(action: 'scan' | 'rebuild') {
-		running = action;
-		result = null;
-		try {
-			result = await archive.runCollector(action);
-			if (action === 'scan') {
-				needsScan = false;
-				needsRebuild = false;
-			} else {
-				needsRebuild = false;
-			}
-		} catch (e) {
-			error = (e as Error).message;
-		} finally {
-			running = null;
-		}
 	}
 
 	async function installAgent() {
@@ -90,7 +81,7 @@
 		if (!value || !config || config.identities.includes(value)) return;
 		config.identities = [...config.identities, value];
 		identityDraft = '';
-		needsScan = true;
+		collector.needsScan = true;
 		void save();
 	}
 </script>
@@ -112,7 +103,7 @@
 			<p class="banner bad"><Icon name="warn" size={16} /><span>{error}</span></p>
 		{/if}
 
-		{#if agent && (!agent.installed || !agent.loaded || agent.binary_stale)}
+		{#if agent && (!agent.installed || !agent.loaded || agent.binary_stale || scheduleDrifted)}
 			<p class="banner warn">
 				<Icon name="warn" size={16} />
 				<span>
@@ -121,12 +112,19 @@
 						deletes its own history within about 30 days.
 					{:else if !agent.loaded}
 						The collector is installed but not running.
-					{:else}
+					{:else if agent.binary_stale}
 						The scheduled collector is an older build than this window. Reinstall it so
 						scans use the current one.
+					{:else}
+						Scans still run every {agent.scheduled_interval_mins} minutes. Reinstall to
+						apply the {agent.interval_mins} you have set.
 					{/if}
 				</span>
-				<button class="act" onclick={installAgent}>Install</button>
+				<button class="act" onclick={installAgent}>
+					{scheduleDrifted && agent.installed && agent.loaded && !agent.binary_stale
+						? 'Apply'
+						: 'Install'}
+				</button>
 			</p>
 		{/if}
 
@@ -153,7 +151,7 @@
 								class="cat"
 								bind:value={root.category}
 								onchange={() => {
-									needsRebuild = true;
+									collector.needsRebuild = true;
 									void save();
 								}}
 								aria-label="Category"
@@ -192,7 +190,7 @@
 						min="1"
 						bind:value={config.idle_gap_mins}
 						onchange={() => {
-							needsRebuild = true;
+							collector.needsRebuild = true;
 							void save();
 						}}
 					/>
@@ -236,7 +234,7 @@
 								aria-label="Remove identity"
 								onclick={() => {
 									config!.identities = config!.identities.filter((i) => i !== identity);
-									needsScan = true;
+									collector.needsScan = true;
 									void save();
 								}}
 							>
@@ -269,22 +267,33 @@
 			<section class="group">
 				<h2>Collector</h2>
 				<div class="actions">
-					<button class="act strong" disabled={!!running} onclick={() => run('scan')}>
-						{running === 'scan' ? 'Scanning…' : 'Scan now'}
+					<button
+						class="act strong"
+						disabled={!!collector.busy}
+						onclick={() => collector.run('scan')}
+					>
+						{collector.busy === 'scan' ? 'Scanning…' : 'Scan now'}
 					</button>
-					<button class="act" disabled={!!running} onclick={() => run('rebuild')}>
-						{running === 'rebuild' ? 'Rebuilding…' : 'Rebuild'}
+					<button
+						class="act"
+						disabled={!!collector.busy}
+						onclick={() => collector.run('rebuild')}
+					>
+						{collector.busy === 'rebuild' ? 'Rebuilding…' : 'Rebuild'}
 					</button>
-					{#if needsScan}
+					{#if collector.needsScan}
 						<span class="pending">A root or identity changed — scan to read it.</span>
-					{:else if needsRebuild}
+					{:else if collector.needsRebuild}
 						<span class="pending">A grouping setting changed — rebuild to apply it.</span>
 					{:else if saved}
 						<span class="ok">Saved</span>
 					{/if}
 				</div>
-				{#if result}
-					<pre class="result">{result}</pre>
+				{#if collector.error}
+					<p class="banner bad"><Icon name="warn" size={16} /><span>{collector.error}</span></p>
+				{/if}
+				{#if collector.result}
+					<pre class="result">{collector.result}</pre>
 				{/if}
 			</section>
 
