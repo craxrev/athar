@@ -5,7 +5,9 @@
   "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
   "colorRamps": {
     "ground": {
+      "_rule": "The ramp runs both ways: inset recedes, raised lifts. A recessed panel steps down the ramp rather than mixing black into its parent.",
       "window": "#0b0c0f",
+      "inset": "#0e1014",
       "pane": "#12141a",
       "raised": "#191c24",
       "hover": "#1f2330"

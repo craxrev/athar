@@ -10,6 +10,10 @@
 		   the machine that produced the work, usually late. Colours are tokens so
 		   a light mode later is a swap rather than a rewrite. */
 		--ground: #0b0c0f;
+		/* One step *below* surface. The ramp otherwise only rises — raised, hover —
+		   which left nothing to express a panel opened inside a row. A raised
+		   surface lifts with a shadow; an inset one steps down the ramp. */
+		--surface-inset: #0e1014;
 		--surface: #12141a;
 		--surface-raised: #191c24;
 		--surface-hover: #1f2330;

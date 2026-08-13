@@ -3,6 +3,7 @@ name: lore
 description: A dark, evidence-first record of developer work, where every claim shows how it was established.
 colors:
   ground: "#0b0c0f"
+  surface-inset: "#0e1014"
   surface: "#12141a"
   surface-raised: "#191c24"
   surface-hover: "#1f2330"
@@ -190,9 +191,12 @@ red and green semantically wherever a diff figure appears, and amber had to stay
 free for the honesty markers the product depends on. Any future accent change must
 respect the same exclusion.
 
-Four ground steps carry depth: `ground` for the window, `surface` for panes and
-resting cards, `surface-raised` for cards inside a pane, `surface-hover` for
-pointer feedback. Text runs `text` → `text-dim` → `text-faint`; `text-faint` is
+Five ground steps carry depth, and the ramp runs in both directions: `ground` for
+the window, `surface-inset` for a panel opened *inside* a row, `surface` for panes
+and resting cards, `surface-raised` for cards inside a pane, `surface-hover` for
+pointer feedback. The inset step exists because the ramp otherwise only rose —
+expanding a commit in place needed a surface that recedes, and mixing black into
+one is how a system starts drifting. Text runs `text` → `text-dim` → `text-faint`; `text-faint` is
 the floor and sits at ~5.2:1 on `ground`, which is where it was set after
 measuring an earlier value that failed the 4.5:1 requirement.
 

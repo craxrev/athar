@@ -528,7 +528,7 @@
 	.touched {
 		padding: 2px 14px 12px 66px;
 		border-top: 1px solid var(--line);
-		background: rgba(0, 0, 0, 0.16);
+		background: var(--surface-inset);
 	}
 	.touched ul {
 		margin: 0;
