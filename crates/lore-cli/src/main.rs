@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use lore_core::{
-    collect::{claude, git},
+    collect::{claude, file, git},
     config::Config,
     db, paths, stats,
 };
@@ -162,6 +162,27 @@ fn scan() -> Result<()> {
         }
         if g.errors > 0 {
             println!("  errors      {} repos could not be read", g.errors);
+        }
+    }
+
+    if !config.roots.is_empty() {
+        let f = file::scan(&mut conn, &config)?;
+        println!("files");
+        println!(
+            "  projects    {} ({} git, {} without git)",
+            f.projects_seen, f.repos, f.non_git
+        );
+        println!("  examined    {} files", f.files_examined);
+        println!("  archived    {} changes", f.changes_recorded);
+        if f.changes_known > 0 {
+            println!("  already had {} changes", f.changes_known);
+        }
+        println!(
+            "  skipped     {} older than the {}-day lookback",
+            f.skipped_old, config.file_lookback_days
+        );
+        if f.errors > 0 {
+            println!("  errors      {} paths unreadable", f.errors);
         }
     }
 

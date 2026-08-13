@@ -5,4 +5,5 @@
 //! mtime is exact but incomplete between scans.
 
 pub mod claude;
+pub mod file;
 pub mod git;

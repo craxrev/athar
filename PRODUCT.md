@@ -95,6 +95,7 @@ The value of the in-repo case is uncommitted work: an afternoon of editing that 
 
 - File-change **timestamps are exact** (the mtime is the real time of the last save); what is incomplete is **coverage**. Three saves inside one scan interval leave one mtime, so any per-file change count is a floor, never a total. Interfaces displaying such counts must present them as minimums.
 - File changes carry no content, only that a change occurred and when
+- A first scan looks back a bounded window (30 days by default). An mtime records only the last save, so older ones say little beyond "untouched since", and without a bound a first scan would archive every file ever written. Anything outside that window is simply absent, never approximated.
 - Because most projects are not in git, a missed scan is genuinely lost work for those projects, where commits would otherwise have carried exact history. This is the strongest argument for a short scan interval.
 - Commands the user ran in their own terminal are invisible; only harness-run commands are captured
 - Anything older than the sources' retention that lore never scanned in time does not exist and is not recoverable

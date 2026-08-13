@@ -19,8 +19,13 @@ pub struct Config {
     /// filesystem layout so projects never need tagging by hand.
     pub roots: Vec<Root>,
 
-    /// Directory names pruned during the walk, in addition to `.gitignore`.
+    /// Directory names pruned during the walk.
     pub exclude: Vec<String>,
+
+    /// How far back the file source looks on a first scan. An mtime records only
+    /// the last save, so older ones say little beyond "untouched since"; without
+    /// a bound, a first scan would archive every file ever written.
+    pub file_lookback_days: u64,
 
     /// Extra email addresses whose commits count as the user's own. Repository
     /// and global git config are read automatically; this covers addresses used
@@ -80,6 +85,7 @@ impl Default for Config {
             .iter()
             .map(|s| s.to_string())
             .collect(),
+            file_lookback_days: 30,
             identities: Vec::new(),
             sources: Sources::default(),
         }
