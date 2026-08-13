@@ -1,0 +1,165 @@
+import { invoke } from '@tauri-apps/api/core';
+
+/** Mirrors `lore_core::api`. Coverage is uneven by design and these types say so. */
+
+export type Tier = 'certain' | 'strong' | 'weak';
+
+export interface CollectorStatus {
+	last_scan_ms: number | null;
+	records: number;
+	sessions: number;
+	commits: number;
+	file_changes: number;
+	origins: number;
+	earliest_ms: number | null;
+	latest_ms: number | null;
+	scan_interval_mins: number;
+	roots: string[];
+	sessions_only_in_lore: number;
+}
+
+export interface ProjectInfo {
+	path: string;
+	name: string;
+	category: string;
+	last_activity_ms: number | null;
+	blocks: number;
+}
+
+export interface Summary {
+	elapsed_ms: number;
+	project_ms: number;
+	blocks: number;
+	projects: number;
+	sessions: number;
+	commits: number;
+	file_changes: number;
+	input_tokens: number;
+	output_tokens: number;
+	ai_share: number | null;
+}
+
+export interface SessionSummary {
+	id: string;
+	title: string;
+	started_ms: number | null;
+	ended_ms: number | null;
+	prompts: number;
+	replies: number;
+	tool_calls: number;
+	input_tokens: number;
+	output_tokens: number;
+	models: string[];
+	files_written: number;
+	has_transcript: boolean;
+}
+
+export interface CommitSummary {
+	sha: string;
+	short: string;
+	ts_ms: number;
+	subject: string;
+	insertions: number;
+	deletions: number;
+	file_count: number;
+	unreachable: boolean;
+	tier: Tier | null;
+	session_id: string | null;
+	shared_files: number;
+}
+
+export interface FileChangeSummary {
+	path: string;
+	ts_ms: number;
+	state: 'dirty' | 'untracked' | 'no-repo';
+}
+
+export interface BlockDetail {
+	id: number;
+	records: number;
+	project_path: string;
+	project: string;
+	category: string;
+	started_ms: number;
+	ended_ms: number;
+	sessions: SessionSummary[];
+	commits: CommitSummary[];
+	file_changes: FileChangeSummary[];
+}
+
+export interface Bar {
+	block_id: number;
+	started_ms: number;
+	ended_ms: number;
+	sessions: number;
+	commits: number;
+	file_changes: number;
+}
+
+export interface Lane {
+	project_path: string;
+	project: string;
+	category: string;
+	total_ms: number;
+	bars: Bar[];
+}
+
+export interface ToolCall {
+	name: string;
+	target: string;
+	failed: boolean;
+}
+
+export interface Turn {
+	role: 'user' | 'assistant';
+	ts_ms: number | null;
+	text: string;
+	truncated: boolean;
+	tools: ToolCall[];
+}
+
+export interface TouchedFile {
+	path: string;
+	name: string;
+	writes: number;
+	reads: number;
+}
+
+export interface SessionDetail {
+	session: SessionSummary;
+	project_path: string;
+	project: string;
+	category: string;
+	files: TouchedFile[];
+	commits: CommitSummary[];
+	turns: Turn[];
+}
+
+/** Commands surface their failure message so the UI can name the problem. */
+async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
+	try {
+		return await invoke<T>(command, args);
+	} catch (error) {
+		const message =
+			typeof error === 'object' && error && 'message' in error
+				? String((error as { message: unknown }).message)
+				: String(error);
+		throw new Error(message);
+	}
+}
+
+export const archive = {
+	status: () => call<CollectorStatus>('status'),
+	projects: () => call<ProjectInfo[]>('projects'),
+	summary: (fromMs: number, toMs: number) => call<Summary>('summary', { fromMs, toMs }),
+	timeline: (fromMs: number, toMs: number, project?: string, category?: string) =>
+		call<BlockDetail[]>('timeline', {
+			fromMs,
+			toMs,
+			project: project ?? null,
+			category: category ?? null
+		}),
+	lanes: (fromMs: number, toMs: number, category?: string) =>
+		call<Lane[]>('lanes', { fromMs, toMs, category: category ?? null }),
+	session: (id: string) => call<SessionDetail | null>('session', { id })
+};

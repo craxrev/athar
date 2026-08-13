@@ -1,0 +1,435 @@
+<script lang="ts">
+	import Icon from './Icon.svelte';
+	import type { SessionDetail } from './archive';
+	import { clock, clockRange, duration, fullDay, shortPath, tokens } from './format';
+
+	let {
+		detail,
+		onClose
+	}: { detail: SessionDetail; onClose: () => void } = $props();
+
+	const s = $derived(detail.session);
+	const span = $derived(
+		s.started_ms !== null && s.ended_ms !== null ? s.ended_ms - s.started_ms : null
+	);
+</script>
+
+<!-- Reading takes over the window rather than opening a modal: a 200-message
+     conversation needs the measure, and a modal would block everything else for
+     a task that needs neither interruption nor protected focus. -->
+<section class="reader">
+	<div class="bar" data-tauri-drag-region>
+		<button class="back" onclick={onClose}>
+			<Icon name="back" size={18} />
+			<span>Timeline</span>
+		</button>
+		<span class="crumb">
+			{detail.project}
+			<span class="dim">· {detail.category}</span>
+		</span>
+		<button class="close" onclick={onClose} aria-label="Close reader (Escape)">
+			<Icon name="close" size={17} />
+		</button>
+	</div>
+
+	<div class="scroll">
+		<header>
+			<h1>{s.title}</h1>
+			<p class="facts">
+				<span>{fullDay(s.started_ms)}</span>
+				<span class="num">{clockRange(s.started_ms, s.ended_ms)}</span>
+				{#if span !== null}
+					<span
+						class="num strong"
+						title="First to last record. A resumed session spans idle time, so this is not time worked — the timeline's blocks are."
+					>
+						{duration(span)} span
+					</span>
+				{/if}
+				<span><b class="num">{s.prompts}</b> prompts</span>
+				<span><b class="num">{s.tool_calls}</b> tool calls</span>
+				<span><b class="num">{tokens(s.input_tokens + s.output_tokens)}</b> tokens</span>
+				{#if s.models.length}<span>{s.models.join(', ')}</span>{/if}
+			</p>
+
+			{#if !s.has_transcript}
+				<p class="banner">
+					<Icon name="warn" size={16} />
+					<span>
+						Claude Code deleted this session's transcript. What follows is the prompt
+						history lore archived before it went — the replies are gone for good.
+					</span>
+				</p>
+			{/if}
+
+			{#if detail.commits.length || detail.files.length}
+				<div class="outcome">
+					{#if detail.commits.length}
+						<div class="col">
+							<h2>Produced</h2>
+							{#each detail.commits as c (c.sha)}
+								<div class="commit">
+									<span class="subject">{c.subject}</span>
+									<span class="figures">
+										<span class="num sha">{c.short}</span>
+										<span class="num add">+{c.insertions}</span>
+										<span class="num del">−{c.deletions}</span>
+										<span class="tier" data-tier={c.tier ?? 'none'}>
+											{c.tier === 'certain' ? 'witnessed' : c.tier === 'strong' ? 'files match' : 'inferred'}
+										</span>
+									</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
+					{#if detail.files.length}
+						<div class="col">
+							<h2>Touched</h2>
+							<ul>
+								{#each detail.files.slice(0, 10) as f (f.path)}
+									<li>
+										<span class="path" title={f.path}>{shortPath(f.path, 2)}</span>
+										{#if f.writes > 0}<span class="badge wrote">wrote</span>{:else}<span class="badge read">read</span>{/if}
+									</li>
+								{/each}
+								{#if detail.files.length > 10}
+									<li class="dim">+{detail.files.length - 10} more</li>
+								{/if}
+							</ul>
+						</div>
+					{/if}
+				</div>
+			{/if}
+		</header>
+
+		<div class="turns">
+			{#each detail.turns as turn, i (i)}
+				<article class={turn.role}>
+					<div class="who">
+						<span class="role">{turn.role === 'user' ? 'You' : 'Assistant'}</span>
+						<span class="num at">{clock(turn.ts_ms)}</span>
+					</div>
+					{#if turn.text}
+						<div class="text">{turn.text}{#if turn.truncated}<span class="cut"> … shortened on archive</span>{/if}</div>
+					{/if}
+					{#if turn.tools.length}
+						<ul class="tools">
+							{#each turn.tools as t, j (j)}
+								<li class:failed={t.failed}>
+									<span class="tool">{t.name}</span>
+									{#if t.target}<span class="target">{shortPath(t.target, 2)}</span>{/if}
+									{#if t.failed}<span class="badge err">failed</span>{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</article>
+			{/each}
+
+			{#if detail.turns.length === 0}
+				<p class="none">Nothing of this conversation survives in the archive.</p>
+			{/if}
+		</div>
+	</div>
+</section>
+
+<style>
+	.reader {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+		background: var(--ground);
+	}
+
+	.bar {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		flex: none;
+		height: calc(var(--titlebar) + 18px);
+		padding: 12px 18px 0;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.back {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		padding: 5px 10px 5px 6px;
+		margin-left: 62px;
+		border-radius: var(--radius-sm);
+		color: var(--text-dim);
+		font-size: 14px;
+		font-weight: 540;
+	}
+	.back:hover {
+		background: var(--surface-hover);
+		color: var(--text);
+	}
+
+	.crumb {
+		flex: 1;
+		font-size: 14px;
+		font-weight: 560;
+		color: var(--text-dim);
+	}
+	.dim {
+		color: var(--text-faint);
+		font-weight: 500;
+	}
+
+	.close {
+		padding: 6px;
+		border-radius: var(--radius-sm);
+		color: var(--text-faint);
+	}
+	.close:hover {
+		background: var(--surface-hover);
+		color: var(--text);
+	}
+
+	.scroll {
+		flex: 1;
+		overflow-y: auto;
+		min-height: 0;
+		padding: 0 24px 64px;
+	}
+
+	header {
+		/* Reading measure: prose stays inside 70ch even in a wide window. */
+		max-width: 78ch;
+		margin: 0 auto;
+		padding: 28px 0 8px;
+	}
+
+	h1 {
+		margin: 0;
+		font-size: 30px;
+		font-weight: 680;
+		letter-spacing: -0.024em;
+		line-height: 1.2;
+		text-wrap: balance;
+	}
+
+	.facts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px 16px;
+		margin: 12px 0 0;
+		font-size: 13.5px;
+		color: var(--text-faint);
+	}
+	.facts b {
+		color: var(--text-dim);
+		font-weight: 600;
+	}
+	.facts .strong {
+		color: var(--text);
+		font-weight: 620;
+	}
+
+	.banner {
+		display: flex;
+		align-items: flex-start;
+		gap: 9px;
+		margin: 18px 0 0;
+		padding: 11px 13px;
+		border-radius: var(--radius-sm);
+		background: var(--amber-soft);
+		color: var(--amber);
+		font-size: 13.5px;
+		line-height: 1.5;
+	}
+	.banner :global(svg) {
+		margin-top: 1px;
+		flex: none;
+	}
+
+	.outcome {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 26px;
+		margin-top: 24px;
+		padding-top: 18px;
+		border-top: 1px solid var(--line);
+	}
+	.col {
+		flex: 1 1 260px;
+		min-width: 0;
+	}
+
+	h2 {
+		margin: 0 0 8px;
+		font-size: 13px;
+		font-weight: 640;
+		color: var(--text-faint);
+	}
+
+	.commit {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+		padding: 8px 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.commit:last-child {
+		border-bottom: none;
+	}
+	.commit .figures {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 10px;
+		font-size: 13px;
+	}
+	.sha {
+		color: var(--text-faint);
+	}
+	.subject {
+		color: var(--text);
+		font-size: 14px;
+		font-weight: 540;
+		line-height: 1.4;
+	}
+	.add {
+		color: var(--add);
+	}
+	.del {
+		color: var(--del);
+	}
+	.tier {
+		font-size: 12.5px;
+		font-weight: 540;
+		color: var(--text-dim);
+	}
+	.tier[data-tier='certain'] {
+		color: var(--add);
+	}
+	.tier[data-tier='weak'],
+	.tier[data-tier='none'] {
+		color: var(--amber);
+	}
+
+	.col ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.col li {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		padding: 2px 0;
+		font-size: 13px;
+	}
+	.path {
+		font-family: var(--mono);
+		font-size: 12px;
+		color: var(--text-dim);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.badge {
+		flex: none;
+		font-size: 11.5px;
+		font-weight: 580;
+		padding: 1px 6px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.06);
+		color: var(--text-faint);
+	}
+	.badge.wrote {
+		color: var(--accent);
+		background: var(--accent-soft);
+	}
+	.badge.err {
+		color: var(--del);
+		background: rgba(229, 85, 92, 0.14);
+	}
+
+	.turns {
+		max-width: 78ch;
+		margin: 0 auto;
+		padding-top: 30px;
+	}
+
+	article {
+		padding: 14px 0 16px;
+		border-top: 1px solid var(--line);
+	}
+
+	.who {
+		display: flex;
+		align-items: baseline;
+		gap: 9px;
+		margin-bottom: 6px;
+	}
+	.role {
+		font-size: 13px;
+		font-weight: 640;
+		color: var(--text-dim);
+	}
+	article.user .role {
+		color: var(--accent);
+	}
+	.at {
+		color: var(--text-faint);
+		font-size: 12px;
+	}
+
+	.text {
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		font-size: 15px;
+		line-height: 1.62;
+		color: var(--text);
+	}
+	article.assistant .text {
+		color: var(--text-dim);
+	}
+	.cut {
+		color: var(--amber);
+		font-size: 13px;
+	}
+
+	.tools {
+		margin: 10px 0 0;
+		padding: 0;
+		list-style: none;
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.tools li {
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		padding: 3px 9px;
+		border-radius: var(--radius-sm);
+		background: var(--surface);
+		font-size: 12.5px;
+	}
+	.tools li.failed {
+		background: rgba(229, 85, 92, 0.08);
+	}
+	.tool {
+		font-weight: 620;
+		color: var(--text-dim);
+		flex: none;
+	}
+	.target {
+		font-family: var(--mono);
+		font-size: 12px;
+		color: var(--text-faint);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.none {
+		color: var(--text-faint);
+		font-size: 14px;
+	}
+</style>

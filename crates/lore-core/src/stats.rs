@@ -75,6 +75,7 @@ fn one(conn: &Connection, sql: &str) -> Result<i64> {
 pub struct BlockRow {
     pub id: i64,
     pub project: String,
+    pub records: i64,
     pub started_ms: i64,
     pub ended_ms: i64,
     pub sessions: i64,
@@ -110,7 +111,8 @@ pub struct CommitRow {
 
 pub fn blocks_between(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Vec<BlockRow>> {
     let mut stmt = conn.prepare(
-        "SELECT b.id, p.path, b.started_ms, b.ended_ms, b.sessions, b.commits, b.file_changes
+        "SELECT b.id, p.path, b.started_ms, b.ended_ms, b.sessions, b.commits,
+                b.file_changes, b.records
            FROM blocks b JOIN projects p ON p.id = b.project_id
           WHERE b.started_ms < ?2 AND b.ended_ms >= ?1
           ORDER BY b.started_ms",
@@ -124,6 +126,7 @@ pub fn blocks_between(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Vec
             sessions: r.get(4)?,
             commits: r.get(5)?,
             file_changes: r.get(6)?,
+            records: r.get(7)?,
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
