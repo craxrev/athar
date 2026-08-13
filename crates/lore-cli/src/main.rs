@@ -22,6 +22,24 @@ enum Command {
     Stats,
     /// Where config and data live, and whether the sources are readable.
     Doctor,
+    /// Inspect or create the configuration file.
+    #[command(subcommand)]
+    Config(ConfigCommand),
+}
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Print the config file's location.
+    Path,
+    /// Print the effective configuration, defaults included.
+    Show,
+    /// Write a starter config. Never overwrites an existing one.
+    Init {
+        /// A scanned root as `path=category`, repeatable.
+        /// Example: --root ~/Developer/research=research
+        #[arg(long = "root", value_name = "PATH=CATEGORY")]
+        roots: Vec<String>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -29,6 +47,56 @@ fn main() -> Result<()> {
         Command::Scan => scan(),
         Command::Stats => show_stats(),
         Command::Doctor => doctor(),
+        Command::Config(cmd) => config(cmd),
+    }
+}
+
+fn config(cmd: ConfigCommand) -> Result<()> {
+    match cmd {
+        ConfigCommand::Path => {
+            println!("{}", paths::config_file()?.display());
+            Ok(())
+        }
+        ConfigCommand::Show => {
+            print!("{}", toml::to_string_pretty(&Config::load()?)?);
+            Ok(())
+        }
+        ConfigCommand::Init { roots } => {
+            let mut cfg = Config::default();
+            for spec in &roots {
+                let (path, category) = spec
+                    .split_once('=')
+                    .with_context(|| format!("expected PATH=CATEGORY, got `{spec}`"))?;
+                let path = expand_home(path)?;
+                if !path.is_dir() {
+                    eprintln!("warning: {} is not a directory", path.display());
+                }
+                cfg.roots.push(lore_core::config::Root {
+                    path,
+                    category: category.to_string(),
+                });
+            }
+
+            let path = paths::config_file()?;
+            cfg.save_new(&path)?;
+            println!("wrote {}", path.display());
+            if cfg.roots.is_empty() {
+                println!("no roots set — the git and file sources need at least one");
+            }
+            for root in &cfg.roots {
+                println!("  root {} [{}]", root.path.display(), root.category);
+            }
+            Ok(())
+        }
+    }
+}
+
+/// A leading `~` typed on the command line is not expanded by the shell when
+/// quoted, and a config full of unexpanded tildes silently scans nothing.
+fn expand_home(raw: &str) -> Result<std::path::PathBuf> {
+    match raw.strip_prefix("~/") {
+        Some(rest) => Ok(paths::home()?.join(rest)),
+        None => Ok(std::path::PathBuf::from(raw)),
     }
 }
 

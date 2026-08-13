@@ -1,7 +1,7 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
 use crate::paths;
@@ -43,6 +43,7 @@ pub struct Sources {
 pub struct ClaudeSource {
     pub enabled: bool,
     /// Defaults to `~/.claude`; present only for tests and unusual installs.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<PathBuf>,
 }
 
@@ -102,4 +103,46 @@ impl Config {
             None => paths::claude_dir(),
         }
     }
+
+    /// Writes the config, creating its directory. Refuses to clobber an existing
+    /// file: scan roots are typed by hand and losing them is not recoverable.
+    pub fn save_new(&self, path: &Path) -> Result<()> {
+        if path.exists() {
+            bail!("config already exists at {}", path.display());
+        }
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("creating {}", parent.display()))?;
+        }
+        let body = toml::to_string_pretty(self).context("serializing config")?;
+        fs::write(path, format!("{CONFIG_HEADER}{body}"))
+            .with_context(|| format!("writing {}", path.display()))?;
+        Ok(())
+    }
+
+    /// The category a path belongs to, taken from the root that contains it.
+    /// Categories come from the filesystem layout so projects never need tagging.
+    pub fn category_of(&self, path: &Path) -> Option<&str> {
+        self.roots
+            .iter()
+            .filter(|r| path.starts_with(&r.path))
+            // Longest match wins, so a nested root beats its parent.
+            .max_by_key(|r| r.path.as_os_str().len())
+            .map(|r| r.category.as_str())
+    }
 }
+
+const CONFIG_HEADER: &str = "\
+# lore configuration.
+#
+# This file lives outside any repository on purpose: scan roots are personal
+# paths and must never become committable.
+#
+# Only the git and file sources need roots. Claude Code's directory is a fixed
+# standard location and is never configured here.
+#
+# `scan_interval_mins` matters only to the file source: git and transcripts carry
+# exact timestamps in their own data, but a file's mtime remembers just the last
+# save, so anything between two scans of a non-git project goes unrecorded.
+
+";

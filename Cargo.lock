@@ -428,6 +428,7 @@ dependencies = [
  "chrono",
  "clap",
  "lore-core",
+ "toml",
 ]
 
 [[package]]
