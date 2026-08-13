@@ -362,7 +362,7 @@
 	.commits i {
 		width: 3px;
 		height: 12px;
-		border-radius: 1px;
+		border-radius: 2px;
 		background: rgba(255, 255, 255, 0.82);
 	}
 

@@ -475,7 +475,7 @@
 		display: flex;
 		gap: 2px;
 		padding: 2px;
-		border-radius: 8px;
+		border-radius: var(--radius);
 		background: var(--surface);
 	}
 	.views button {

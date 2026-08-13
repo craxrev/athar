@@ -36,6 +36,12 @@ typography:
     fontWeight: 660
     lineHeight: 1.3
     letterSpacing: "-0.02em"
+  wordmark:
+    fontFamily: "{typography.display.fontFamily}"
+    fontSize: "19px"
+    fontWeight: 640
+    lineHeight: 1.3
+    letterSpacing: "-0.015em"
   subtitle:
     fontFamily: "{typography.display.fontFamily}"
     fontSize: "15.5px"
@@ -54,6 +60,12 @@ typography:
     fontWeight: 545
     lineHeight: 1.35
     letterSpacing: "normal"
+  control:
+    fontFamily: "{typography.display.fontFamily}"
+    fontSize: "14px"
+    fontWeight: 540
+    lineHeight: 1.4
+    letterSpacing: "normal"
   meta:
     fontFamily: "{typography.display.fontFamily}"
     fontSize: "13.5px"
@@ -67,10 +79,13 @@ typography:
     lineHeight: 1.4
     letterSpacing: "normal"
 rounded:
+  micro: "2px"
+  swatch: "3px"
   bar: "4px"
   sm: "6px"
   md: "9px"
   pill: "999px"
+  circle: "50%"
 spacing:
   hairline: "2px"
   xs: "4px"
@@ -187,8 +202,10 @@ A workhorse system stack, set solid. There is no display face and no webfont: th
 is an Operate surface where legibility at density outranks voice, and the platform
 stack renders dense UI text better than anything self-hosted would.
 
-Ramp as actually used: **30 / 21 / 19 / 15.5 / 15 / 14.5 / 13.5 / 13**. Weights run
-500–680; nothing is set lighter than 500.
+Ramp as actually used: **30 / 21 / 19 / 15.5 / 15 / 14.5 / 14 / 13.5 / 13**. Weights
+run 500–680; nothing is set lighter than 500. The `control` step (14px) is the
+workhorse — rail rows, toolbar buttons, list labels — and carries the most uses of
+any step in the build.
 
 **The 13px floor is normative.** `--fs-min: 13px` and `--fs-meta: 13.5px` exist so
 that no future surface reintroduces micro-labels. Small type in a light weight is
@@ -246,9 +263,11 @@ else.
 
 ## Shapes
 
-Radii: `9px` for panes and block cards, `6px` for controls and inner cards, `4px`
-for lane bars, `999px` for chips and status dots. Category swatches are 9px squares
-at 3px radius — square-ish, so they read as legend keys rather than bullets.
+Radii: `9px` for panes, block cards and control groups; `6px` for controls and
+inner cards; `4px` for lane bars; `3px` for category swatches; `2px` for marks and
+commit ticks; `999px` for chips and scrollbars; `50%` for the status dot. Category
+swatches are 9px squares at 3px radius — square-ish, so they read as legend keys
+rather than bullets, which is why they do not take the pill.
 
 Icons are a single drawn set on a 20px grid: 1.75 stroke, round caps and joins,
 `currentColor`. Two of them encode meaning rather than objects — a closed ring for

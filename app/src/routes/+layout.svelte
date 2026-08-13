@@ -106,7 +106,7 @@
 		background: rgba(255, 255, 255, 0.12);
 		border: 3px solid transparent;
 		background-clip: content-box;
-		border-radius: 8px;
+		border-radius: 999px;
 	}
 	:global(::-webkit-scrollbar-thumb:hover) {
 		background: rgba(255, 255, 255, 0.22);
