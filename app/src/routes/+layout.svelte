@@ -34,6 +34,31 @@
 		--add: #56c98a;
 		--del: #e5555c;
 
+		/* Category identity, defined once. Each hue needs three forms: the solid
+		   for legend swatches, a translucent fill for lane bars and chips, and a
+		   lightened tint for text sitting on that fill — the solid hue is not
+		   legible as text on a dark ground. Categories come from the filesystem,
+		   so this set is open-ended; an unknown category falls back to neutral. */
+		--cat-work: #4c8dff;
+		--cat-work-fill: rgba(76, 141, 255, 0.14);
+		--cat-work-bar: rgba(76, 141, 255, 0.42);
+		--cat-work-tint: #9dc0ff;
+
+		--cat-research: #e93d97;
+		--cat-research-fill: rgba(233, 61, 151, 0.16);
+		--cat-research-bar: rgba(233, 61, 151, 0.38);
+		--cat-research-tint: #f79ec9;
+
+		--cat-personal: #56c98a;
+		--cat-personal-fill: rgba(86, 201, 138, 0.14);
+		--cat-personal-bar: rgba(86, 201, 138, 0.38);
+		--cat-personal-tint: #8fdcb1;
+
+		--cat-freelance: #f2a93b;
+		--cat-freelance-fill: rgba(242, 169, 59, 0.14);
+		--cat-freelance-bar: rgba(242, 169, 59, 0.38);
+		--cat-freelance-tint: #f6c987;
+
 		--radius: 9px;
 		--radius-sm: 6px;
 

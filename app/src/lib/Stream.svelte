@@ -214,20 +214,20 @@
 		background: rgba(255, 255, 255, 0.06);
 	}
 	.swatch[data-category='work'] {
-		color: #9dc0ff;
-		background: rgba(76, 141, 255, 0.14);
+		color: var(--cat-work-tint);
+		background: var(--cat-work-fill);
 	}
 	.swatch[data-category='research'] {
-		color: #f79ec9;
-		background: var(--accent-soft);
+		color: var(--cat-research-tint);
+		background: var(--cat-research-fill);
 	}
 	.swatch[data-category='personal'] {
-		color: #8fdcb1;
-		background: rgba(86, 201, 138, 0.14);
+		color: var(--cat-personal-tint);
+		background: var(--cat-personal-fill);
 	}
 	.swatch[data-category='freelance'] {
-		color: #f6c987;
-		background: var(--amber-soft);
+		color: var(--cat-freelance-tint);
+		background: var(--cat-freelance-fill);
 	}
 
 	.span {

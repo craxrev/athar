@@ -20,9 +20,13 @@ colors:
   git-add: "#56c98a"
   git-del: "#e5555c"
   category-work: "#4c8dff"
+  category-work-tint: "#9dc0ff"
   category-research: "#e93d97"
+  category-research-tint: "#f79ec9"
   category-personal: "#56c98a"
+  category-personal-tint: "#8fdcb1"
   category-freelance: "#f2a93b"
+  category-freelance-tint: "#f6c987"
 typography:
   display:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
@@ -195,6 +199,14 @@ measuring an earlier value that failed the 4.5:1 requirement.
 Category hues (`work`, `research`, `personal`, `freelance`) identify project
 groups derived from the filesystem. They tint lane bars and chips; they never
 compete with the accent for state.
+
+Each hue exists in three forms, defined once as tokens rather than repeated per
+component: the **solid** for legend swatches, a **fill** at 14–16% for chip
+backgrounds and 38–42% for lane bars, and a lightened **tint** for text sitting on
+that fill. The tint is not optional — the solid hue is not legible as small text
+on a dark ground, which is what the tints exist to solve. Because categories come
+from the filesystem the set is open-ended, and an unknown category falls back to
+neutral rather than borrowing another category's hue.
 
 ## Typography
 

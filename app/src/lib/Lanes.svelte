@@ -263,16 +263,16 @@
 		background: var(--text-faint);
 	}
 	.swatch[data-category='work'] {
-		background: #4c8dff;
+		background: var(--cat-work);
 	}
 	.swatch[data-category='research'] {
-		background: var(--accent);
+		background: var(--cat-research);
 	}
 	.swatch[data-category='personal'] {
-		background: #56c98a;
+		background: var(--cat-personal);
 	}
 	.swatch[data-category='freelance'] {
-		background: var(--amber);
+		background: var(--cat-freelance);
 	}
 
 	.lane {
@@ -333,16 +333,16 @@
 		transform-origin: left center;
 	}
 	.bar[data-category='work'] {
-		background: rgba(76, 141, 255, 0.42);
+		background: var(--cat-work-bar);
 	}
 	.bar[data-category='research'] {
-		background: rgba(233, 61, 151, 0.38);
+		background: var(--cat-research-bar);
 	}
 	.bar[data-category='personal'] {
-		background: rgba(86, 201, 138, 0.38);
+		background: var(--cat-personal-bar);
 	}
 	.bar[data-category='freelance'] {
-		background: rgba(242, 169, 59, 0.38);
+		background: var(--cat-freelance-bar);
 	}
 	.bar:hover {
 		background: rgba(255, 255, 255, 0.3);

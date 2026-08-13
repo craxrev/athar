@@ -28,10 +28,11 @@
       "removed": "#e5555c"
     },
     "category": {
-      "work": "#4c8dff",
-      "research": "#e93d97",
-      "personal": "#56c98a",
-      "freelance": "#f2a93b"
+      "_rule": "Three forms per hue: solid for legend swatches, fill for chip backgrounds and lane bars, tint for text on that fill. Defined once as tokens; components never restate the literal.",
+      "work": { "solid": "#4c8dff", "fill": "rgba(76, 141, 255, 0.14)", "bar": "rgba(76, 141, 255, 0.42)", "tint": "#9dc0ff" },
+      "research": { "solid": "#e93d97", "fill": "rgba(233, 61, 151, 0.16)", "bar": "rgba(233, 61, 151, 0.38)", "tint": "#f79ec9" },
+      "personal": { "solid": "#56c98a", "fill": "rgba(86, 201, 138, 0.14)", "bar": "rgba(86, 201, 138, 0.38)", "tint": "#8fdcb1" },
+      "freelance": { "solid": "#f2a93b", "fill": "rgba(242, 169, 59, 0.14)", "bar": "rgba(242, 169, 59, 0.38)", "tint": "#f6c987" }
     },
     "line": {
       "divider": "rgba(255, 255, 255, 0.07)",

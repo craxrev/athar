@@ -263,16 +263,16 @@
 	/* Categories come from the filesystem layout, so their set is open-ended;
 	   these four are the ones this machine has. */
 	.swatch[data-category='work'] {
-		background: #4c8dff;
+		background: var(--cat-work);
 	}
 	.swatch[data-category='research'] {
-		background: var(--accent);
+		background: var(--cat-research);
 	}
 	.swatch[data-category='personal'] {
-		background: #56c98a;
+		background: var(--cat-personal);
 	}
 	.swatch[data-category='freelance'] {
-		background: var(--amber);
+		background: var(--cat-freelance);
 	}
 
 	.empty {
