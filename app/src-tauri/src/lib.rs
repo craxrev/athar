@@ -6,7 +6,7 @@
 
 use std::sync::Mutex;
 
-use lore_core::{api, config::Config, paths};
+use lore_core::{agent, api, config::Config, paths};
 use rusqlite::Connection;
 use serde::Serialize;
 use tauri::{Manager, State};
@@ -107,6 +107,97 @@ fn session(archive: State<Archive>, id: String) -> Reply<Option<api::SessionDeta
     with_conn(&archive, |c, cfg| api::session(c, cfg, &id))
 }
 
+/// The configuration, as the settings surface reads and writes it.
+#[tauri::command]
+fn read_config() -> Reply<Config> {
+    Config::load().map_err(Into::into)
+}
+
+#[tauri::command]
+fn write_config(config: Config) -> Reply<Config> {
+    config.validate()?;
+    config.save_over(&paths::config_file()?)?;
+    Ok(config)
+}
+
+#[tauri::command]
+fn agent_state(archive: State<Archive>) -> Reply<AgentView> {
+    let config = Config::load().unwrap_or_default();
+    let s = agent::status(&config)?;
+    // Compare recorded revisions, not binaries: the window and the collector are
+    // different executables, so `current_exe` can never match.
+    let written_by = archive
+        .conn
+        .lock()
+        .ok()
+        .and_then(|g| g.as_ref().and_then(lore_core::db::collector_revision));
+    let stale = written_by
+        .as_deref()
+        .map(|v| v != lore_core::COLLECTOR_REVISION)
+        .unwrap_or(true);
+    Ok(AgentView {
+        installed: s.installed,
+        loaded: s.loaded,
+        binary_stale: stale,
+        log: s.log.to_string_lossy().to_string(),
+        config_path: paths::config_file()?.to_string_lossy().to_string(),
+        db_path: paths::db_file()?.to_string_lossy().to_string(),
+    })
+}
+
+#[derive(Serialize)]
+struct AgentView {
+    installed: bool,
+    loaded: bool,
+    binary_stale: bool,
+    log: String,
+    config_path: String,
+    db_path: String,
+}
+
+#[tauri::command]
+fn install_agent() -> Reply<()> {
+    let config = Config::load()?;
+    agent::install(&config)?;
+    Ok(())
+}
+
+/// Runs the collector as a separate process.
+///
+/// The window never writes to the archive itself — it asks the collector binary
+/// to, which keeps the single-writer rule intact even when the request comes from
+/// a button.
+#[tauri::command]
+fn run_collector(action: String) -> Reply<String> {
+    let binary = paths::installed_binary()?;
+    if !binary.exists() {
+        return Err(Failure {
+            message: "the collector is not installed — install the agent first".into(),
+        });
+    }
+    let verb = match action.as_str() {
+        "scan" => "scan",
+        "rebuild" => "rebuild",
+        other => {
+            return Err(Failure {
+                message: format!("unknown action: {other}"),
+            })
+        }
+    };
+    let out = std::process::Command::new(&binary)
+        .arg(verb)
+        .output()
+        .map_err(|e| Failure {
+            message: format!("running {verb}: {e}"),
+        })?;
+    if !out.status.success() {
+        return Err(Failure {
+            message: String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        });
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -124,8 +215,20 @@ pub fn run() {
             });
             Ok(())
         })
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
-            status, projects, summary, timeline, lanes, session, commit_files
+            status,
+            projects,
+            summary,
+            timeline,
+            lanes,
+            session,
+            commit_files,
+            read_config,
+            write_config,
+            agent_state,
+            install_agent,
+            run_collector
         ])
         .run(tauri::generate_context!())
         .expect("error while running lore");

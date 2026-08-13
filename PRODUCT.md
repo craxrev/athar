@@ -19,6 +19,8 @@ Confirmed by the user:
 
 Process split: a background collector process is the sole DB writer; the Tauri app opens the database read-only. The app has no tray or menu-bar surface, so collector health must be visible **inside the window**.
 
+The window may edit configuration and ask the collector to run, but never writes to the archive itself: a Scan or Rebuild button spawns the collector binary rather than opening the database for writing, which keeps the single-writer rule intact even when the request comes from the UI.
+
 ## Users
 
 A single working developer — the author — reviewing their own past work on their own machine.

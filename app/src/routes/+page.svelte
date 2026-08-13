@@ -4,6 +4,7 @@
 	import Lanes from '$lib/Lanes.svelte';
 	import Rail from '$lib/Rail.svelte';
 	import Reader from '$lib/Reader.svelte';
+	import Settings from '$lib/Settings.svelte';
 	import Stream from '$lib/Stream.svelte';
 	import {
 		archive,
@@ -40,6 +41,9 @@
 	let blocks = $state<BlockDetail[]>([]);
 	let selectedBlock = $state<number | null>(null);
 	let reader = $state<SessionDetail | null>(null);
+	/** Settings takes over the window, like the reader: it is somewhere you go,
+	 *  not a mode the timeline sits inside. */
+	let settingsOpen = $state(false);
 	let error = $state<string | null>(null);
 	let statusError = $state<string | null>(null);
 	/** Anything that escaped a handler. Every failure so far in this app has been
@@ -272,7 +276,8 @@
 		const typing = document.activeElement === filterField;
 
 		if (event.key === 'Escape') {
-			if (reader) reader = null;
+			if (settingsOpen) settingsOpen = false;
+			else if (reader) reader = null;
 			else if (typing) filterField?.blur();
 			else if (query) query = '';
 			return;
@@ -286,6 +291,11 @@
 			event.preventDefault();
 			if (event.shiftKey) detailOpen = !detailOpen;
 			else railOpen = !railOpen;
+			return;
+		}
+		if (event.metaKey && event.key === ',') {
+			event.preventDefault();
+			settingsOpen = !settingsOpen;
 			return;
 		}
 		if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
@@ -331,7 +341,7 @@
 	class:rail-closed={!railOpen}
 	class:reading={!!reader}
 >
-	{#if !reader && railOpen}
+	{#if !reader && !settingsOpen && railOpen}
 		<Rail
 			{scope}
 			projects={railProjects}
@@ -350,7 +360,9 @@
 		/>
 	{/if}
 
-	{#if reader}
+	{#if settingsOpen}
+		<Settings onClose={() => (settingsOpen = false)} />
+	{:else if reader}
 		<Reader detail={reader} onClose={() => (reader = null)} />
 	{:else}
 		<div class="centre">
@@ -396,6 +408,14 @@
 					aria-label="Toggle detail"
 				>
 					<Icon name="panelRight" size={18} />
+				</button>
+				<button
+					class="ghost"
+					onclick={() => (settingsOpen = true)}
+					title="Settings (⌘,)"
+					aria-label="Settings"
+				>
+					<Icon name="settings" size={18} />
 				</button>
 			</div>
 

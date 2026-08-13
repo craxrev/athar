@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::paths;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default, deny_unknown_fields, rename_all = "snake_case")]
 pub struct Config {
     /// How often the collector sweeps. Only the file source is sensitive to
     /// this: git and transcripts carry exact timestamps in their own data,
@@ -134,6 +134,40 @@ impl Config {
         let body = toml::to_string_pretty(self).context("serializing config")?;
         fs::write(path, format!("{CONFIG_HEADER}{body}"))
             .with_context(|| format!("writing {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Overwrites the config, keeping the explanatory header.
+    ///
+    /// Comments below the header are not preserved: the file is generated from
+    /// the values, and a round-trip that silently dropped a hand-written note
+    /// would be worse than saying so here.
+    pub fn save_over(&self, path: &Path) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
+        }
+        let body = toml::to_string_pretty(self).context("serializing config")?;
+        fs::write(path, format!("{CONFIG_HEADER}{body}"))
+            .with_context(|| format!("writing {}", path.display()))?;
+        Ok(())
+    }
+
+    /// Rejects a configuration that would quietly collect nothing.
+    pub fn validate(&self) -> Result<()> {
+        if self.scan_interval_mins == 0 {
+            bail!("scan interval must be at least 1 minute");
+        }
+        if self.idle_gap_mins == 0 {
+            bail!("idle gap must be at least 1 minute");
+        }
+        for root in &self.roots {
+            if root.category.trim().is_empty() {
+                bail!("every root needs a category: {}", root.path.display());
+            }
+            if !root.path.is_absolute() {
+                bail!("root paths must be absolute: {}", root.path.display());
+            }
+        }
         Ok(())
     }
 

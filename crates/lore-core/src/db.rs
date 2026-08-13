@@ -122,6 +122,25 @@ pub fn forget_origin(conn: &Connection, origin_id: i64) -> Result<usize> {
     Ok(removed)
 }
 
+/// Records which collector build last wrote the archive.
+pub fn stamp_collector(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES ('collector_revision', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        [crate::COLLECTOR_REVISION],
+    )?;
+    Ok(())
+}
+
+pub fn collector_revision(conn: &Connection) -> Option<String> {
+    conn.query_row(
+        "SELECT value FROM meta WHERE key = 'collector_revision'",
+        [],
+        |r| r.get(0),
+    )
+    .ok()
+}
+
 /// Interns a project path, returning its id.
 pub fn project_id(conn: &Connection, path: &str) -> Result<i64> {
     if let Some(id) = conn

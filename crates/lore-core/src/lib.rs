@@ -23,3 +23,11 @@ pub mod stats;
 pub mod truncate;
 
 pub use config::Config;
+
+/// Bumped whenever the collector's output changes shape.
+///
+/// The collector records this on every scan; a reader compares it with its own to
+/// know whether the archive was written by the build it expects. Comparing
+/// binaries cannot work across processes — the window and the collector are
+/// different executables by design.
+pub const COLLECTOR_REVISION: &str = "2026-08-13.3";

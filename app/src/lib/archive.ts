@@ -145,6 +145,30 @@ export interface SessionDetail {
 	turns: Turn[];
 }
 
+export interface Root {
+	path: string;
+	category: string;
+}
+
+export interface LoreConfig {
+	scan_interval_mins: number;
+	idle_gap_mins: number;
+	file_lookback_days: number;
+	roots: Root[];
+	exclude: string[];
+	identities: string[];
+	sources: { claude: { enabled: boolean; path?: string | null } };
+}
+
+export interface AgentView {
+	installed: boolean;
+	loaded: boolean;
+	binary_stale: boolean;
+	log: string;
+	config_path: string;
+	db_path: string;
+}
+
 /** Commands surface their failure message so the UI can name the problem. */
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 	try {
@@ -173,5 +197,10 @@ export const archive = {
 	lanes: (fromMs: number, toMs: number, category?: string) =>
 		call<Lane[]>('lanes', { fromMs, toMs, category: category ?? null }),
 	session: (id: string) => call<SessionDetail | null>('session', { id }),
-	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha })
+	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha }),
+	config: () => call<LoreConfig>('read_config'),
+	saveConfig: (config: LoreConfig) => call<LoreConfig>('write_config', { config }),
+	agentState: () => call<AgentView>('agent_state'),
+	installAgent: () => call<void>('install_agent'),
+	runCollector: (action: 'scan' | 'rebuild') => call<string>('run_collector', { action })
 };
