@@ -7,6 +7,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use lore_core::{
     collect::{claude, file, git},
+    derive,
     config::Config,
     db, paths, stats,
 };
@@ -26,6 +27,13 @@ enum Command {
     Stats,
     /// Where config and data live, and whether the sources are readable.
     Doctor,
+    /// Recompute every derived table from the archive.
+    Rebuild,
+    /// The timeline for one day, as the app's Stream view will show it.
+    Day {
+        /// A local date, `YYYY-MM-DD`. Defaults to today.
+        date: Option<String>,
+    },
     /// Inspect or create the configuration file.
     #[command(subcommand)]
     Config(ConfigCommand),
@@ -51,6 +59,8 @@ fn main() -> Result<()> {
         Command::Scan => scan(),
         Command::Stats => show_stats(),
         Command::Doctor => doctor(),
+        Command::Rebuild => rebuild(),
+        Command::Day { date } => day_view(date.as_deref()),
         Command::Config(cmd) => config(cmd),
     }
 }
@@ -186,8 +196,154 @@ fn scan() -> Result<()> {
         }
     }
 
+    let d = derive::rebuild(&mut conn, config.idle_gap_mins)?;
+    println!("derived");
+    println!(
+        "  blocks      {} activity blocks ({} min idle gap)",
+        d.blocks, config.idle_gap_mins
+    );
+    println!("  sessions    {}", d.sessions);
+    println!(
+        "  links       {} certain, {} strong, {} weak, {} unlinked commits",
+        d.links_certain, d.links_strong, d.links_weak, d.commits_unlinked
+    );
+
     println!("\nfinished in {:.1}s", started.elapsed().as_secs_f64());
     Ok(())
+}
+
+fn rebuild() -> Result<()> {
+    let config = Config::load()?;
+    let mut conn = db::open_default()?;
+    let started = std::time::Instant::now();
+    let d = derive::rebuild(&mut conn, config.idle_gap_mins)?;
+    println!(
+        "{} blocks, {} sessions, {} commits\n{} certain, {} strong, {} weak, {} unlinked",
+        d.blocks, d.sessions, d.commits, d.links_certain, d.links_strong, d.links_weak,
+        d.commits_unlinked
+    );
+    println!("rebuilt in {:.1}s", started.elapsed().as_secs_f64());
+    Ok(())
+}
+
+fn day_view(date: Option<&str>) -> Result<()> {
+    use chrono::{Local, NaiveDate, TimeZone};
+
+    let day = match date {
+        Some(d) => NaiveDate::parse_from_str(d, "%Y-%m-%d")
+            .with_context(|| format!("expected YYYY-MM-DD, got `{d}`"))?,
+        None => Local::now().date_naive(),
+    };
+    let from = Local
+        .from_local_datetime(&day.and_hms_opt(0, 0, 0).unwrap())
+        .earliest()
+        .map(|d| d.timestamp_millis())
+        .unwrap_or_default();
+    let to = from + 86_400_000;
+
+    let conn = db::open_default()?;
+    let config = Config::load()?;
+    let sum = stats::range_summary(&conn, from, to)?;
+
+    println!(
+        "{}   {} elapsed · {} across projects · {} blocks · {} projects",
+        day.format("%a %d %b %Y"),
+        duration(sum.elapsed_ms),
+        duration(sum.project_ms),
+        sum.blocks,
+        sum.projects
+    );
+
+    let rows = stats::blocks_between(&conn, from, to)?;
+    if rows.is_empty() {
+        println!("\nnothing recorded. lore may not have been running, or nothing happened.");
+        return Ok(());
+    }
+
+    for block in rows {
+        let name = std::path::Path::new(&block.project)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| block.project.clone());
+        let category = config
+            .category_of(std::path::Path::new(&block.project))
+            .unwrap_or("uncategorized");
+
+        println!(
+            "\n{}–{}  {}  [{}]  {}",
+            clock(block.started_ms),
+            clock(block.ended_ms),
+            name,
+            category,
+            duration(block.ended_ms - block.started_ms)
+        );
+
+        for s in stats::sessions_in_block(&conn, block.id)? {
+            let title = s.title.unwrap_or_else(|| "untitled session".into());
+            let note = if s.has_transcript { "" } else { "  (transcript deleted)" };
+            println!(
+                "  ▸ {title}{note}\n      {} prompts · {} tools · {}k tokens · {}",
+                s.prompts,
+                s.tool_calls,
+                (s.input_tokens + s.output_tokens) / 1000,
+                if s.models.is_empty() { "—".into() } else { s.models.clone() }
+            );
+        }
+
+        for c in stats::commits_in_block(&conn, block.id)? {
+            let tier = match c.tier.as_deref() {
+                Some("certain") => "· ai committed",
+                Some("strong") => "· from session (files match)",
+                Some("weak") => "· same session window",
+                _ => "· unattributed",
+            };
+            let ghost = if c.unreachable { " ⚠ unreachable" } else { "" };
+            println!(
+                "  ● {}  {}  +{}/-{} {tier}{ghost}",
+                &c.sha[..7],
+                first_line(&c.message),
+                c.insertions,
+                c.deletions
+            );
+        }
+
+        let changes = stats::file_changes_in_block(&conn, block.id)?;
+        if !changes.is_empty() {
+            let shown: Vec<String> = changes.iter().take(3).map(|(p, _, st)| format!("{p} ({st})")).collect();
+            let more = changes.len().saturating_sub(shown.len());
+            println!(
+                "  ▨ {} file changes: {}{}",
+                changes.len(),
+                shown.join(", "),
+                if more > 0 { format!(", +{more} more") } else { String::new() }
+            );
+        }
+    }
+
+    Ok(())
+}
+
+fn first_line(s: &str) -> &str {
+    s.lines().next().unwrap_or("")
+}
+
+fn clock(ms: i64) -> String {
+    chrono::DateTime::from_timestamp_millis(ms)
+        .map(|dt| dt.with_timezone(&chrono::Local).format("%H:%M").to_string())
+        .unwrap_or_else(|| "--:--".into())
+}
+
+fn duration(ms: i64) -> String {
+    let mins = ms / 60_000;
+    if mins == 0 {
+        // A block can hold a single record, which has no span. Printing `0m`
+        // reads as nothing happening, when something did.
+        "<1m".to_string()
+    } else if mins < 60 {
+        format!("{mins}m")
+    } else {
+        format!("{}h {:02}m", mins / 60, mins % 60)
+    }
 }
 
 fn show_stats() -> Result<()> {

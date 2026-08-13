@@ -1,0 +1,1029 @@
+//! Projections over the archive.
+//!
+//! Everything here is recomputed from `raw_records` by [`rebuild`] and is never a
+//! source of truth. When an adapter improves, these are rebuilt rather than
+//! migrated — which is why the raw record is archived first, and why lore can
+//! reinterpret history whose source files no longer exist.
+//!
+//! Two projections carry the product:
+//!
+//!   - **Activity blocks.** A contiguous stretch of work on one project, ended by
+//!     an idle gap. This is how hours are accounted for with no timer running.
+//!   - **Commit links.** Which session a commit came out of, and on what
+//!     evidence. The tier is recorded rather than smoothed away, because a link
+//!     lore witnessed in a transcript and one it inferred from timing are not the
+//!     same claim.
+
+use std::collections::{HashMap, HashSet};
+
+use anyhow::Result;
+use rusqlite::Connection;
+use serde_json::Value;
+
+/// How close a recorded `git commit` call must be to a commit's own timestamp for
+/// the link to count as witnessed rather than inferred.
+const WITNESS_WINDOW_MS: i64 = 5 * 60 * 1000;
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct DeriveStats {
+    pub blocks: usize,
+    pub sessions: usize,
+    pub commits: usize,
+    pub links_certain: usize,
+    pub links_strong: usize,
+    pub links_weak: usize,
+    pub commits_unlinked: usize,
+}
+
+pub fn rebuild(conn: &mut Connection, idle_gap_mins: u64) -> Result<DeriveStats> {
+    let gap_ms = (idle_gap_mins as i64) * 60_000;
+    let mut stats = DeriveStats::default();
+
+    let sessions = read_sessions(conn)?;
+    let session_files = read_session_files(conn)?;
+    let commit_calls = read_commit_calls(conn)?;
+    let commits = read_commits(conn)?;
+    let blocks = compute_blocks(conn, gap_ms)?;
+
+    let links = link_commits(&sessions, &session_files, &commit_calls, &commits, gap_ms);
+    for link in links.values() {
+        match link.tier {
+            Tier::Certain => stats.links_certain += 1,
+            Tier::Strong => stats.links_strong += 1,
+            Tier::Weak => stats.links_weak += 1,
+        }
+    }
+    stats.commits_unlinked = commits.len() - links.len();
+    stats.blocks = blocks.len();
+    stats.sessions = sessions.len();
+    stats.commits = commits.len();
+
+    write_all(conn, &blocks, &sessions, &session_files, &commits, &links)?;
+    Ok(stats)
+}
+
+// ── Sessions ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Default, Clone)]
+pub struct Session {
+    pub id: String,
+    pub project_id: Option<i64>,
+    pub started_ms: Option<i64>,
+    pub ended_ms: Option<i64>,
+    pub title: Option<String>,
+    pub prompts: i64,
+    pub replies: i64,
+    pub tool_calls: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub cache_read_tokens: i64,
+    pub models: HashSet<String>,
+    pub has_transcript: bool,
+}
+
+fn read_sessions(conn: &Connection) -> Result<HashMap<String, Session>> {
+    let mut out: HashMap<String, Session> = HashMap::new();
+    let mut stmt = conn.prepare(
+        "SELECT session_id, kind, ts_ms, project_id, json
+           FROM raw_records
+          WHERE session_id IS NOT NULL
+          ORDER BY ts_ms",
+    )?;
+    let mut rows = stmt.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let id: String = row.get(0)?;
+        let kind: String = row.get(1)?;
+        let ts: Option<i64> = row.get(2)?;
+        let project_id: Option<i64> = row.get(3)?;
+        let body: String = row.get(4)?;
+
+        let s = out.entry(id.clone()).or_insert_with(|| Session {
+            id: id.clone(),
+            ..Default::default()
+        });
+        if s.project_id.is_none() {
+            s.project_id = project_id;
+        }
+        if let Some(ts) = ts {
+            s.started_ms = Some(s.started_ms.map_or(ts, |v: i64| v.min(ts)));
+            s.ended_ms = Some(s.ended_ms.map_or(ts, |v: i64| v.max(ts)));
+        }
+
+        let value: Value = match serde_json::from_str(&body) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        match kind.as_str() {
+            "ai-title" => {
+                if let Some(t) = value.get("aiTitle").and_then(Value::as_str) {
+                    s.title = Some(t.to_string());
+                }
+            }
+            "user" => {
+                s.has_transcript = true;
+                // A user record whose content is only tool results is the
+                // harness answering the model, not a person typing.
+                if is_human_turn(&value) {
+                    s.prompts += 1;
+                }
+            }
+            "assistant" => {
+                s.has_transcript = true;
+                if let Some(model) = value.pointer("/message/model").and_then(Value::as_str) {
+                    // `<synthetic>` marks a message the harness generated itself,
+                    // not a model that ran. Recording it as a model is a lie.
+                    if !model.starts_with('<') {
+                        s.models.insert(model.to_string());
+                    }
+                }
+                if let Some(usage) = value.pointer("/message/usage") {
+                    s.input_tokens += num(usage, "input_tokens");
+                    s.output_tokens += num(usage, "output_tokens");
+                    s.cache_read_tokens += num(usage, "cache_read_input_tokens");
+                }
+                let mut had_text = false;
+                for block in blocks_of(&value) {
+                    match block.get("type").and_then(Value::as_str) {
+                        Some("text") => had_text = true,
+                        Some("tool_use") => s.tool_calls += 1,
+                        _ => {}
+                    }
+                }
+                if had_text {
+                    s.replies += 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Ok(out)
+}
+
+/// True when a person typed this turn, rather than the harness returning results.
+fn is_human_turn(value: &Value) -> bool {
+    if value.get("isMeta").and_then(Value::as_bool) == Some(true) {
+        return false;
+    }
+    match value.pointer("/message/content") {
+        Some(Value::String(_)) => true,
+        Some(Value::Array(items)) => items.iter().any(|b| {
+            matches!(
+                b.get("type").and_then(Value::as_str),
+                Some("text") | Some("image")
+            )
+        }),
+        _ => false,
+    }
+}
+
+fn blocks_of(value: &Value) -> impl Iterator<Item = &Value> {
+    value
+        .pointer("/message/content")
+        .and_then(Value::as_array)
+        .map(|v| v.iter())
+        .unwrap_or_default()
+}
+
+fn num(value: &Value, key: &str) -> i64 {
+    value.get(key).and_then(Value::as_i64).unwrap_or(0)
+}
+
+// ── Files a session touched ──────────────────────────────────────────────────
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct FileTouch {
+    pub writes: i64,
+    pub reads: i64,
+}
+
+type SessionFiles = HashMap<String, HashMap<String, FileTouch>>;
+
+fn read_session_files(conn: &Connection) -> Result<SessionFiles> {
+    let mut out: SessionFiles = HashMap::new();
+    let mut stmt = conn.prepare(
+        "SELECT session_id, json FROM raw_records
+          WHERE kind = 'assistant' AND session_id IS NOT NULL",
+    )?;
+    let mut rows = stmt.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let id: String = row.get(0)?;
+        let body: String = row.get(1)?;
+        let Ok(value) = serde_json::from_str::<Value>(&body) else {
+            continue;
+        };
+
+        for block in blocks_of(&value) {
+            if block.get("type").and_then(Value::as_str) != Some("tool_use") {
+                continue;
+            }
+            let name = block.get("name").and_then(Value::as_str).unwrap_or("");
+            let Some(path) = block
+                .pointer("/input/file_path")
+                .and_then(Value::as_str)
+                .filter(|p| p.starts_with('/'))
+            else {
+                continue;
+            };
+
+            let entry = out
+                .entry(id.clone())
+                .or_default()
+                .entry(path.to_string())
+                .or_default();
+            match name {
+                "Write" | "Edit" | "MultiEdit" | "NotebookEdit" => entry.writes += 1,
+                "Read" => entry.reads += 1,
+                _ => {}
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+/// Every recorded `git commit` invocation: the transcript witnessing the AI
+/// commit, which is the only way a link can be certain rather than inferred.
+fn read_commit_calls(conn: &Connection) -> Result<Vec<(String, i64)>> {
+    let mut out = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT session_id, ts_ms, json FROM raw_records
+          WHERE kind = 'assistant' AND session_id IS NOT NULL
+            AND ts_ms IS NOT NULL AND json LIKE '%git commit%'",
+    )?;
+    let mut rows = stmt.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let id: String = row.get(0)?;
+        let ts: i64 = row.get(1)?;
+        let body: String = row.get(2)?;
+        let Ok(value) = serde_json::from_str::<Value>(&body) else {
+            continue;
+        };
+        for block in blocks_of(&value) {
+            if block.get("type").and_then(Value::as_str) != Some("tool_use") {
+                continue;
+            }
+            let command = block
+                .pointer("/input/command")
+                .and_then(Value::as_str)
+                .unwrap_or("");
+            if command.contains("git commit") {
+                out.push((id.clone(), ts));
+                break;
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+// ── Commits ──────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct Commit {
+    pub sha: String,
+    pub project_id: i64,
+    pub project_path: String,
+    pub ts_ms: i64,
+    pub message: String,
+    pub unreachable: bool,
+    pub insertions: i64,
+    pub deletions: i64,
+    /// Absolute paths, so a commit can be compared with what a session wrote.
+    pub files: Vec<String>,
+}
+
+fn read_commits(conn: &Connection) -> Result<Vec<Commit>> {
+    let mut out = Vec::new();
+    let mut stmt = conn.prepare(
+        "SELECT r.json, r.project_id, p.path, r.ts_ms
+           FROM raw_records r JOIN projects p ON p.id = r.project_id
+          WHERE r.kind = 'commit' AND r.ts_ms IS NOT NULL",
+    )?;
+    let mut rows = stmt.query([])?;
+
+    while let Some(row) = rows.next()? {
+        let body: String = row.get(0)?;
+        let project_id: i64 = row.get(1)?;
+        let project_path: String = row.get(2)?;
+        let ts_ms: i64 = row.get(3)?;
+        let Ok(value) = serde_json::from_str::<Value>(&body) else {
+            continue;
+        };
+        let Some(sha) = value.get("sha").and_then(Value::as_str) else {
+            continue;
+        };
+
+        let mut insertions = 0;
+        let mut deletions = 0;
+        let mut files = Vec::new();
+        if let Some(list) = value.get("files").and_then(Value::as_array) {
+            for f in list {
+                insertions += f.get("added").and_then(Value::as_i64).unwrap_or(0);
+                deletions += f.get("deleted").and_then(Value::as_i64).unwrap_or(0);
+                if let Some(p) = f.get("path").and_then(Value::as_str) {
+                    files.push(format!("{project_path}/{p}"));
+                }
+            }
+        }
+
+        out.push(Commit {
+            sha: sha.to_string(),
+            project_id,
+            project_path: project_path.clone(),
+            ts_ms,
+            message: value
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
+            unreachable: value.get("unreachable").and_then(Value::as_bool) == Some(true),
+            insertions,
+            deletions,
+            files,
+        });
+    }
+
+    Ok(out)
+}
+
+// ── Activity blocks ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct Block {
+    pub project_id: i64,
+    pub started_ms: i64,
+    pub ended_ms: i64,
+    pub records: i64,
+    pub sessions: i64,
+    pub commits: i64,
+    pub file_changes: i64,
+}
+
+/// Clusters every timestamped record by project, breaking a block wherever the
+/// gap between consecutive records exceeds the idle threshold.
+fn compute_blocks(conn: &Connection, gap_ms: i64) -> Result<Vec<Block>> {
+    let mut stmt = conn.prepare(
+        "SELECT project_id, ts_ms, kind, session_id
+           FROM raw_records
+          WHERE project_id IS NOT NULL AND ts_ms IS NOT NULL
+          ORDER BY project_id, ts_ms",
+    )?;
+    let mut rows = stmt.query([])?;
+
+    let mut out: Vec<Block> = Vec::new();
+    let mut current: Option<Block> = None;
+    let mut current_project = -1i64;
+    let mut seen_sessions: HashSet<String> = HashSet::new();
+
+    while let Some(row) = rows.next()? {
+        let project_id: i64 = row.get(0)?;
+        let ts: i64 = row.get(1)?;
+        let kind: String = row.get(2)?;
+        let session_id: Option<String> = row.get(3)?;
+
+        let start_new = match &current {
+            None => true,
+            Some(b) => project_id != current_project || ts - b.ended_ms > gap_ms,
+        };
+
+        if start_new {
+            if let Some(b) = current.take() {
+                out.push(b);
+            }
+            seen_sessions.clear();
+            current_project = project_id;
+            current = Some(Block {
+                project_id,
+                started_ms: ts,
+                ended_ms: ts,
+                records: 0,
+                sessions: 0,
+                commits: 0,
+                file_changes: 0,
+            });
+        }
+
+        let block = current.as_mut().expect("block just created");
+        block.ended_ms = ts;
+        block.records += 1;
+        match kind.as_str() {
+            "commit" => block.commits += 1,
+            "file_change" => block.file_changes += 1,
+            _ => {}
+        }
+        if let Some(sid) = session_id {
+            if seen_sessions.insert(sid) {
+                block.sessions += 1;
+            }
+        }
+    }
+    if let Some(b) = current.take() {
+        out.push(b);
+    }
+
+    Ok(out)
+}
+
+// ── Commit links ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Tier {
+    Weak,
+    Strong,
+    Certain,
+}
+
+impl Tier {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Tier::Certain => "certain",
+            Tier::Strong => "strong",
+            Tier::Weak => "weak",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Link {
+    pub session_id: String,
+    pub tier: Tier,
+    pub shared_files: i64,
+    distance_ms: i64,
+}
+
+/// Attributes each commit to at most one session, keeping the strongest evidence
+/// available and, among equals, the nearest in time.
+fn link_commits(
+    sessions: &HashMap<String, Session>,
+    session_files: &SessionFiles,
+    commit_calls: &[(String, i64)],
+    commits: &[Commit],
+    gap_ms: i64,
+) -> HashMap<String, Link> {
+    // Sessions grouped by project, so a commit only considers its own project.
+    let mut by_project: HashMap<i64, Vec<&Session>> = HashMap::new();
+    for s in sessions.values() {
+        if let Some(pid) = s.project_id {
+            by_project.entry(pid).or_default().push(s);
+        }
+    }
+
+    let mut calls_by_session: HashMap<&str, Vec<i64>> = HashMap::new();
+    for (id, ts) in commit_calls {
+        calls_by_session.entry(id.as_str()).or_default().push(*ts);
+    }
+
+    let mut out: HashMap<String, Link> = HashMap::new();
+
+    for commit in commits {
+        let Some(candidates) = by_project.get(&commit.project_id) else {
+            continue;
+        };
+
+        let mut best: Option<Link> = None;
+        for session in candidates {
+            let (Some(start), Some(end)) = (session.started_ms, session.ended_ms) else {
+                continue;
+            };
+            // A commit belongs to a session's stretch, allowing one idle gap
+            // afterwards for a commit made right after the conversation ended.
+            if commit.ts_ms < start - gap_ms || commit.ts_ms > end + gap_ms {
+                continue;
+            }
+
+            let shared = session_files
+                .get(&session.id)
+                .map(|files| {
+                    commit
+                        .files
+                        .iter()
+                        .filter(|p| files.get(*p).is_some_and(|t| t.writes > 0))
+                        .count() as i64
+                })
+                .unwrap_or(0);
+
+            let witnessed = calls_by_session
+                .get(session.id.as_str())
+                .is_some_and(|times| {
+                    times
+                        .iter()
+                        .any(|t| (commit.ts_ms - t).abs() <= WITNESS_WINDOW_MS)
+                });
+
+            let tier = if witnessed {
+                Tier::Certain
+            } else if shared > 0 {
+                Tier::Strong
+            } else {
+                Tier::Weak
+            };
+
+            let distance_ms = if commit.ts_ms < start {
+                start - commit.ts_ms
+            } else if commit.ts_ms > end {
+                commit.ts_ms - end
+            } else {
+                0
+            };
+
+            let candidate = Link {
+                session_id: session.id.clone(),
+                tier,
+                shared_files: shared,
+                distance_ms,
+            };
+            let better = match &best {
+                None => true,
+                Some(b) => {
+                    (candidate.tier, -candidate.distance_ms, candidate.shared_files)
+                        > (b.tier, -b.distance_ms, b.shared_files)
+                }
+            };
+            if better {
+                best = Some(candidate);
+            }
+        }
+
+        if let Some(link) = best {
+            out.insert(commit.sha.clone(), link);
+        }
+    }
+
+    out
+}
+
+// ── Writing ──────────────────────────────────────────────────────────────────
+
+fn write_all(
+    conn: &mut Connection,
+    blocks: &[Block],
+    sessions: &HashMap<String, Session>,
+    session_files: &SessionFiles,
+    commits: &[Commit],
+    links: &HashMap<String, Link>,
+) -> Result<()> {
+    let tx = conn.transaction()?;
+
+    // Derived tables are replaced wholesale; nothing here is migrated.
+    for table in [
+        "commit_links",
+        "commit_files",
+        "commits",
+        "session_files",
+        "sessions",
+        "blocks",
+    ] {
+        tx.execute(&format!("DELETE FROM {table}"), [])?;
+    }
+
+    // Blocks first, so sessions and commits can be assigned to one.
+    let mut block_ids: Vec<(i64, i64, i64, i64)> = Vec::with_capacity(blocks.len());
+    {
+        let mut insert = tx.prepare(
+            "INSERT INTO blocks
+                 (project_id, started_ms, ended_ms, records, sessions, commits, file_changes)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        )?;
+        for b in blocks {
+            insert.execute((
+                b.project_id,
+                b.started_ms,
+                b.ended_ms,
+                b.records,
+                b.sessions,
+                b.commits,
+                b.file_changes,
+            ))?;
+            block_ids.push((tx.last_insert_rowid(), b.project_id, b.started_ms, b.ended_ms));
+        }
+    }
+
+    let find_block = |project_id: Option<i64>, ts: Option<i64>| -> Option<i64> {
+        let (pid, ts) = (project_id?, ts?);
+        block_ids
+            .iter()
+            .find(|(_, bp, start, end)| *bp == pid && ts >= *start && ts <= *end)
+            .map(|(id, _, _, _)| *id)
+    };
+
+    {
+        let mut insert = tx.prepare(
+            "INSERT INTO sessions
+                 (session_id, project_id, block_id, started_ms, ended_ms, title,
+                  prompts, replies, tool_calls, input_tokens, output_tokens,
+                  cache_read_tokens, models, has_transcript)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        )?;
+        let mut insert_file = tx.prepare(
+            "INSERT OR IGNORE INTO session_files (session_id, path, writes, reads)
+             VALUES (?1, ?2, ?3, ?4)",
+        )?;
+
+        for s in sessions.values() {
+            let mut models: Vec<&str> = s.models.iter().map(String::as_str).collect();
+            models.sort_unstable();
+            insert.execute((
+                &s.id,
+                s.project_id,
+                find_block(s.project_id, s.started_ms),
+                s.started_ms,
+                s.ended_ms,
+                &s.title,
+                s.prompts,
+                s.replies,
+                s.tool_calls,
+                s.input_tokens,
+                s.output_tokens,
+                s.cache_read_tokens,
+                models.join(","),
+                s.has_transcript as i64,
+            ))?;
+
+            if let Some(files) = session_files.get(&s.id) {
+                for (path, touch) in files {
+                    insert_file.execute((&s.id, path, touch.writes, touch.reads))?;
+                }
+            }
+        }
+    }
+
+    {
+        let mut insert = tx.prepare(
+            "INSERT OR IGNORE INTO commits
+                 (sha, project_id, block_id, ts_ms, message, unreachable,
+                  file_count, insertions, deletions)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        )?;
+        let mut insert_file =
+            tx.prepare("INSERT OR IGNORE INTO commit_files (sha, path) VALUES (?1, ?2)")?;
+        let mut insert_link = tx.prepare(
+            "INSERT OR IGNORE INTO commit_links (sha, session_id, tier, shared_files)
+             VALUES (?1, ?2, ?3, ?4)",
+        )?;
+
+        for c in commits {
+            insert.execute((
+                &c.sha,
+                c.project_id,
+                find_block(Some(c.project_id), Some(c.ts_ms)),
+                c.ts_ms,
+                &c.message,
+                c.unreachable as i64,
+                c.files.len() as i64,
+                c.insertions,
+                c.deletions,
+            ))?;
+            for path in &c.files {
+                insert_file.execute((&c.sha, path))?;
+            }
+            if let Some(link) = links.get(&c.sha) {
+                insert_link.execute((
+                    &c.sha,
+                    &link.session_id,
+                    link.tier.as_str(),
+                    link.shared_files,
+                ))?;
+            }
+        }
+    }
+
+    tx.commit()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+    use serde_json::json;
+
+    fn temp_db() -> Connection {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "lore-derive-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        db::open_writable(&dir.join("lore.db")).unwrap()
+    }
+
+    const MIN: i64 = 60_000;
+
+    struct Fixture {
+        conn: Connection,
+        origin: i64,
+        project: i64,
+        line: i64,
+    }
+
+    impl Fixture {
+        fn new(project_path: &str) -> Self {
+            let conn = temp_db();
+            let origin = db::origin_cursor(&conn, "claude", "/t.jsonl").unwrap().id;
+            let project = db::project_id(&conn, project_path).unwrap();
+            Self { conn, origin, project, line: 0 }
+        }
+
+        fn add(&mut self, kind: &str, ts: i64, session: Option<&str>, body: Value) {
+            self.line += 1;
+            self.conn
+                .execute(
+                    "INSERT INTO raw_records
+                         (origin_id, line_no, ts_ms, kind, session_id, project_id,
+                          json, bytes_original)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0)",
+                    (
+                        self.origin,
+                        self.line,
+                        ts,
+                        kind,
+                        session,
+                        self.project,
+                        body.to_string(),
+                    ),
+                )
+                .unwrap();
+        }
+
+        fn prompt(&mut self, ts: i64, session: &str, text: &str) {
+            self.add(
+                "user",
+                ts,
+                Some(session),
+                json!({ "message": { "role": "user", "content": text } }),
+            );
+        }
+
+        fn tool(&mut self, ts: i64, session: &str, name: &str, input: Value) {
+            self.add(
+                "assistant",
+                ts,
+                Some(session),
+                json!({ "message": {
+                    "model": "claude-opus-5",
+                    "usage": { "input_tokens": 10, "output_tokens": 20, "cache_read_input_tokens": 5 },
+                    "content": [{ "type": "tool_use", "name": name, "input": input }]
+                }}),
+            );
+        }
+
+        fn commit(&mut self, ts: i64, sha: &str, message: &str, files: &[&str]) {
+            let files: Vec<Value> = files
+                .iter()
+                .map(|p| json!({ "path": p, "added": 3, "deleted": 1 }))
+                .collect();
+            self.line += 1;
+            self.conn
+                .execute(
+                    "INSERT INTO raw_records
+                         (origin_id, ext_id, ts_ms, kind, project_id, json, bytes_original)
+                     VALUES (?1, ?2, ?3, 'commit', ?4, ?5, 0)",
+                    (
+                        self.origin,
+                        sha,
+                        ts,
+                        self.project,
+                        json!({
+                            "sha": sha, "message": message, "files": files,
+                            "unreachable": false
+                        })
+                        .to_string(),
+                    ),
+                )
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn splits_blocks_on_an_idle_gap_and_keeps_continuous_work_together() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "morning");
+        f.prompt(base + 5 * MIN, "s1", "still going");
+        f.prompt(base + 10 * MIN, "s1", "and again");
+        // A three-hour break ends the block.
+        f.prompt(base + 190 * MIN, "s2", "back after lunch");
+
+        let stats = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(stats.blocks, 2);
+
+        let spans: Vec<(i64, i64)> = f
+            .conn
+            .prepare("SELECT started_ms, ended_ms FROM blocks ORDER BY started_ms")
+            .unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect();
+        assert_eq!(spans[0], (base, base + 10 * MIN));
+        assert_eq!(spans[1], (base + 190 * MIN, base + 190 * MIN));
+    }
+
+    #[test]
+    fn a_commit_the_ai_ran_is_certain() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "please commit");
+        f.tool(
+            base + MIN,
+            "s1",
+            "Bash",
+            json!({ "command": "git commit -q -m \"feat: thing\"" }),
+        );
+        f.commit(base + MIN + 2_000, "abc123", "feat: thing", &["src/a.rs"]);
+
+        let stats = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(stats.links_certain, 1);
+
+        let (session, tier): (String, String) = f
+            .conn
+            .query_row("SELECT session_id, tier FROM commit_links", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(session, "s1");
+        assert_eq!(tier, "certain");
+    }
+
+    #[test]
+    fn a_hand_made_commit_of_ai_written_files_is_strong_not_certain() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "write the parser");
+        f.tool(
+            base + MIN,
+            "s1",
+            "Write",
+            json!({ "file_path": "/w/proj/src/parser.rs", "content": "code" }),
+        );
+        // Committed by hand in a terminal: nothing witnessed it, but the files
+        // are exactly what the session wrote.
+        f.commit(base + 3 * MIN, "def456", "feat: parser", &["src/parser.rs"]);
+
+        let stats = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(stats.links_certain, 0);
+        assert_eq!(stats.links_strong, 1);
+
+        let (tier, shared): (String, i64) = f
+            .conn
+            .query_row("SELECT tier, shared_files FROM commit_links", [], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(tier, "strong");
+        assert_eq!(shared, 1);
+    }
+
+    #[test]
+    fn a_commit_of_files_no_session_touched_is_only_weak() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "explain something");
+        f.commit(base + 2 * MIN, "aaa111", "chore: hand edit", &["docs/notes.md"]);
+
+        let stats = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(stats.links_weak, 1);
+        let tier: String = f
+            .conn
+            .query_row("SELECT tier FROM commit_links", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(tier, "weak");
+    }
+
+    #[test]
+    fn a_commit_far_from_any_session_stays_unlinked() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "hello");
+        f.commit(base + 600 * MIN, "bbb222", "chore: much later", &["a.txt"]);
+
+        let stats = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(stats.commits_unlinked, 1);
+        let links: i64 = f
+            .conn
+            .query_row("SELECT count(*) FROM commit_links", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(links, 0);
+    }
+
+    #[test]
+    fn summarizes_a_session_with_its_title_tokens_and_files() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "do the thing");
+        f.tool(
+            base + MIN,
+            "s1",
+            "Edit",
+            json!({ "file_path": "/w/proj/src/a.rs" }),
+        );
+        f.tool(
+            base + 2 * MIN,
+            "s1",
+            "Read",
+            json!({ "file_path": "/w/proj/src/b.rs" }),
+        );
+        f.add("ai-title", base + 3 * MIN, Some("s1"), json!({ "aiTitle": "Do the thing" }));
+        // A tool result is the harness replying, not a prompt.
+        f.add(
+            "user",
+            base + 4 * MIN,
+            Some("s1"),
+            json!({ "message": { "content": [{ "type": "tool_result", "content": "ok" }] } }),
+        );
+
+        rebuild(&mut f.conn, 20).unwrap();
+
+        let (title, prompts, tools, input, output): (String, i64, i64, i64, i64) = f
+            .conn
+            .query_row(
+                "SELECT title, prompts, tool_calls, input_tokens, output_tokens FROM sessions",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(title, "Do the thing");
+        assert_eq!(prompts, 1, "the tool result must not count as a prompt");
+        assert_eq!(tools, 2);
+        assert_eq!(input, 20);
+        assert_eq!(output, 40);
+
+        let writes: i64 = f
+            .conn
+            .query_row(
+                "SELECT writes FROM session_files WHERE path='/w/proj/src/a.rs'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(writes, 1);
+    }
+
+    #[test]
+    fn rebuilding_twice_produces_the_same_result() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "hi");
+        f.tool(base + MIN, "s1", "Write", json!({ "file_path": "/w/proj/a.rs" }));
+        f.commit(base + 2 * MIN, "ccc333", "feat: a", &["a.rs"]);
+
+        let first = rebuild(&mut f.conn, 20).unwrap();
+        let second = rebuild(&mut f.conn, 20).unwrap();
+        assert_eq!(first.blocks, second.blocks);
+        assert_eq!(first.sessions, second.sessions);
+        assert_eq!(first.commits, second.commits);
+        assert_eq!(first.links_strong, second.links_strong);
+
+        let counts: (i64, i64, i64) = f
+            .conn
+            .query_row(
+                "SELECT (SELECT count(*) FROM blocks),
+                        (SELECT count(*) FROM commits),
+                        (SELECT count(*) FROM commit_links)",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(counts, (1, 1, 1));
+    }
+
+    #[test]
+    fn a_session_surviving_only_as_prompt_history_is_marked() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.add(
+            "prompt_history",
+            base,
+            Some("gone"),
+            json!({ "display": "an old prompt", "timestamp": base }),
+        );
+        f.prompt(base + MIN, "kept", "a live one");
+
+        rebuild(&mut f.conn, 20).unwrap();
+        let gone: i64 = f
+            .conn
+            .query_row(
+                "SELECT has_transcript FROM sessions WHERE session_id='gone'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let kept: i64 = f
+            .conn
+            .query_row(
+                "SELECT has_transcript FROM sessions WHERE session_id='kept'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(gone, 0);
+        assert_eq!(kept, 1);
+    }
+}

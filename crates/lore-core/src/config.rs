@@ -22,6 +22,10 @@ pub struct Config {
     /// Directory names pruned during the walk.
     pub exclude: Vec<String>,
 
+    /// How long a pause ends an activity block. Work either side of a longer
+    /// gap is two stretches, not one.
+    pub idle_gap_mins: u64,
+
     /// How far back the file source looks on a first scan. An mtime records only
     /// the last save, so older ones say little beyond "untouched since"; without
     /// a bound, a first scan would archive every file ever written.
@@ -85,6 +89,7 @@ impl Default for Config {
             .iter()
             .map(|s| s.to_string())
             .collect(),
+            idle_gap_mins: 20,
             file_lookback_days: 30,
             identities: Vec::new(),
             sources: Sources::default(),

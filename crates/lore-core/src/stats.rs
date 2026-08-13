@@ -65,3 +65,188 @@ pub fn sessions_per_day(conn: &Connection, limit: i64) -> Result<Vec<(String, i6
 fn one(conn: &Connection, sql: &str) -> Result<i64> {
     Ok(conn.query_row(sql, [], |r| r.get(0))?)
 }
+
+// ── Timeline queries ─────────────────────────────────────────────────────────
+//
+// These back the CLI's `day` view and, later, the app's Stream view. They read
+// only derived tables, so they stay cheap regardless of archive size.
+
+#[derive(Debug)]
+pub struct BlockRow {
+    pub id: i64,
+    pub project: String,
+    pub started_ms: i64,
+    pub ended_ms: i64,
+    pub sessions: i64,
+    pub commits: i64,
+    pub file_changes: i64,
+}
+
+#[derive(Debug)]
+pub struct SessionRow {
+    pub id: String,
+    pub title: Option<String>,
+    pub started_ms: Option<i64>,
+    pub ended_ms: Option<i64>,
+    pub prompts: i64,
+    pub tool_calls: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub models: String,
+    pub has_transcript: bool,
+}
+
+#[derive(Debug)]
+pub struct CommitRow {
+    pub sha: String,
+    pub ts_ms: i64,
+    pub message: String,
+    pub insertions: i64,
+    pub deletions: i64,
+    pub unreachable: bool,
+    pub tier: Option<String>,
+    pub session_id: Option<String>,
+}
+
+pub fn blocks_between(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Vec<BlockRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT b.id, p.path, b.started_ms, b.ended_ms, b.sessions, b.commits, b.file_changes
+           FROM blocks b JOIN projects p ON p.id = b.project_id
+          WHERE b.started_ms < ?2 AND b.ended_ms >= ?1
+          ORDER BY b.started_ms",
+    )?;
+    let rows = stmt.query_map([from_ms, to_ms], |r| {
+        Ok(BlockRow {
+            id: r.get(0)?,
+            project: r.get(1)?,
+            started_ms: r.get(2)?,
+            ended_ms: r.get(3)?,
+            sessions: r.get(4)?,
+            commits: r.get(5)?,
+            file_changes: r.get(6)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn sessions_in_block(conn: &Connection, block_id: i64) -> Result<Vec<SessionRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT session_id, title, started_ms, ended_ms, prompts, tool_calls,
+                input_tokens, output_tokens, models, has_transcript
+           FROM sessions WHERE block_id = ?1 ORDER BY started_ms",
+    )?;
+    let rows = stmt.query_map([block_id], |r| {
+        Ok(SessionRow {
+            id: r.get(0)?,
+            title: r.get(1)?,
+            started_ms: r.get(2)?,
+            ended_ms: r.get(3)?,
+            prompts: r.get(4)?,
+            tool_calls: r.get(5)?,
+            input_tokens: r.get(6)?,
+            output_tokens: r.get(7)?,
+            models: r.get(8)?,
+            has_transcript: r.get::<_, i64>(9)? == 1,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+pub fn commits_in_block(conn: &Connection, block_id: i64) -> Result<Vec<CommitRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT c.sha, c.ts_ms, c.message, c.insertions, c.deletions, c.unreachable,
+                l.tier, l.session_id
+           FROM commits c LEFT JOIN commit_links l ON l.sha = c.sha
+          WHERE c.block_id = ?1 ORDER BY c.ts_ms",
+    )?;
+    let rows = stmt.query_map([block_id], |r| {
+        Ok(CommitRow {
+            sha: r.get(0)?,
+            ts_ms: r.get(1)?,
+            message: r.get(2)?,
+            insertions: r.get(3)?,
+            deletions: r.get(4)?,
+            unreachable: r.get::<_, i64>(5)? == 1,
+            tier: r.get(6)?,
+            session_id: r.get(7)?,
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// File changes inside a block's project and span. File changes are not assigned
+/// a block id: they are evidence about a file, not an event in a conversation.
+pub fn file_changes_in_block(conn: &Connection, block_id: i64) -> Result<Vec<(String, i64, String)>> {
+    let mut stmt = conn.prepare(
+        "SELECT json_extract(r.json,'$.path'), r.ts_ms, json_extract(r.json,'$.state')
+           FROM raw_records r
+           JOIN blocks b ON b.id = ?1 AND b.project_id = r.project_id
+          WHERE r.kind = 'file_change'
+            AND r.ts_ms BETWEEN b.started_ms AND b.ended_ms
+          ORDER BY r.ts_ms",
+    )?;
+    let rows = stmt.query_map([block_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// Tracked time over a range.
+///
+/// Two figures, because they answer different questions and only one of them is
+/// wall-clock. Blocks on different projects legitimately overlap — switching
+/// between two repos in the same half hour produces two blocks covering the same
+/// minutes — so summing their durations overstates the day. `elapsed_ms` is the
+/// union of the intervals, which is time actually spent; `project_ms` is the sum,
+/// which is effort distributed across projects and can exceed the day.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RangeSummary {
+    pub elapsed_ms: i64,
+    pub project_ms: i64,
+    pub blocks: i64,
+    pub projects: i64,
+}
+
+pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<RangeSummary> {
+    let mut stmt = conn.prepare(
+        "SELECT started_ms, ended_ms, project_id FROM blocks
+          WHERE started_ms < ?2 AND ended_ms >= ?1
+          ORDER BY started_ms",
+    )?;
+    let rows = stmt.query_map([from_ms, to_ms], |r| {
+        Ok((
+            r.get::<_, i64>(0)?,
+            r.get::<_, i64>(1)?,
+            r.get::<_, i64>(2)?,
+        ))
+    })?;
+
+    let mut summary = RangeSummary::default();
+    let mut projects = std::collections::HashSet::new();
+    let mut merged: Option<(i64, i64)> = None;
+
+    for row in rows {
+        let (start, end, project_id) = row?;
+        let start = start.max(from_ms);
+        let end = end.min(to_ms);
+        if end < start {
+            continue;
+        }
+        summary.blocks += 1;
+        summary.project_ms += end - start;
+        projects.insert(project_id);
+
+        merged = match merged {
+            Some((ms, me)) if start <= me => Some((ms, me.max(end))),
+            Some((ms, me)) => {
+                summary.elapsed_ms += me - ms;
+                Some((start, end))
+            }
+            None => Some((start, end)),
+        };
+    }
+    if let Some((ms, me)) = merged {
+        summary.elapsed_ms += me - ms;
+    }
+    summary.projects = projects.len() as i64;
+
+    Ok(summary)
+}

@@ -74,3 +74,88 @@ CREATE INDEX IF NOT EXISTS raw_records_ts      ON raw_records (ts_ms);
 CREATE INDEX IF NOT EXISTS raw_records_session ON raw_records (session_id, ts_ms);
 CREATE INDEX IF NOT EXISTS raw_records_kind    ON raw_records (kind, ts_ms);
 CREATE INDEX IF NOT EXISTS raw_records_project ON raw_records (project_id, ts_ms);
+
+-- ── Derived tables ────────────────────────────────────────────────────────────
+--
+-- Everything below is a projection of `raw_records` and is rebuilt wholesale by
+-- `lore rebuild`. Nothing here is a source of truth: as adapters improve, these
+-- are recomputed rather than migrated. That is the whole point of archiving the
+-- raw record first.
+
+-- A contiguous stretch of work on one project, ended by an idle gap.
+-- This is how time is accounted for without a timer running.
+CREATE TABLE IF NOT EXISTS blocks (
+    id           INTEGER PRIMARY KEY,
+    project_id   INTEGER NOT NULL REFERENCES projects (id),
+    started_ms   INTEGER NOT NULL,
+    ended_ms     INTEGER NOT NULL,
+    records      INTEGER NOT NULL DEFAULT 0,
+    sessions     INTEGER NOT NULL DEFAULT 0,
+    commits      INTEGER NOT NULL DEFAULT 0,
+    file_changes INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS blocks_time    ON blocks (started_ms);
+CREATE INDEX IF NOT EXISTS blocks_project ON blocks (project_id, started_ms);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id         TEXT PRIMARY KEY,
+    project_id         INTEGER REFERENCES projects (id),
+    block_id           INTEGER REFERENCES blocks (id),
+    started_ms         INTEGER,
+    ended_ms           INTEGER,
+    title              TEXT,
+    prompts            INTEGER NOT NULL DEFAULT 0,
+    replies            INTEGER NOT NULL DEFAULT 0,
+    tool_calls         INTEGER NOT NULL DEFAULT 0,
+    input_tokens       INTEGER NOT NULL DEFAULT 0,
+    output_tokens      INTEGER NOT NULL DEFAULT 0,
+    cache_read_tokens  INTEGER NOT NULL DEFAULT 0,
+    models             TEXT,
+    -- False when the session survives only as prompt history, its transcript
+    -- already deleted by Claude Code. 936 of 1,032 sessions are in this state.
+    has_transcript     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS sessions_time ON sessions (started_ms);
+
+-- Files a session touched, by absolute path so commits can be matched against it.
+CREATE TABLE IF NOT EXISTS session_files (
+    session_id TEXT NOT NULL,
+    path       TEXT NOT NULL,
+    writes     INTEGER NOT NULL DEFAULT 0,
+    reads      INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (session_id, path)
+);
+
+CREATE TABLE IF NOT EXISTS commits (
+    sha         TEXT PRIMARY KEY,
+    project_id  INTEGER NOT NULL REFERENCES projects (id),
+    block_id    INTEGER REFERENCES blocks (id),
+    ts_ms       INTEGER NOT NULL,
+    message     TEXT,
+    unreachable INTEGER NOT NULL DEFAULT 0,
+    file_count  INTEGER NOT NULL DEFAULT 0,
+    insertions  INTEGER NOT NULL DEFAULT 0,
+    deletions   INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS commits_time ON commits (ts_ms);
+
+CREATE TABLE IF NOT EXISTS commit_files (
+    sha  TEXT NOT NULL,
+    path TEXT NOT NULL,
+    PRIMARY KEY (sha, path)
+);
+
+-- Which session a commit came out of, and on what evidence.
+--
+--   certain — the transcript records the AI running `git commit`
+--   strong  — the commit's files are files this session wrote
+--   weak    — only time and project coincide; the user likely committed by hand
+--
+-- The tier is stored rather than hidden because a link lore inferred and a link
+-- lore witnessed are not the same claim.
+CREATE TABLE IF NOT EXISTS commit_links (
+    sha          TEXT PRIMARY KEY,
+    session_id   TEXT NOT NULL,
+    tier         TEXT NOT NULL,
+    shared_files INTEGER NOT NULL DEFAULT 0
+);

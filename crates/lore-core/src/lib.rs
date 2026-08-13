@@ -15,6 +15,7 @@
 pub mod collect;
 pub mod config;
 pub mod db;
+pub mod derive;
 pub mod paths;
 pub mod stats;
 pub mod truncate;
