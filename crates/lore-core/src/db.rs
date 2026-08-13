@@ -132,6 +132,109 @@ pub fn stamp_collector(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// A scan or rebuild in progress, as recorded by the process doing it.
+#[derive(Debug, Clone)]
+pub struct Run {
+    pub action: String,
+    pub started_ms: i64,
+    pub pid: i32,
+}
+
+/// Claims the right to run, or reports the collector that already holds it.
+///
+/// Returns `Some(existing)` when another collector is working, and the caller
+/// should stop. `launchd` will not overlap its own job, but the window's button
+/// and a terminal can both fire into a scheduled scan — and two collectors
+/// against one archive means a blocked writer at best.
+///
+/// The check and the claim share one immediate transaction, so two collectors
+/// starting together cannot both see an idle archive.
+pub fn claim_run(conn: &mut Connection, action: &str) -> Result<Option<Run>> {
+    let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    if let Some(existing) = current_run(&tx) {
+        return Ok(Some(existing));
+    }
+    mark_run_start(&tx, action)?;
+    tx.commit()?;
+    Ok(None)
+}
+
+/// Records that a collector run has begun.
+///
+/// Two things start collectors — the schedule and the window's button — so
+/// neither `launchd` nor the window alone can answer "is one running now". The
+/// process doing the work is the only witness to both, and this is where it says
+/// so. The window reads it through its read-only connection.
+fn mark_run_start(conn: &Connection, action: &str) -> Result<()> {
+    let now = chrono::Utc::now().timestamp_millis();
+    let pid = std::process::id() as i64;
+    for (key, value) in [
+        ("run_action", action.to_string()),
+        ("run_started_ms", now.to_string()),
+        ("run_pid", pid.to_string()),
+    ] {
+        conn.execute(
+            "INSERT INTO meta (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, value],
+        )?;
+    }
+    // Cleared rather than deleted: a finish older than its start is what marks a
+    // run as over, and a missing row would be indistinguishable from a fresh archive.
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES ('run_finished_ms', '0')
+         ON CONFLICT(key) DO UPDATE SET value = '0'",
+        [],
+    )?;
+    Ok(())
+}
+
+pub fn mark_run_end(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "INSERT INTO meta (key, value) VALUES ('run_finished_ms', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        [chrono::Utc::now().timestamp_millis().to_string()],
+    )?;
+    Ok(())
+}
+
+/// The run happening right now, if there is one.
+///
+/// A collector killed mid-scan never writes its finish, so the mark alone would
+/// claim a scan forever. The recorded process is checked for life before the mark
+/// is believed.
+pub fn current_run(conn: &Connection) -> Option<Run> {
+    let value = |key: &str| -> Option<String> {
+        conn.query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
+            .ok()
+    };
+    let started_ms: i64 = value("run_started_ms")?.parse().ok()?;
+    let finished_ms: i64 = value("run_finished_ms")?.parse().unwrap_or(0);
+    if finished_ms >= started_ms {
+        return None;
+    }
+    let pid: i32 = value("run_pid")?.parse().ok()?;
+    if !process_alive(pid) {
+        return None;
+    }
+    Some(Run {
+        action: value("run_action").unwrap_or_else(|| "scan".into()),
+        started_ms,
+        pid,
+    })
+}
+
+/// Signal 0 tests for a process without touching it.
+fn process_alive(pid: i32) -> bool {
+    std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 pub fn collector_revision(conn: &Connection) -> Option<String> {
     conn.query_row(
         "SELECT value FROM meta WHERE key = 'collector_revision'",
@@ -155,4 +258,57 @@ pub fn project_id(conn: &Connection, path: &str) -> Result<i64> {
     Ok(conn.query_row("SELECT id FROM projects WHERE path = ?1", [path], |r| {
         r.get(0)
     })?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_db() -> Connection {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "lore-db-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        open_writable(&dir.join("lore.db")).unwrap()
+    }
+
+    #[test]
+    fn a_second_collector_is_refused_while_one_is_working() {
+        let mut conn = temp_db();
+
+        assert!(claim_run(&mut conn, "scan").unwrap().is_none(), "first claim");
+
+        // The claim records this very process, which is alive, so the second
+        // caller sees a genuinely running collector rather than a stale mark.
+        let refused = claim_run(&mut conn, "scan").unwrap().expect("second claim");
+        assert_eq!(refused.action, "scan");
+        assert_eq!(refused.pid, std::process::id() as i32);
+
+        mark_run_end(&conn).unwrap();
+        assert!(
+            claim_run(&mut conn, "rebuild").unwrap().is_none(),
+            "a finished run must not block the next one"
+        );
+    }
+
+    #[test]
+    fn a_run_whose_process_died_does_not_block_the_next() {
+        let conn = temp_db();
+        mark_run_start(&conn, "scan").unwrap();
+        // PID 1 is launchd and always alive, so a pid that cannot exist is used:
+        // the mark stays open, and only the liveness check can clear it.
+        conn.execute(
+            "UPDATE meta SET value = '2147483647' WHERE key = 'run_pid'",
+            [],
+        )
+        .unwrap();
+        assert!(
+            current_run(&conn).is_none(),
+            "an open mark from a dead process must not claim a run forever"
+        );
+    }
 }

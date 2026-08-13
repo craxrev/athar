@@ -135,10 +135,28 @@ fn expand_home(raw: &str) -> Result<std::path::PathBuf> {
     }
 }
 
+/// Said rather than failed: the schedule fires this every interval, and a run
+/// that declines because another is working is the system behaving, not an error
+/// worth filling the log with.
+fn already_running(existing: &db::Run) -> String {
+    let seconds = (chrono::Utc::now().timestamp_millis() - existing.started_ms).max(0) / 1000;
+    format!(
+        "a {} has been running for {seconds}s (pid {}) — leaving it to finish",
+        existing.action, existing.pid
+    )
+}
+
 fn scan() -> Result<()> {
     let config = Config::load()?;
     let mut conn = db::open_default()?;
     let started = std::time::Instant::now();
+    // Announced before any work: a scan runs for minutes, and until this the
+    // window had no way to tell a busy collector from an idle one. Claiming also
+    // refuses to start beside a collector that is already working.
+    if let Some(existing) = db::claim_run(&mut conn, "scan")? {
+        println!("{}", already_running(&existing));
+        return Ok(());
+    }
 
     if config.sources.claude.enabled {
         let claude_dir = config.claude_dir()?;
@@ -236,6 +254,7 @@ fn scan() -> Result<()> {
         d.links_certain, d.links_strong, d.links_weak, d.commits_unlinked
     );
 
+    db::mark_run_end(&conn)?;
     println!("\nfinished in {:.1}s", started.elapsed().as_secs_f64());
     Ok(())
 }
@@ -244,7 +263,12 @@ fn rebuild() -> Result<()> {
     let config = Config::load()?;
     let mut conn = db::open_default()?;
     let started = std::time::Instant::now();
+    if let Some(existing) = db::claim_run(&mut conn, "rebuild")? {
+        println!("{}", already_running(&existing));
+        return Ok(());
+    }
     let d = derive::rebuild(&mut conn, &config)?;
+    db::mark_run_end(&conn)?;
     println!(
         "{} projects ({} recorded paths folded into them)",
         d.projects, d.folded_paths
@@ -498,7 +522,17 @@ fn print_agent(s: &lore_core::agent::AgentStatus) {
             ""
         }
     );
-    println!("schedule   every {} min, and at login", s.interval_mins);
+    // The installed schedule, not the configured one: editing the interval leaves
+    // them disagreeing until the agent is reinstalled, and this command exists to
+    // report what is actually running.
+    match s.scheduled_interval_mins {
+        Some(mins) if mins != s.interval_mins => println!(
+            "schedule   every {mins} min, and at login  (config asks for {} — run `lore agent install`)",
+            s.interval_mins
+        ),
+        Some(mins) => println!("schedule   every {mins} min, and at login"),
+        None => println!("schedule   every {} min, once installed", s.interval_mins),
+    }
     println!("log        {}", s.log.display());
 }
 

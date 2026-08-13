@@ -186,7 +186,13 @@ pub struct CollectorStatus {
     pub origins: i64,
     pub earliest_ms: Option<i64>,
     pub latest_ms: Option<i64>,
+    /// What the configuration asks for, and what the installed schedule actually
+    /// runs. Editing the interval changes only the first until the agent is
+    /// reinstalled, so reporting config alone would overstate how often scans happen.
     pub scan_interval_mins: u64,
+    pub scheduled_interval_mins: Option<u64>,
+    /// `scan` or `rebuild` while a collector is working, whoever started it.
+    pub running: Option<String>,
     pub roots: Vec<String>,
     /// Sessions whose transcript the source has already deleted, and which now
     /// exist only here.
@@ -759,6 +765,8 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
         earliest_ms: earliest,
         latest_ms: latest,
         scan_interval_mins: config.scan_interval_mins,
+        scheduled_interval_mins: crate::agent::installed_interval_mins(),
+        running: crate::db::current_run(conn).map(|r| r.action),
         roots: config
             .roots
             .iter()
