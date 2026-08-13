@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/lore-core", "crates/lore-cli"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.80"
+license = "MIT"
+
+[profile.release]
+lto = true
+codegen-units = 1

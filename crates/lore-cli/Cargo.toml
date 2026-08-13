@@ -1,0 +1,16 @@
+[package]
+name = "lore-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lore"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+clap = { version = "4.5.61", features = ["derive"] }
+lore-core = { version = "0.1.0", path = "../lore-core" }
