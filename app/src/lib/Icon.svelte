@@ -13,6 +13,7 @@
 		| 'inferred'
 		| 'close'
 		| 'chevron'
+		| 'disclose'
 		| 'panelLeft'
 		| 'panelRight'
 		| 'search'
@@ -70,7 +71,13 @@
 	{:else if name === 'close'}
 		<path d="M5.5 5.5l9 9M14.5 5.5l-9 9" />
 	{:else if name === 'chevron'}
+		<!-- Navigates: takes you somewhere else. -->
 		<path d="M7.75 4.75 13 10l-5.25 5.25" />
+	{:else if name === 'disclose'}
+		<!-- Discloses: opens in place. A solid triangle rather than a stroked
+		     chevron, so the two are distinguishable at rest and not merely by
+		     which way they point. -->
+		<path d="M7.5 5.25 13.25 10l-5.75 4.75z" fill="currentColor" stroke="none" />
 	{:else if name === 'panelLeft'}
 		<rect x="3.25" y="3.75" width="13.5" height="12.5" rx="2" />
 		<path d="M8.25 3.75v12.5" />

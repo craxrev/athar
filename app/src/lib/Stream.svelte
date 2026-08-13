@@ -217,7 +217,7 @@
 									</span>
 								{/if}
 								<span class="chev" class:turned={!!expanded[entry.commit.sha]}>
-									<Icon name="chevron" size={16} />
+									<Icon name="disclose" size={13} />
 								</span>
 							</button>
 
@@ -229,6 +229,7 @@
 									{:else if files === 'error'}
 										<p class="note">This commit's file list could not be read.</p>
 									{:else}
+										<p class="inhead">In this commit</p>
 										<ul>
 											{#each files as f, i (i)}
 												<li>
@@ -258,7 +259,7 @@
 								<span class="body">
 									<span class="title">
 										{entry.moment.files.length} file{entry.moment.files.length === 1 ? '' : 's'}
-										changed
+										saved, not committed
 									</span>
 									<span class="meta paths">
 										{#each entry.moment.files.slice(0, 3) as f, i (i)}
@@ -530,6 +531,13 @@
 		border-top: 1px solid var(--line);
 		background: var(--surface-inset);
 	}
+	.inhead {
+		margin: 0 0 6px;
+		font-size: 13px;
+		font-weight: 600;
+		color: var(--text-faint);
+	}
+
 	.touched ul {
 		margin: 0;
 		padding: 0;
