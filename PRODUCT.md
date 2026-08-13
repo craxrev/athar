@@ -84,6 +84,10 @@ The value of the in-repo case is uncommitted work: an afternoon of editing that 
 
 **What is deliberately not stored:** source code. Git already stores it more efficiently — measured on the user's own repos, printing every patch as text came to 5.9 MB for a 194-commit repo and 221 MB for a 2,182-commit repo, against 133 KB and 2.4 MB of metadata respectively. Diffs are fetched live from git when the user opens a commit. Large tool outputs (file dumps, grep results) are truncated on archive; they are the bulk of transcript volume and are not read.
 
+**What counts as a project.** A recorded path is often deeper than the project it belongs to: a session's working directory can be any subdirectory, and dependency trees carry their own repositories. Walking down from a configured root, the project is the **shallowest git repository** in the chain; where the chain holds no repository, it is the top-level folder under that root. Both halves are needed — a blanket top-level rule would merge a folder of separate client projects into one, and a repository-only rule would miss the research directories that were never version-controlled. A path under no configured root is its own project and stays uncategorized, because lore has no basis to fold it.
+
+This folding happens when derived tables are rebuilt, never at ingest: raw records keep the exact path they were recorded with, so changing the configured roots is a rebuild rather than a re-ingest.
+
 **Correlation lore derives:**
 
 - Activity blocks — contiguous work clustered by project and idle gap

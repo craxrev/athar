@@ -20,12 +20,17 @@ use anyhow::Result;
 use rusqlite::Connection;
 use serde_json::Value;
 
+use crate::config::Config;
+use crate::db;
+
 /// How close a recorded `git commit` call must be to a commit's own timestamp for
 /// the link to count as witnessed rather than inferred.
 const WITNESS_WINDOW_MS: i64 = 5 * 60 * 1000;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct DeriveStats {
+    pub projects: usize,
+    pub folded_paths: usize,
     pub blocks: usize,
     pub sessions: usize,
     pub commits: usize,
@@ -35,15 +40,21 @@ pub struct DeriveStats {
     pub commits_unlinked: usize,
 }
 
-pub fn rebuild(conn: &mut Connection, idle_gap_mins: u64) -> Result<DeriveStats> {
-    let gap_ms = (idle_gap_mins as i64) * 60_000;
+pub fn rebuild(conn: &mut Connection, config: &Config) -> Result<DeriveStats> {
+    let gap_ms = (config.idle_gap_mins as i64) * 60_000;
     let mut stats = DeriveStats::default();
 
-    let sessions = read_sessions(conn)?;
+    // Raw records keep the exact path they were recorded with; the projection
+    // folds each one to its project. Because this happens at rebuild, changing
+    // the configured roots is `lore rebuild`, never a re-ingest.
+    let canonical = canonical_projects(conn, config)?;
+    stats.projects = canonical.values().collect::<HashSet<_>>().len();
+
+    let sessions = read_sessions(conn, &canonical)?;
     let session_files = read_session_files(conn)?;
     let commit_calls = read_commit_calls(conn)?;
-    let commits = read_commits(conn)?;
-    let blocks = compute_blocks(conn, gap_ms)?;
+    let commits = read_commits(conn, &canonical)?;
+    let blocks = compute_blocks(conn, gap_ms, &canonical)?;
 
     let links = link_commits(&sessions, &session_files, &commit_calls, &commits, gap_ms);
     for link in links.values() {
@@ -53,6 +64,7 @@ pub fn rebuild(conn: &mut Connection, idle_gap_mins: u64) -> Result<DeriveStats>
             Tier::Weak => stats.links_weak += 1,
         }
     }
+    stats.folded_paths = canonical.iter().filter(|(raw, to)| raw != to).count();
     stats.commits_unlinked = commits.len() - links.len();
     stats.blocks = blocks.len();
     stats.sessions = sessions.len();
@@ -60,6 +72,49 @@ pub fn rebuild(conn: &mut Connection, idle_gap_mins: u64) -> Result<DeriveStats>
 
     write_all(conn, &blocks, &sessions, &session_files, &commits, &links)?;
     Ok(stats)
+}
+
+/// Maps every recorded project path to the project it belongs to, interning any
+/// canonical path that is not itself already recorded.
+fn canonical_projects(conn: &Connection, config: &Config) -> Result<HashMap<i64, i64>> {
+    let mut rows = Vec::new();
+    {
+        let mut stmt = conn.prepare("SELECT id, path FROM projects")?;
+        let mut q = stmt.query([])?;
+        while let Some(row) = q.next()? {
+            rows.push((row.get::<_, i64>(0)?, row.get::<_, String>(1)?));
+        }
+    }
+
+    let mut out = HashMap::new();
+    let mut interned: HashMap<String, i64> = HashMap::new();
+    for (id, path) in rows {
+        let canonical = config
+            .canonical_project(std::path::Path::new(&path))
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| path.clone());
+
+        let canonical_id = if canonical == path {
+            id
+        } else {
+            match interned.get(&canonical) {
+                Some(existing) => *existing,
+                None => {
+                    let new_id = db::project_id(conn, &canonical)?;
+                    interned.insert(canonical.clone(), new_id);
+                    new_id
+                }
+            }
+        };
+        out.insert(id, canonical_id);
+    }
+
+    Ok(out)
+}
+
+/// Translates a recorded project id to the project it belongs to.
+fn fold(canonical: &HashMap<i64, i64>, id: Option<i64>) -> Option<i64> {
+    id.map(|raw| canonical.get(&raw).copied().unwrap_or(raw))
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────────
@@ -81,7 +136,10 @@ pub struct Session {
     pub has_transcript: bool,
 }
 
-fn read_sessions(conn: &Connection) -> Result<HashMap<String, Session>> {
+fn read_sessions(
+    conn: &Connection,
+    canonical: &HashMap<i64, i64>,
+) -> Result<HashMap<String, Session>> {
     let mut out: HashMap<String, Session> = HashMap::new();
     let mut stmt = conn.prepare(
         "SELECT session_id, kind, ts_ms, project_id, json
@@ -103,7 +161,7 @@ fn read_sessions(conn: &Connection) -> Result<HashMap<String, Session>> {
             ..Default::default()
         });
         if s.project_id.is_none() {
-            s.project_id = project_id;
+            s.project_id = fold(canonical, project_id);
         }
         if let Some(ts) = ts {
             s.started_ms = Some(s.started_ms.map_or(ts, |v: i64| v.min(ts)));
@@ -297,7 +355,7 @@ pub struct Commit {
     pub files: Vec<String>,
 }
 
-fn read_commits(conn: &Connection) -> Result<Vec<Commit>> {
+fn read_commits(conn: &Connection, canonical: &HashMap<i64, i64>) -> Result<Vec<Commit>> {
     let mut out = Vec::new();
     let mut stmt = conn.prepare(
         "SELECT r.json, r.project_id, p.path, r.ts_ms
@@ -333,7 +391,9 @@ fn read_commits(conn: &Connection) -> Result<Vec<Commit>> {
 
         out.push(Commit {
             sha: sha.to_string(),
-            project_id,
+            // Folded for grouping; `project_path` stays the repository, because
+            // the commit's file paths are relative to it.
+            project_id: fold(canonical, Some(project_id)).unwrap_or(project_id),
             project_path: project_path.clone(),
             ts_ms,
             message: value
@@ -366,12 +426,18 @@ pub struct Block {
 
 /// Clusters every timestamped record by project, breaking a block wherever the
 /// gap between consecutive records exceeds the idle threshold.
-fn compute_blocks(conn: &Connection, gap_ms: i64) -> Result<Vec<Block>> {
+fn compute_blocks(
+    conn: &Connection,
+    gap_ms: i64,
+    canonical: &HashMap<i64, i64>,
+) -> Result<Vec<Block>> {
     let mut stmt = conn.prepare(
+        // Ordered by the folded project so a session run from a subdirectory
+        // clusters with the rest of that project's work rather than forming its
+        // own lane.
         "SELECT project_id, ts_ms, kind, session_id
            FROM raw_records
-          WHERE project_id IS NOT NULL AND ts_ms IS NOT NULL
-          ORDER BY project_id, ts_ms",
+          WHERE project_id IS NOT NULL AND ts_ms IS NOT NULL",
     )?;
     let mut rows = stmt.query([])?;
 
@@ -380,11 +446,21 @@ fn compute_blocks(conn: &Connection, gap_ms: i64) -> Result<Vec<Block>> {
     let mut current_project = -1i64;
     let mut seen_sessions: HashSet<String> = HashSet::new();
 
+    let mut records: Vec<(i64, i64, String, Option<String>)> = Vec::new();
     while let Some(row) = rows.next()? {
-        let project_id: i64 = row.get(0)?;
-        let ts: i64 = row.get(1)?;
-        let kind: String = row.get(2)?;
-        let session_id: Option<String> = row.get(3)?;
+        let raw: i64 = row.get(0)?;
+        records.push((
+            canonical.get(&raw).copied().unwrap_or(raw),
+            row.get(1)?,
+            row.get(2)?,
+            row.get(3)?,
+        ));
+    }
+    records.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+
+    for (project_id, ts, kind, session_id) in records {
+        let project_id = project_id;
+        let ts = ts;
 
         let start_new = match &current {
             None => true,
@@ -699,8 +775,16 @@ fn write_all(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db;
     use serde_json::json;
+
+    /// No roots configured, so no path is folded — these tests exercise blocks and
+    /// links, and `config.rs` owns the folding rule's own tests.
+    fn test_config() -> Config {
+        Config {
+            idle_gap_mins: 20,
+            ..Default::default()
+        }
+    }
 
     fn temp_db() -> Connection {
         use std::sync::atomic::{AtomicU64, Ordering};
@@ -811,7 +895,7 @@ mod tests {
         // A three-hour break ends the block.
         f.prompt(base + 190 * MIN, "s2", "back after lunch");
 
-        let stats = rebuild(&mut f.conn, 20).unwrap();
+        let stats = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(stats.blocks, 2);
 
         let spans: Vec<(i64, i64)> = f
@@ -839,7 +923,7 @@ mod tests {
         );
         f.commit(base + MIN + 2_000, "abc123", "feat: thing", &["src/a.rs"]);
 
-        let stats = rebuild(&mut f.conn, 20).unwrap();
+        let stats = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(stats.links_certain, 1);
 
         let (session, tier): (String, String) = f
@@ -867,7 +951,7 @@ mod tests {
         // are exactly what the session wrote.
         f.commit(base + 3 * MIN, "def456", "feat: parser", &["src/parser.rs"]);
 
-        let stats = rebuild(&mut f.conn, 20).unwrap();
+        let stats = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(stats.links_certain, 0);
         assert_eq!(stats.links_strong, 1);
 
@@ -888,7 +972,7 @@ mod tests {
         f.prompt(base, "s1", "explain something");
         f.commit(base + 2 * MIN, "aaa111", "chore: hand edit", &["docs/notes.md"]);
 
-        let stats = rebuild(&mut f.conn, 20).unwrap();
+        let stats = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(stats.links_weak, 1);
         let tier: String = f
             .conn
@@ -904,7 +988,7 @@ mod tests {
         f.prompt(base, "s1", "hello");
         f.commit(base + 600 * MIN, "bbb222", "chore: much later", &["a.txt"]);
 
-        let stats = rebuild(&mut f.conn, 20).unwrap();
+        let stats = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(stats.commits_unlinked, 1);
         let links: i64 = f
             .conn
@@ -939,7 +1023,7 @@ mod tests {
             json!({ "message": { "content": [{ "type": "tool_result", "content": "ok" }] } }),
         );
 
-        rebuild(&mut f.conn, 20).unwrap();
+        rebuild(&mut f.conn, &test_config()).unwrap();
 
         let (title, prompts, tools, input, output): (String, i64, i64, i64, i64) = f
             .conn
@@ -974,8 +1058,8 @@ mod tests {
         f.tool(base + MIN, "s1", "Write", json!({ "file_path": "/w/proj/a.rs" }));
         f.commit(base + 2 * MIN, "ccc333", "feat: a", &["a.rs"]);
 
-        let first = rebuild(&mut f.conn, 20).unwrap();
-        let second = rebuild(&mut f.conn, 20).unwrap();
+        let first = rebuild(&mut f.conn, &test_config()).unwrap();
+        let second = rebuild(&mut f.conn, &test_config()).unwrap();
         assert_eq!(first.blocks, second.blocks);
         assert_eq!(first.sessions, second.sessions);
         assert_eq!(first.commits, second.commits);
@@ -1006,7 +1090,7 @@ mod tests {
         );
         f.prompt(base + MIN, "kept", "a live one");
 
-        rebuild(&mut f.conn, 20).unwrap();
+        rebuild(&mut f.conn, &test_config()).unwrap();
         let gone: i64 = f
             .conn
             .query_row(

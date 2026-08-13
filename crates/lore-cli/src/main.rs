@@ -196,13 +196,17 @@ fn scan() -> Result<()> {
         }
     }
 
-    let d = derive::rebuild(&mut conn, config.idle_gap_mins)?;
+    let d = derive::rebuild(&mut conn, &config)?;
     println!("derived");
     println!(
         "  blocks      {} activity blocks ({} min idle gap)",
         d.blocks, config.idle_gap_mins
     );
     println!("  sessions    {}", d.sessions);
+    println!(
+        "  projects    {} ({} recorded paths folded in)",
+        d.projects, d.folded_paths
+    );
     println!(
         "  links       {} certain, {} strong, {} weak, {} unlinked commits",
         d.links_certain, d.links_strong, d.links_weak, d.commits_unlinked
@@ -216,7 +220,11 @@ fn rebuild() -> Result<()> {
     let config = Config::load()?;
     let mut conn = db::open_default()?;
     let started = std::time::Instant::now();
-    let d = derive::rebuild(&mut conn, config.idle_gap_mins)?;
+    let d = derive::rebuild(&mut conn, &config)?;
+    println!(
+        "{} projects ({} recorded paths folded into them)",
+        d.projects, d.folded_paths
+    );
     println!(
         "{} blocks, {} sessions, {} commits\n{} certain, {} strong, {} weak, {} unlinked",
         d.blocks, d.sessions, d.commits, d.links_certain, d.links_strong, d.links_weak,

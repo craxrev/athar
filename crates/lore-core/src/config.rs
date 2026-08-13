@@ -137,6 +137,53 @@ impl Config {
         Ok(())
     }
 
+    /// The project a path belongs to.
+    ///
+    /// A recorded path is often deeper than the project: a session's working
+    /// directory can be any subdirectory, and dependency trees contain their own
+    /// repositories. Walking down from the configured root, the project is the
+    /// **shallowest git repository** in the chain — which folds
+    /// `profile-next/node_modules/pdfjs-dist` and `ProFile-iOS/ios` back into the
+    /// repository they belong to. When no repository exists in the chain, the
+    /// top-level folder under the root is the project, which is the case for
+    /// research directories that were never version-controlled.
+    ///
+    /// Both halves are needed: a blanket top-level rule would merge
+    /// `freelance/beecoop/malek` and `freelance/beecoop/colocqui` into `beecoop`,
+    /// which is a folder of separate client projects rather than a project.
+    ///
+    /// Returns `None` for a path under no configured root; that path is its own
+    /// project and stays uncategorized, because lore has no basis to fold it.
+    pub fn canonical_project(&self, path: &Path) -> Option<PathBuf> {
+        let root = self
+            .roots
+            .iter()
+            .filter(|r| path.starts_with(&r.path))
+            .max_by_key(|r| r.path.as_os_str().len())?;
+
+        // The root itself may be a repository — a single monorepo pointed at
+        // directly — in which case everything under it is that one project.
+        if root.path.join(".git").exists() {
+            return Some(root.path.clone());
+        }
+
+        let relative = path.strip_prefix(&root.path).ok()?;
+        let mut cursor = root.path.clone();
+        let mut top_level: Option<PathBuf> = None;
+
+        for component in relative.components() {
+            cursor.push(component);
+            if top_level.is_none() {
+                top_level = Some(cursor.clone());
+            }
+            if cursor.join(".git").exists() {
+                return Some(cursor);
+            }
+        }
+
+        Some(top_level.unwrap_or_else(|| root.path.clone()))
+    }
+
     /// The category a path belongs to, taken from the root that contains it.
     /// Categories come from the filesystem layout so projects never need tagging.
     pub fn category_of(&self, path: &Path) -> Option<&str> {
@@ -163,3 +210,107 @@ const CONFIG_HEADER: &str = "\
 # save, so anything between two scans of a non-git project goes unrecorded.
 
 ";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root() -> PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let base = std::env::temp_dir().join(format!(
+            "lore-config-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&base).unwrap();
+        base
+    }
+
+    fn repo(path: &Path) {
+        fs::create_dir_all(path.join(".git")).unwrap();
+    }
+
+    fn config_for(root: &Path) -> Config {
+        Config {
+            roots: vec![Root {
+                path: root.to_path_buf(),
+                category: "research".into(),
+            }],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn folds_a_subdirectory_into_its_repository() {
+        let root = temp_root();
+        repo(&root.join("profile-next"));
+        fs::create_dir_all(root.join("profile-next/node_modules/pdfjs-dist")).unwrap();
+        let config = config_for(&root);
+
+        // A dependency's own repository is not a project.
+        assert_eq!(
+            config.canonical_project(&root.join("profile-next/node_modules/pdfjs-dist")),
+            Some(root.join("profile-next"))
+        );
+        // Neither is a working directory inside the repository.
+        assert_eq!(
+            config.canonical_project(&root.join("profile-next/app/src")),
+            Some(root.join("profile-next"))
+        );
+    }
+
+    #[test]
+    fn keeps_sibling_repositories_under_a_grouping_folder_apart() {
+        let root = temp_root();
+        fs::create_dir_all(root.join("beecoop")).unwrap();
+        repo(&root.join("beecoop/malek"));
+        repo(&root.join("beecoop/colocqui"));
+        repo(&root.join("beecoop/coinsence/html_i4c"));
+        let config = config_for(&root);
+
+        // `beecoop` is a folder of client projects, not a project.
+        assert_eq!(
+            config.canonical_project(&root.join("beecoop/malek/src")),
+            Some(root.join("beecoop/malek"))
+        );
+        assert_eq!(
+            config.canonical_project(&root.join("beecoop/colocqui")),
+            Some(root.join("beecoop/colocqui"))
+        );
+        assert_eq!(
+            config.canonical_project(&root.join("beecoop/coinsence/html_i4c/x")),
+            Some(root.join("beecoop/coinsence/html_i4c"))
+        );
+    }
+
+    #[test]
+    fn uses_the_top_level_folder_when_nothing_is_version_controlled() {
+        let root = temp_root();
+        fs::create_dir_all(root.join("ooredoo-tz/ghidra_out/deep")).unwrap();
+        let config = config_for(&root);
+        assert_eq!(
+            config.canonical_project(&root.join("ooredoo-tz/ghidra_out/deep")),
+            Some(root.join("ooredoo-tz"))
+        );
+    }
+
+    #[test]
+    fn leaves_a_path_outside_every_root_alone() {
+        let root = temp_root();
+        let config = config_for(&root);
+        assert_eq!(config.canonical_project(Path::new("/Users/someone")), None);
+    }
+
+    #[test]
+    fn a_root_that_is_itself_a_repository_absorbs_its_subdirectories() {
+        let root = temp_root();
+        repo(&root);
+        fs::create_dir_all(root.join("packages/web")).unwrap();
+        let config = config_for(&root);
+        assert_eq!(
+            config.canonical_project(&root.join("packages/web")),
+            Some(root.clone())
+        );
+    }
+}
