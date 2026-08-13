@@ -104,27 +104,39 @@
 	// window has to ask. Without this the status footer reports the moment the
 	// window opened for as long as it stays open — and that footer is the only
 	// place collector health is visible, since there is no tray.
-	$effect(() => {
-		const poll = async () => {
-			try {
-				const next = await archive.status();
-				if (next.last_scan_ms !== lastSeenScan) {
-					lastSeenScan = next.last_scan_ms;
-					archiveVersion += 1;
-				}
-				status = next;
-				statusError = null;
-			} catch (e) {
-				// Reported separately: a failing status poll must not mask, or be
-				// masked by, a failure to read the timeline.
-				statusError = (e as Error).message;
+	async function pollStatus() {
+		try {
+			const next = await archive.status();
+			if (next.last_scan_ms !== lastSeenScan) {
+				lastSeenScan = next.last_scan_ms;
+				archiveVersion += 1;
 			}
-		};
+			status = next;
+			statusError = null;
+		} catch (e) {
+			// Reported separately: a failing status poll must not mask, or be
+			// masked by, a failure to read the timeline.
+			statusError = (e as Error).message;
+		}
+	}
 
-		void poll();
-		const timer = setInterval(poll, 30_000);
+	/** Clears a fault and refetches, rather than only hiding the panel.
+	 *
+	 *  A view abandoned mid-load looks exactly like a complete one, so dismissing
+	 *  the message without reloading would leave behind the silent wrong answer
+	 *  the panel exists to prevent. */
+	function retry() {
+		crash = null;
+		error = null;
+		void pollStatus();
+		archiveVersion += 1;
+	}
+
+	$effect(() => {
+		void pollStatus();
+		const timer = setInterval(pollStatus, 30_000);
 		// Coming back to the window is exactly when a stale reading is noticed.
-		const onFocus = () => void poll();
+		const onFocus = () => void pollStatus();
 		window.addEventListener('focus', onFocus);
 		return () => {
 			clearInterval(timer);
@@ -444,9 +456,13 @@
 			<div class="stage">
 				{#if crash}
 					<div class="state">
-						<h2>lore hit an error it could not recover from</h2>
+						<h2>Something in the window failed</h2>
 						<p class="mono">{crash}</p>
-						<p>The archive is intact — this is the window, not the data.</p>
+						<p>
+							The archive is intact — this is the window, not the data. What was on screen may
+							have been left half-loaded, so reloading is the way back.
+						</p>
+						<button class="act" onclick={retry}>Reload the view</button>
 					</div>
 				{:else if error}
 					<div class="state">
@@ -709,6 +725,19 @@
 		font-family: var(--mono);
 		font-size: var(--fs-meta);
 		color: var(--del);
+	}
+	.state .act {
+		margin-top: 6px;
+		padding: 6px 12px;
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-sm);
+		background: var(--surface-raised);
+		color: var(--text);
+		font-size: 14px;
+		font-weight: 540;
+	}
+	.state .act:hover {
+		background: var(--surface-hover);
 	}
 	code {
 		font-family: var(--mono);
