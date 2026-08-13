@@ -37,6 +37,17 @@
 		--radius: 9px;
 		--radius-sm: 6px;
 
+		/* Elevation carries an offset and a soft blur. A raised surface that only
+		   changes its border is not raised. */
+		--lift-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28);
+		--lift-2: 0 2px 4px rgba(0, 0, 0, 0.45), 0 10px 26px rgba(0, 0, 0, 0.36);
+
+		/* The type floor. Nothing in the interface sets smaller than --fs-min,
+		   because "no small typography" is a binding constraint, and small type in
+		   a light weight is the exact combination it rules out. */
+		--fs-min: 13px;
+		--fs-meta: 13.5px;
+
 		/* Operate mode: a workhorse UI stack, set solid and generous. No hairline
 		   weights and no micro labels anywhere. */
 		--sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;

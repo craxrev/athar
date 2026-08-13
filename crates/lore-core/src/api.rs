@@ -59,6 +59,11 @@ pub struct SessionSummary {
     pub files_written: i64,
     /// False when only the prompt history survives; Claude Code deleted the rest.
     pub has_transcript: bool,
+    /// True when this block is not where the session began. A conversation that
+    /// pauses past the idle gap spans several blocks; repeating its full row in
+    /// each one reads as several conversations, so later blocks mark it as a
+    /// continuation instead.
+    pub continued: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -406,6 +411,7 @@ fn session_row(conn: &Connection, sql: &str, params: &[&dyn rusqlite::ToSql]) ->
             output_tokens: r.get(9)?,
             has_transcript: r.get::<_, i64>(10)? == 1,
             files_written: r.get(11)?,
+            continued: r.get::<_, i64>(12).unwrap_or(0) == 1,
             id,
         })
     })?;
@@ -418,6 +424,14 @@ const SESSION_COLUMNS: &str = "
     (SELECT count(*) FROM session_files f
       WHERE f.session_id = s.session_id AND f.writes > 0)";
 
+/// Adds the continuation flag, for the block-scoped query only.
+const SESSION_COLUMNS_IN_BLOCK: &str = "
+    s.session_id, s.title, s.started_ms, s.ended_ms, s.prompts, s.replies,
+    s.tool_calls, s.input_tokens, s.models, s.output_tokens, s.has_transcript,
+    (SELECT count(*) FROM session_files f
+      WHERE f.session_id = s.session_id AND f.writes > 0),
+    CASE WHEN s.started_ms < b.started_ms THEN 1 ELSE 0 END";
+
 /// Sessions that overlap the block, not merely those that started in it.
 ///
 /// A conversation with a long pause in the middle spans two blocks: the gap ends
@@ -427,7 +441,7 @@ pub fn sessions_in_block(conn: &Connection, block_id: i64) -> Result<Vec<Session
     session_row(
         conn,
         &format!(
-            "SELECT {SESSION_COLUMNS} FROM sessions s
+            "SELECT {SESSION_COLUMNS_IN_BLOCK} FROM sessions s
                JOIN blocks b ON b.id = ?1
               WHERE s.project_id = b.project_id
                 AND s.started_ms <= b.ended_ms

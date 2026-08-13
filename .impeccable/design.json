@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-13T00:00:00Z",
+  "title": "Design System: lore",
+  "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
+  "colorRamps": {
+    "ground": {
+      "window": "#0b0c0f",
+      "pane": "#12141a",
+      "raised": "#191c24",
+      "hover": "#1f2330"
+    },
+    "text": {
+      "primary": "#edeef2",
+      "secondary": "#a2a8b6",
+      "tertiary": "#878e9d"
+    },
+    "accent-magenta": {
+      "base": "#e93d97",
+      "fill": "rgba(233, 61, 151, 0.16)",
+      "edge": "rgba(233, 61, 151, 0.42)",
+      "on": "#14040c"
+    },
+    "semantic": {
+      "uncertain": "#f2a93b",
+      "uncertain-soft": "rgba(242, 169, 59, 0.14)",
+      "added": "#56c98a",
+      "removed": "#e5555c"
+    },
+    "category": {
+      "work": "#4c8dff",
+      "research": "#e93d97",
+      "personal": "#56c98a",
+      "freelance": "#f2a93b"
+    },
+    "line": {
+      "divider": "rgba(255, 255, 255, 0.07)",
+      "strong": "rgba(255, 255, 255, 0.14)"
+    }
+  },
+  "elevation": {
+    "philosophy": "structural",
+    "tokens": {
+      "lift-1": "0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28)",
+      "lift-2": "0 2px 4px rgba(0, 0, 0, 0.45), 0 10px 26px rgba(0, 0, 0, 0.36)"
+    },
+    "material": {
+      "vibrancy": "macOS underWindowBackground, followsWindowActiveState, radius 10 — applied at the window and revealed only by the scope rail, which paints rgba(255,255,255,0.022) of its own",
+      "rule": "Dense content never sits on a live background. A raised surface changes its shadow, not only its border."
+    }
+  },
+  "motion": {
+    "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
+    "tokens": {
+      "bar-grow": "620ms, scaleX from 0.02, transform-origin left, staggered 22ms per lane up to 12",
+      "reader-arrive": "260ms, opacity 0.6 → 1 with 6px rise",
+      "state-change": "120ms ease-out on background and color for rows and toggles"
+    },
+    "rule": "One authored moment per surface, from an already-visible default. All motion disabled under prefers-reduced-motion."
+  },
+  "breakpoints": {
+    "detail-folds": "1120px",
+    "rail-folds": "880px",
+    "window-min": "880x560",
+    "titlebar-inset": "30px",
+    "traffic-light-clearance": "62px"
+  },
+  "typeFloor": {
+    "minSize": "13px",
+    "metaSize": "13.5px",
+    "minWeight": 500,
+    "rule": "No micro-labels. Small type in a light weight is the combination this system rules out; the floor exists so a future surface cannot reintroduce it."
+  },
+  "numerics": {
+    "face": "ui-monospace, SF Mono, JetBrains Mono, Menlo, monospace",
+    "features": "tabular-nums",
+    "appliesTo": ["times", "durations", "token counts", "commit shas", "line counts", "file paths"],
+    "rules": [
+      "A span under one minute prints <1m, never 0m — a block holding a single record still happened.",
+      "A range crossing midnight prints its dates; clock times alone contradict a multi-day span.",
+      "A count the data can only floor is labelled as a floor, never as a total."
+    ]
+  },
+  "confidence": {
+    "purpose": "The signature device: attribution carries the evidence that produced it.",
+    "tiers": {
+      "witnessed": { "color": "#56c98a", "icon": "closed ring with check", "meaning": "the transcript records the assistant running the commit" },
+      "files-match": { "color": "#a2a8b6", "icon": "broken ring with check", "meaning": "inferred — the commit's files were written in this session" },
+      "inferred": { "color": "#f2a93b", "icon": "broken ring with check", "meaning": "timing and project only; likely committed by hand" },
+      "unattributed": { "color": "#f2a93b", "icon": "warning triangle", "meaning": "no session to attribute this to" }
+    }
+  },
+  "iconSystem": {
+    "grid": "20px",
+    "strokeWidth": 1.75,
+    "caps": "round",
+    "joins": "round",
+    "color": "currentColor",
+    "rule": "One drawn set. No glyph, emoji or text character stands in for an icon. Two icons encode certainty rather than objects: a closed ring for witnessed, the same ring broken for inferred."
+  },
+  "componentSnippets": {
+    "selection": ".row.on { background: rgba(233,61,151,0.16); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); color: #edeef2; }",
+    "honesty-flag": ".flag.amber { color: #f2a93b; background: rgba(242,169,59,0.14); border-radius: 999px; padding: 2px 8px; font-size: 13px; font-weight: 540; }",
+    "focus-ring": ":focus-visible { outline: 2px solid #e93d97; outline-offset: 2px; border-radius: 6px; }",
+    "scrollbar": "::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }",
+    "digest-metric": ".digest > span { white-space: nowrap; } /* atomic, so a wrap lands between metrics and never inside a phrase */"
+  },
+  "dos": [
+    "Show how a claim was established, next to the claim.",
+    "Keep magenta for selection and live state; keep amber for uncertainty.",
+    "Set data in the mono token with tabular numerals.",
+    "Name what a surface does hold when it cannot show what was expected.",
+    "Give a raised surface a shadow with offset and blur."
+  ],
+  "donts": [
+    "Set type below 13px or below weight 500.",
+    "Use the accent as a glow, a gradient, or a decorative fill.",
+    "Extend vibrancy beyond the scope rail, or add blur for atmosphere.",
+    "Render a calendar grid or a contribution heatmap as a primary view.",
+    "Print a figure the data cannot support.",
+    "Introduce a second accent, or let a category hue carry state."
+  ],
+  "notCanonized": [
+    "The residual empty space below the lanes at short ranges. Lane rows and bars were enlarged to fill more of the stage, but a sparse week still leaves roughly a third of the view empty. That is a layout shortfall the build carries, not a rule for future surfaces to inherit."
+  ]
+}

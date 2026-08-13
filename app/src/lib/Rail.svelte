@@ -255,7 +255,7 @@
 		background: var(--text-faint);
 	}
 	.swatch.all {
-		background: linear-gradient(135deg, var(--accent), var(--text-faint));
+		background: var(--text-dim);
 	}
 	/* Categories come from the filesystem layout, so their set is open-ended;
 	   these four are the ones this machine has. */

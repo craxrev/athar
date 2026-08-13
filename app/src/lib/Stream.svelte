@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { BlockDetail } from './archive';
-	import { clock, dayKey, duration, fullDay, shortPath, tokens } from './format';
+	import { clock, day, dayKey, duration, fullDay, shortPath, tokens } from './format';
 
 	let {
 		blocks,
@@ -30,6 +30,14 @@
 		return out;
 	});
 
+	/** A resumed session can begin days before the block it continues into, so the
+	 *  date shows whenever the clock alone would mislead. */
+	function continuedFrom(startedMs: number | null, blockMs: number): string {
+		if (startedMs === null) return 'earlier';
+		const sameDay = new Date(startedMs).toDateString() === new Date(blockMs).toDateString();
+		return sameDay ? clock(startedMs) : `${day(startedMs)} ${clock(startedMs)}`;
+	}
+
 	const tierLabel: Record<string, string> = {
 		certain: 'Committed by the assistant',
 		strong: 'From this session — files match',
@@ -55,15 +63,24 @@
 					</button>
 
 					{#each block.sessions as s (s.id)}
-						<button class="item session" onclick={() => onOpenSession(s.id)}>
+						<button
+							class="item session"
+							class:continued={s.continued}
+							onclick={() => onOpenSession(s.id)}
+						>
 							<Icon name="session" size={17} />
 							<span class="body">
 								<span class="title">{s.title}</span>
 								<span class="meta">
-									<span class="num">{s.prompts}</span> prompts ·
-									<span class="num">{s.tool_calls}</span> tools ·
-									<span class="num">{tokens(s.input_tokens + s.output_tokens)}</span> tokens
-									{#if s.models.length}· {s.models.join(', ')}{/if}
+									{#if s.continued}
+										continues from {continuedFrom(s.started_ms, block.started_ms)} — its
+										figures count once, at the block where it began
+									{:else}
+										<span class="num">{s.prompts}</span> prompts ·
+										<span class="num">{s.tool_calls}</span> tools ·
+										<span class="num">{tokens(s.input_tokens + s.output_tokens)}</span> tokens
+										{#if s.models.length}· {s.models.join(', ')}{/if}
+									{/if}
 								</span>
 							</span>
 							{#if !s.has_transcript}
@@ -168,6 +185,7 @@
 	article.on {
 		border-color: var(--accent-edge);
 		background: color-mix(in oklab, var(--accent) 6%, var(--surface));
+		box-shadow: var(--lift-1);
 	}
 
 	.head {
@@ -194,7 +212,7 @@
 	}
 
 	.swatch {
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		font-weight: 560;
 		padding: 2px 7px;
 		border-radius: 999px;
@@ -243,6 +261,14 @@
 	.session :global(svg) {
 		color: var(--accent);
 	}
+	/* A continuation is the same conversation, not another one. */
+	.session.continued :global(svg) {
+		color: var(--text-faint);
+	}
+	.session.continued .title {
+		color: var(--text-dim);
+		font-weight: 500;
+	}
 
 	.body {
 		flex: 1;
@@ -284,7 +310,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		font-weight: 540;
 	}
 	/* Witnessed and inferred are different claims and must not look alike. */
@@ -307,14 +333,14 @@
 		align-items: baseline;
 		gap: 5px;
 		font-family: var(--mono);
-		font-size: 12px;
+		font-size: var(--fs-min);
 	}
 	.state {
 		color: var(--text-faint);
 		opacity: 0.75;
 	}
 	.more {
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 	}
 
 	.flag {
@@ -322,7 +348,7 @@
 		align-items: center;
 		gap: 4px;
 		flex: none;
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		font-weight: 540;
 		padding: 2px 8px;
 		border-radius: 999px;

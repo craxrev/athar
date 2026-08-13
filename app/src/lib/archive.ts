@@ -52,6 +52,7 @@ export interface SessionSummary {
 	models: string[];
 	files_written: number;
 	has_transcript: boolean;
+	continued?: boolean;
 }
 
 export interface CommitSummary {

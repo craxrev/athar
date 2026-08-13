@@ -139,6 +139,26 @@
 		flex-direction: column;
 		min-height: 0;
 		background: var(--ground);
+		/* Content is visible from the first frame and settles up; the reader
+		   replacing the whole window should read as arriving, not as a cut. */
+		animation: arrive 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+	}
+
+	@keyframes arrive {
+		from {
+			opacity: 0.6;
+			transform: translateY(6px);
+		}
+		to {
+			opacity: 1;
+			transform: none;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.reader {
+			animation: none;
+		}
 	}
 
 	.bar {
@@ -298,7 +318,7 @@
 		color: var(--del);
 	}
 	.tier {
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		font-weight: 540;
 		color: var(--text-dim);
 	}
@@ -324,7 +344,7 @@
 	}
 	.path {
 		font-family: var(--mono);
-		font-size: 12px;
+		font-size: var(--fs-min);
 		color: var(--text-dim);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -333,7 +353,7 @@
 
 	.badge {
 		flex: none;
-		font-size: 11.5px;
+		font-size: var(--fs-min);
 		font-weight: 580;
 		padding: 1px 6px;
 		border-radius: 999px;
@@ -376,7 +396,7 @@
 	}
 	.at {
 		color: var(--text-faint);
-		font-size: 12px;
+		font-size: var(--fs-min);
 	}
 
 	.text {
@@ -409,7 +429,7 @@
 		padding: 3px 9px;
 		border-radius: var(--radius-sm);
 		background: var(--surface);
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 	}
 	.tools li.failed {
 		background: rgba(229, 85, 92, 0.08);
@@ -421,7 +441,7 @@
 	}
 	.target {
 		font-family: var(--mono);
-		font-size: 12px;
+		font-size: var(--fs-min);
 		color: var(--text-faint);
 		overflow: hidden;
 		text-overflow: ellipsis;

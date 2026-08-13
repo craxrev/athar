@@ -218,8 +218,8 @@
 		top: 8px;
 		padding-left: 6px;
 		font-family: var(--mono);
-		font-size: 11.5px;
-		font-weight: 500;
+		font-size: var(--fs-min);
+		font-weight: 560;
 		color: var(--text-faint);
 		white-space: nowrap;
 	}
@@ -235,7 +235,7 @@
 	}
 
 	.group {
-		padding-top: 18px;
+		padding-top: 22px;
 	}
 
 	.grouphead {
@@ -278,7 +278,7 @@
 	.lane {
 		display: flex;
 		align-items: center;
-		height: 32px;
+		height: 40px;
 		padding-left: 16px;
 	}
 	.lane:hover {
@@ -315,7 +315,7 @@
 	.bar {
 		position: absolute;
 		top: 50%;
-		height: 17px;
+		height: 23px;
 		min-width: 3px;
 		transform: translateY(-50%);
 		border-radius: 4px;
@@ -349,7 +349,7 @@
 	}
 	.bar.on {
 		background: var(--accent);
-		box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+		box-shadow: var(--lift-1);
 	}
 	.bar.on .commits i {
 		background: var(--on-accent);
@@ -361,7 +361,7 @@
 	}
 	.commits i {
 		width: 3px;
-		height: 9px;
+		height: 12px;
 		border-radius: 1px;
 		background: rgba(255, 255, 255, 0.82);
 	}

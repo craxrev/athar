@@ -592,7 +592,7 @@
 	}
 	.state .mono {
 		font-family: var(--mono);
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		color: var(--del);
 	}
 	code {

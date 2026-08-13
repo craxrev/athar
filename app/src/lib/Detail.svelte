@@ -165,7 +165,7 @@
 	.where {
 		margin: 3px 0 0;
 		font-family: var(--mono);
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		color: var(--text-faint);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -212,6 +212,7 @@
 		border: 1px solid var(--line);
 		border-radius: var(--radius-sm);
 		background: var(--surface-raised);
+		box-shadow: var(--lift-1);
 		text-align: left;
 	}
 	.card:not(.static):hover {
@@ -261,7 +262,7 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 6px;
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		line-height: 1.45;
 		color: var(--text-faint);
 	}
@@ -303,7 +304,7 @@
 		flex: 1;
 		min-width: 0;
 		font-family: var(--mono);
-		font-size: 12px;
+		font-size: var(--fs-min);
 		color: var(--text-dim);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -311,7 +312,7 @@
 	}
 	.state {
 		flex: none;
-		font-size: 12px;
+		font-size: var(--fs-min);
 		font-weight: 540;
 		color: var(--text-faint);
 	}
@@ -324,7 +325,7 @@
 
 	.caveat {
 		margin: 10px 0 0;
-		font-size: 12.5px;
+		font-size: var(--fs-meta);
 		line-height: 1.5;
 		color: var(--text-faint);
 	}
