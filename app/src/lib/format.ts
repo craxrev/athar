@@ -60,9 +60,15 @@ export function tokens(n: number): string {
 	return `${(n / 1_000_000).toFixed(1)}M`;
 }
 
-export function relative(ms: number | null): string {
+/** Elapsed time, against a clock the caller supplies.
+ *
+ *  `now` is a parameter rather than a `Date.now()` inside, because a call to the
+ *  real clock is invisible to the framework: the text was recomputed only when
+ *  the timestamp changed, so "4m ago" stayed on screen an hour later and then
+ *  jumped. Passing a ticking value makes the elapsing part reactive. */
+export function relative(ms: number | null, now: number = Date.now()): string {
 	if (ms === null) return 'never';
-	const diff = Date.now() - ms;
+	const diff = now - ms;
 	const mins = Math.round(diff / 60_000);
 	if (mins < 1) return 'just now';
 	if (mins < 60) return `${mins}m ago`;

@@ -51,3 +51,23 @@ class Collector {
 }
 
 export const collector = new Collector();
+
+/** A clock that advances, for text that reads "4m ago".
+ *
+ *  One timer for the window rather than one per caller, and a minute's
+ *  resolution because that is the smallest unit any of that text shows. */
+class Clock {
+	now = $state(Date.now());
+	#timer: ReturnType<typeof setInterval> | null = null;
+
+	start() {
+		if (this.#timer) return () => {};
+		this.#timer = setInterval(() => (this.now = Date.now()), 30_000);
+		return () => {
+			if (this.#timer) clearInterval(this.#timer);
+			this.#timer = null;
+		};
+	}
+}
+
+export const clock = new Clock();

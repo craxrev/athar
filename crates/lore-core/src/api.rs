@@ -178,7 +178,14 @@ pub struct TouchedFile {
 
 #[derive(Debug, Serialize)]
 pub struct CollectorStatus {
+    /// When a collector last finished, whatever it found.
+    ///
+    /// Distinct from [`Self::last_archived_ms`]: a scan that reads every source
+    /// and finds nothing new advances this and not that. Reporting the other one
+    /// as "last scan" told you the collector had stopped running when it hadn't.
     pub last_scan_ms: Option<i64>,
+    /// When something was last written into the archive.
+    pub last_archived_ms: Option<i64>,
     pub records: i64,
     pub sessions: i64,
     pub commits: i64,
@@ -755,7 +762,18 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
     )?;
 
     Ok(CollectorStatus {
-        last_scan_ms: conn.query_row("SELECT max(updated_at_ms) FROM origins", [], |r| r.get(0))?,
+        // A run in progress has not finished, so the previous finish is what the
+        // window should keep showing until this one records its own.
+        last_scan_ms: conn
+            .query_row(
+                "SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'run_finished_ms'",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .ok()
+            .filter(|ms| *ms > 0),
+        last_archived_ms: conn
+            .query_row("SELECT max(updated_at_ms) FROM origins", [], |r| r.get(0))?,
         records: one("SELECT count(*) FROM raw_records")?,
         sessions: one("SELECT count(*) FROM sessions")?,
         commits: one("SELECT count(*) FROM commits")?,

@@ -6,7 +6,7 @@
 	import Reader from '$lib/Reader.svelte';
 	import Settings from '$lib/Settings.svelte';
 	import Stream from '$lib/Stream.svelte';
-	import { collector } from '$lib/collector.svelte';
+	import { clock, collector } from '$lib/collector.svelte';
 	import {
 		archive,
 		type BlockDetail,
@@ -108,8 +108,11 @@
 	async function pollStatus() {
 		try {
 			const next = await archive.status();
-			if (next.last_scan_ms !== lastSeenScan) {
-				lastSeenScan = next.last_scan_ms;
+			// Keyed on what was archived, not on scans: a scan that finds nothing
+			// still finishes, and reloading every view for it would be work for an
+			// unchanged answer.
+			if (next.last_archived_ms !== lastSeenScan) {
+				lastSeenScan = next.last_archived_ms;
 				archiveVersion += 1;
 			}
 			status = next;
@@ -137,6 +140,8 @@
 	}
 
 	$effect(() => {
+		// One clock for every "N ago" in the window, started with the shell.
+		const stopClock = clock.start();
 		void pollStatus();
 		const timer = setInterval(pollStatus, 30_000);
 		// A separate, much cheaper beat: a warm scan lasts a few seconds and would
@@ -159,6 +164,7 @@
 		const onFocus = () => void pollStatus();
 		window.addEventListener('focus', onFocus);
 		return () => {
+			stopClock();
 			clearInterval(timer);
 			clearInterval(runTimer);
 			window.removeEventListener('focus', onFocus);

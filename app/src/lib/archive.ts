@@ -5,7 +5,10 @@ import { invoke } from '@tauri-apps/api/core';
 export type Tier = 'certain' | 'strong' | 'weak';
 
 export interface CollectorStatus {
+	/** When a collector last finished, and when it last wrote something. A scan
+	 *  that finds nothing new advances the first only. */
 	last_scan_ms: number | null;
+	last_archived_ms: number | null;
 	records: number;
 	sessions: number;
 	commits: number;

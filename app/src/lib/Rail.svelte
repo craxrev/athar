@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import { compactDuration, relative } from './format';
+	import { clock } from './collector.svelte';
 
 	let {
 		scope,
@@ -139,7 +140,7 @@
 			{:else if lastScanMs === null}
 				Never scanned
 			{:else}
-				Scanned {relative(lastScanMs)}
+				Scanned {relative(lastScanMs, clock.now)}
 			{/if}
 			<span class="faint">· every {intervalMins}m</span>
 		</span>
