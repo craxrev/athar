@@ -216,8 +216,8 @@
 										<Icon name="warn" size={14} /> only in lore
 									</span>
 								{/if}
-								<span class="chev" class:turned={!!expanded[entry.commit.sha]}>
-									<Icon name="disclose" size={13} />
+								<span class="chev disclose" class:turned={!!expanded[entry.commit.sha]}>
+									<Icon name="chevron" size={16} />
 								</span>
 							</button>
 
@@ -573,12 +573,14 @@
 		color: var(--text-faint);
 	}
 
-	.chev.turned {
+	/* Down at rest: this row opens in place rather than taking you elsewhere. */
+	.chev.disclose {
 		transform: rotate(90deg);
-		color: var(--text);
+		transition: transform 140ms ease-out;
 	}
-	.chev :global(svg) {
-		transition: transform 120ms ease-out;
+	.chev.disclose.turned {
+		transform: rotate(270deg);
+		color: var(--text);
 	}
 
 	.bare {
