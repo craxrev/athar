@@ -71,7 +71,6 @@ pub fn rebuild(conn: &mut Connection, config: &Config) -> Result<DeriveStats> {
     stats.commits = commits.len();
 
     write_all(conn, &blocks, &sessions, &session_files, &commits, &links)?;
-    db::stamp_collector(conn)?;
     Ok(stats)
 }
 

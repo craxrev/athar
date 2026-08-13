@@ -122,16 +122,6 @@ pub fn forget_origin(conn: &Connection, origin_id: i64) -> Result<usize> {
     Ok(removed)
 }
 
-/// Records which collector build last wrote the archive.
-pub fn stamp_collector(conn: &Connection) -> Result<()> {
-    conn.execute(
-        "INSERT INTO meta (key, value) VALUES ('collector_revision', ?1)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        [crate::COLLECTOR_REVISION],
-    )?;
-    Ok(())
-}
-
 /// A scan or rebuild in progress, as recorded by the process doing it.
 #[derive(Debug, Clone)]
 pub struct Run {
@@ -233,15 +223,6 @@ fn process_alive(pid: i32) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
-}
-
-pub fn collector_revision(conn: &Connection) -> Option<String> {
-    conn.query_row(
-        "SELECT value FROM meta WHERE key = 'collector_revision'",
-        [],
-        |r| r.get(0),
-    )
-    .ok()
 }
 
 /// Interns a project path, returning its id.
