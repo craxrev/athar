@@ -702,12 +702,14 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
             _ => {}
         }
 
-        // A slash command reaches the transcript as markup, not as the thing that
-        // was typed. Rendered verbatim it is unreadable, and the history file
-        // carries the same command in its typed form — so reading it back into
-        // that form makes the turn legible and lets the two records match.
-        if let Some(command) = as_command(&text) {
-            text = command;
+        // The harness records several kinds of turn as tagged markup. Resolving it
+        // here makes a slash command read as it was typed — which also lets it
+        // match the history's copy — and drops the blocks that were only ever
+        // addressed to the model.
+        match readable(&text) {
+            Some(resolved) => text = resolved,
+            None if tools.is_empty() => continue,
+            None => text.clear(),
         }
 
         if text.trim().is_empty() && tools.is_empty() {
@@ -743,6 +745,98 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
     // Merged rather than appended: a slash command belongs where it was typed.
     out.sort_by_key(|t| t.ts_ms.unwrap_or(i64::MAX));
     Ok(out)
+}
+
+/// Wrappers whose contents are real: a command you ran, and what it printed.
+const KEEP_WRAPPERS: &[&str] = &[
+    "local-command-stdout",
+    "bash-input",
+    "bash-stdout",
+    "bash-stderr",
+];
+
+/// Wrappers addressed to the model rather than to a reader. The caveat is the same
+/// paragraph every time, a task notification is scheduling bookkeeping, and fork
+/// boilerplate is an instruction to a subagent. None of it is conversation.
+const DROP_WRAPPERS: &[&str] = &["local-command-caveat", "task-notification", "fork-boilerplate"];
+
+/// What a transcript turn actually said, with the harness's markup resolved.
+///
+/// Claude Code records several kinds of turn as tagged blocks. Rendered verbatim
+/// they read as XML in the middle of a conversation; dropped wholesale they would
+/// take real content with them. So each wrapper is either unwrapped or discarded,
+/// and `None` means the turn was bookkeeping with nothing left once it went.
+///
+/// Only a turn that *begins* with a wrapper is touched, so a message discussing
+/// this markup is never rewritten into it.
+fn readable(text: &str) -> Option<String> {
+    let trimmed = text.trim_start();
+    if !trimmed.starts_with('<') {
+        return Some(strip_ansi(text));
+    }
+    if let Some(command) = as_command(text) {
+        return Some(command);
+    }
+
+    let tag = trimmed
+        .strip_prefix('<')?
+        .split('>')
+        .next()?
+        .to_string();
+    if !KEEP_WRAPPERS.contains(&tag.as_str()) && !DROP_WRAPPERS.contains(&tag.as_str()) {
+        return Some(strip_ansi(text));
+    }
+
+    let mut kept: Vec<String> = Vec::new();
+    for wrapper in KEEP_WRAPPERS {
+        let open = format!("<{wrapper}>");
+        let close = format!("</{wrapper}>");
+        let mut rest = text;
+        while let Some(at) = rest.find(&open) {
+            let from = at + open.len();
+            let Some(to) = rest[from..].find(&close) else {
+                break;
+            };
+            let inner = rest[from..from + to].trim();
+            if !inner.is_empty() {
+                kept.push(strip_ansi(inner));
+            }
+            rest = &rest[from + to + close.len()..];
+        }
+    }
+
+    if kept.is_empty() {
+        None
+    } else {
+        Some(kept.join("\n"))
+    }
+}
+
+/// Removes terminal colour codes. A command's output is archived exactly as it was
+/// printed, escapes included, and those are noise in a reader.
+fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars();
+    while let Some(c) = chars.next() {
+        if c != '\u{1b}' {
+            out.push(c);
+            continue;
+        }
+        // A CSI sequence is ESC '[' then parameters then one byte in @..~. The
+        // bracket is itself inside that range, so it has to be stepped over before
+        // the search for the terminator begins.
+        if chars.clone().next() == Some('[') {
+            chars.next();
+            for c in chars.by_ref() {
+                if ('@'..='~').contains(&c) {
+                    break;
+                }
+            }
+        } else {
+            chars.next();
+        }
+    }
+    out
 }
 
 /// The command a transcript turn represents, when its content is only the markup
@@ -943,6 +1037,38 @@ mod tests {
 
         let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
         assert_eq!(texts, vec!["/model", "/impeccable doctor"]);
+    }
+
+    /// The harness records shell runs, command output and its own notifications as
+    /// tagged blocks in the user's turn. Some of that is content; some is addressed
+    /// to the model and is not conversation at all.
+    #[test]
+    fn harness_markup_is_unwrapped_or_dropped() {
+        let conn = temp_db();
+        let (t, _) = origins(&conn);
+
+        record(&conn, t, 1, 1000, "user", &user("<bash-input>git status</bash-input>"));
+        record(&conn, t, 2, 1100, "user", &user(
+            "<bash-stdout>nothing to commit</bash-stdout><bash-stderr></bash-stderr>"));
+        // Colour codes are archived exactly as printed; they are noise to read.
+        record(&conn, t, 3, 1200, "user", &user(
+            "<local-command-stdout>Set model to \u{1b}[1mFable 5\u{1b}[22m</local-command-stdout>"));
+        record(&conn, t, 4, 1300, "user", &user(
+            "<local-command-caveat>Caveat: DO NOT respond to these messages.</local-command-caveat>"));
+        record(&conn, t, 5, 1400, "user", &user("<task-notification>\n<task-id>abc</task-id>\n</task-notification>"));
+        record(&conn, t, 6, 1500, "user", &user("a real message"));
+
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        assert_eq!(
+            texts,
+            vec![
+                "git status",
+                "nothing to commit",
+                "Set model to Fable 5",
+                "a real message",
+            ],
+            "content is unwrapped and stripped; bookkeeping goes entirely"
+        );
     }
 
     /// Mentioning the markup is not invoking it.
