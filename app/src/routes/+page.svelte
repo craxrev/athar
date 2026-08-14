@@ -139,6 +139,25 @@
 		archiveVersion += 1;
 	}
 
+	// Scanning belongs to the window now, so this effect is what keeps the archive
+	// current. It depends on the interval as a *number*, not on `status`: the poll
+	// replaces that object every 30 seconds, and depending on it restarted the
+	// timer each time — which meant a fresh scan every 30 seconds instead of every
+	// hour. Restarting only when the number changes is also what makes the setting
+	// take effect immediately.
+	let intervalMins = $derived(status?.scan_interval_mins ?? 60);
+	// Armed only once the archive has answered. Before that `last_scan_ms` is
+	// unknown, and an unknown last scan looks exactly like "never scanned" — so the
+	// window scanned on every open, however recently one had run, which is the
+	// behaviour the interval exists to prevent.
+	//
+	// All three dependencies are primitives on purpose. Re-anchoring when a scan
+	// finishes is correct, since the next one is a full interval from that scan;
+	// depending on `status` itself would restart the timer on every poll.
+	let ready = $derived(status !== null);
+	let lastScanMs = $derived(status?.last_scan_ms ?? null);
+	$effect(() => (ready ? collector.watch(intervalMins, lastScanMs) : undefined));
+
 	$effect(() => {
 		// One clock for every "N ago" in the window, started with the shell.
 		const stopClock = clock.start();
@@ -389,7 +408,7 @@
 			{categories}
 			lastScanMs={status?.last_scan_ms ?? null}
 			running={collector.busy}
-			intervalMins={status?.scheduled_interval_mins ?? status?.scan_interval_mins ?? 60}
+			{intervalMins}
 			onScope={(s) => {
 				scope = s;
 				selectedBlock = null;

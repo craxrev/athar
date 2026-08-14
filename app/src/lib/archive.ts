@@ -17,8 +17,6 @@ export interface CollectorStatus {
 	earliest_ms: number | null;
 	latest_ms: number | null;
 	scan_interval_mins: number;
-	/** What the installed schedule really runs, which config alone cannot say. */
-	scheduled_interval_mins: number | null;
 	/** 'scan' or 'rebuild' while a collector is working, whoever started it. */
 	running: string | null;
 	roots: string[];
@@ -167,15 +165,7 @@ export interface LoreConfig {
 	sources: { claude: { enabled: boolean; path?: string | null } };
 }
 
-export interface AgentView {
-	installed: boolean;
-	loaded: boolean;
-	binary_stale: boolean;
-	/** What the configuration asks for, and what the schedule was actually told.
-	 *  Editing the interval changes only the first until the agent is reinstalled. */
-	interval_mins: number;
-	scheduled_interval_mins: number | null;
-	log: string;
+export interface Paths {
 	config_path: string;
 	db_path: string;
 }
@@ -195,6 +185,7 @@ async function call<T>(command: string, args?: Record<string, unknown>): Promise
 
 export const archive = {
 	status: () => call<CollectorStatus>('status'),
+	paths: () => call<Paths>('paths'),
 	collectorRun: () => call<string | null>('collector_run'),
 	projects: () => call<ProjectInfo[]>('projects'),
 	summary: (fromMs: number, toMs: number) => call<Summary>('summary', { fromMs, toMs }),
@@ -212,7 +203,5 @@ export const archive = {
 	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha }),
 	config: () => call<LoreConfig>('read_config'),
 	saveConfig: (config: LoreConfig) => call<LoreConfig>('write_config', { config }),
-	agentState: () => call<AgentView>('agent_state'),
-	installAgent: () => call<void>('install_agent'),
 	runCollector: (action: 'scan' | 'rebuild') => call<string>('run_collector', { action })
 };

@@ -1,27 +1,15 @@
 <script lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
 	import Icon from './Icon.svelte';
-	import { archive, type AgentView, type LoreConfig } from './archive';
+	import { archive, type LoreConfig, type Paths } from './archive';
 	import { collector } from './collector.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
 
 	let config = $state<LoreConfig | null>(null);
-	let agent = $state<AgentView | null>(null);
 	let error = $state<string | null>(null);
 	let saved = $state(false);
-
-	/** The schedule macOS is running, against the one now configured.
-	 *
-	 *  Saving an interval writes the file; the schedule was baked in when the agent
-	 *  was installed and is never re-read, so the two silently disagree until it is
-	 *  reinstalled. Read back rather than remembered, so it survives a restart. */
-	let scheduleDrifted = $derived(
-		!!agent &&
-			agent.installed &&
-			agent.scheduled_interval_mins !== null &&
-			agent.scheduled_interval_mins !== agent.interval_mins
-	);
+	let where = $state<Paths | null>(null);
 
 	$effect(() => {
 		archive
@@ -29,8 +17,8 @@
 			.then((c) => (config = c))
 			.catch((e: Error) => (error = e.message));
 		archive
-			.agentState()
-			.then((a) => (agent = a))
+			.paths()
+			.then((p) => (where = p))
 			.catch(() => {});
 	});
 
@@ -38,9 +26,6 @@
 		if (!config) return;
 		try {
 			config = await archive.saveConfig($state.snapshot(config));
-			// Re-read the agent: saving an interval is exactly when the running
-			// schedule starts disagreeing with the configured one.
-			agent = await archive.agentState();
 			error = null;
 			saved = true;
 			setTimeout(() => (saved = false), 2000);
@@ -63,16 +48,6 @@
 		config.roots = config.roots.filter((r) => r.path !== path);
 		collector.needsRebuild = true;
 		await save();
-	}
-
-	async function installAgent() {
-		try {
-			await archive.installAgent();
-			agent = await archive.agentState();
-			error = null;
-		} catch (e) {
-			error = (e as Error).message;
-		}
 	}
 
 	let identityDraft = $state('');
@@ -101,31 +76,6 @@
 	<div class="scroll">
 		{#if error}
 			<p class="banner bad"><Icon name="warn" size={16} /><span>{error}</span></p>
-		{/if}
-
-		{#if agent && (!agent.installed || !agent.loaded || agent.binary_stale || scheduleDrifted)}
-			<p class="banner warn">
-				<Icon name="warn" size={16} />
-				<span>
-					{#if !agent.installed}
-						The collector is not scheduled. Nothing is being archived, and every source
-						deletes its own history within about 30 days.
-					{:else if !agent.loaded}
-						The collector is installed but not running.
-					{:else if agent.binary_stale}
-						The scheduled collector is an older build than this window. Reinstall it so
-						scans use the current one.
-					{:else}
-						Scans still run every {agent.scheduled_interval_mins} minutes. Reinstall to
-						apply the {agent.interval_mins} you have set.
-					{/if}
-				</span>
-				<button class="act" onclick={installAgent}>
-					{scheduleDrifted && agent.installed && agent.loaded && !agent.binary_stale
-						? 'Apply'
-						: 'Install'}
-				</button>
-			</p>
 		{/if}
 
 		{#if config}
@@ -177,9 +127,9 @@
 					/>
 					<span class="unit">minutes</span>
 					<span class="why">
-						Only the file source depends on this. A save between two scans leaves just the
-						most recent timestamp behind, so a longer interval loses detail for projects
-						with no git.
+						Scanning happens while this window is open, and only then. Nothing runs in
+						the background, so lore has to be opened at least once every 30 days or so —
+						that is how long the sources keep their own history before deleting it.
 					</span>
 				</label>
 
@@ -266,6 +216,12 @@
 
 			<section class="group">
 				<h2>Collector</h2>
+				<p class="note">
+					A scan reads the sources and archives what is new; it runs on its own while
+					this window is open, and these force one now. A rebuild recomputes blocks,
+					sessions and links from records already archived — it reads nothing and can
+					lose nothing.
+				</p>
 				<div class="actions">
 					<button
 						class="act strong"
@@ -297,16 +253,14 @@
 				{/if}
 			</section>
 
-			{#if agent}
+			{#if where}
 				<section class="group">
 					<h2>Where things live</h2>
 					<dl class="paths">
 						<dt>Config</dt>
-						<dd class="mono">{agent.config_path}</dd>
+						<dd class="mono">{where.config_path}</dd>
 						<dt>Archive</dt>
-						<dd class="mono">{agent.db_path}</dd>
-						<dt>Collector log</dt>
-						<dd class="mono">{agent.log}</dd>
+						<dd class="mono">{where.db_path}</dd>
 					</dl>
 				</section>
 			{/if}
@@ -417,10 +371,6 @@
 	}
 	.banner span {
 		flex: 1;
-	}
-	.banner.warn {
-		background: var(--amber-soft);
-		color: var(--amber);
 	}
 	.banner.bad {
 		background: rgba(229, 85, 92, 0.14);

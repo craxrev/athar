@@ -32,6 +32,45 @@ class Collector {
 		return this.running ?? this.observed;
 	}
 
+	/** Scans while the window is open, which is the only schedule lore has.
+	 *
+	 *  There is no installed agent and no OS scheduler: nothing to register, keep
+	 *  current, or reimplement per platform. The cost is plain — a source deletes
+	 *  its own history within about 30 days, so lore has to be opened inside that
+	 *  window or the history is gone. Opening it is the act that archives.
+	 *
+	 *  Runs once on open, because a window opened after days away has the most to
+	 *  catch up on. */
+	/** @param lastScanMs When a collector last finished, or null if never. */
+	watch(intervalMins: number, lastScanMs: number | null) {
+		const every = Math.max(1, intervalMins) * 60_000;
+
+		// A rebuild, or a scan already working, owns the archive; skipping is right
+		// because the next tick comes around soon enough.
+		const tick = () => {
+			if (!this.running) void this.run('scan');
+		};
+
+		// The delay counts from the last scan, not from opening the window. Counting
+		// from launch made the cadence depend on when the app happened to start:
+		// quitting and reopening reset it, and reopening twice scanned twice. An
+		// archive that was scanned ten minutes ago is ten minutes into its hour
+		// however many times the window has been opened since.
+		const elapsed = lastScanMs === null ? Infinity : Date.now() - lastScanMs;
+		const due = Math.max(0, every - elapsed);
+
+		// Deferred rather than called here even when due: `run` reads `running`, and
+		// a read inside the effect that owns this subscribes the effect to it —
+		// `running` clearing at the end of each scan then re-ran the effect, which
+		// started another, forever. A timer runs outside that tracking.
+		const first = setTimeout(tick, due);
+		const timer = setInterval(tick, every);
+		return () => {
+			clearTimeout(first);
+			clearInterval(timer);
+		};
+	}
+
 	async run(action: 'scan' | 'rebuild') {
 		if (this.running) return;
 		this.running = action;

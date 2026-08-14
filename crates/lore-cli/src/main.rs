@@ -6,7 +6,6 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use lore_core::{
-    agent,
     collect::{claude, file, git},
     derive,
     config::Config,
@@ -38,24 +37,9 @@ enum Command {
     /// Inspect or create the configuration file.
     #[command(subcommand)]
     Config(ConfigCommand),
-    /// Manage the background collector that keeps the archive current.
-    #[command(subcommand)]
-    Agent(AgentCommand),
     /// Exercise every query the desktop app makes, against the real archive.
     /// A failure here is a failure the app can only show as a stuck window.
     Check,
-}
-
-#[derive(Subcommand)]
-enum AgentCommand {
-    /// Install the agent and start scanning on the configured interval.
-    Install,
-    /// Stop and remove the agent. The archive and the binary are left alone.
-    Uninstall,
-    /// Whether the agent is installed and loaded.
-    Status,
-    /// Trigger one scan now, through the agent.
-    Run,
 }
 
 #[derive(Subcommand)]
@@ -81,7 +65,6 @@ fn main() -> Result<()> {
         Command::Rebuild => rebuild(),
         Command::Day { date } => day_view(date.as_deref()),
         Command::Config(cmd) => config(cmd),
-        Command::Agent(cmd) => agent_command(cmd),
         Command::Check => check(),
     }
 }
@@ -461,81 +444,6 @@ fn check() -> Result<()> {
     Ok(())
 }
 
-fn agent_command(cmd: AgentCommand) -> Result<()> {
-    let config = Config::load()?;
-    match cmd {
-        AgentCommand::Install => {
-            let s = agent::install(&config)?;
-            println!("installed  {}", s.plist.display());
-            println!("binary     {}", s.binary.display());
-            println!("schedule   every {} min, and at login", s.interval_mins);
-            println!("log        {}", s.log.display());
-            println!(
-                "state      {}",
-                if s.loaded { "loaded" } else { "NOT loaded — see the log" }
-            );
-            if config.roots.is_empty() {
-                println!("\nnote: no roots configured, so only Claude Code will be read.");
-            }
-            Ok(())
-        }
-        AgentCommand::Uninstall => {
-            let s = agent::uninstall(&config)?;
-            println!(
-                "removed    {}",
-                if s.installed { "failed — plist still present" } else { "agent" }
-            );
-            println!("kept       {} and the archive", s.binary.display());
-            Ok(())
-        }
-        AgentCommand::Status => {
-            let s = agent::status(&config)?;
-            print_agent(&s);
-            Ok(())
-        }
-        AgentCommand::Run => {
-            agent::run_now()?;
-            println!("scan triggered; follow it with:\n  tail -f {}", paths::log_file()?.display());
-            Ok(())
-        }
-    }
-}
-
-fn print_agent(s: &lore_core::agent::AgentStatus) {
-    println!(
-        "agent      {}",
-        match (s.installed, s.loaded) {
-            (true, true) => "installed and loaded",
-            (true, false) => "installed but NOT loaded",
-            (false, _) => "not installed — run `lore agent install`",
-        }
-    );
-    println!("plist      {}", s.plist.display());
-    println!(
-        "binary     {}{}",
-        s.binary.display(),
-        if !s.binary_present {
-            "  (missing)"
-        } else if s.binary_stale {
-            "  (older than this build — run `lore agent install`)"
-        } else {
-            ""
-        }
-    );
-    // The installed schedule, not the configured one: editing the interval leaves
-    // them disagreeing until the agent is reinstalled, and this command exists to
-    // report what is actually running.
-    match s.scheduled_interval_mins {
-        Some(mins) if mins != s.interval_mins => println!(
-            "schedule   every {mins} min, and at login  (config asks for {} — run `lore agent install`)",
-            s.interval_mins
-        ),
-        Some(mins) => println!("schedule   every {mins} min, and at login"),
-        None => println!("schedule   every {} min, once installed", s.interval_mins),
-    }
-    println!("log        {}", s.log.display());
-}
-
 fn show_stats() -> Result<()> {
     let conn = db::open_default()?;
     let a = stats::archive(&conn)?;
@@ -597,7 +505,6 @@ fn doctor() -> Result<()> {
         println!("            {} transcript files discoverable", found.len());
     }
 
-    print_agent(&agent::status(&config)?);
 
     for (category, repos) in git::by_category(&config) {
         println!("repos       {} in [{}]", repos.len(), category);

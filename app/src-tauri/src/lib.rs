@@ -6,7 +6,7 @@
 
 use std::sync::Mutex;
 
-use lore_core::{agent, api, config::Config, paths};
+use lore_core::{api, config::Config, paths};
 use rusqlite::Connection;
 use serde::Serialize;
 use tauri::{Manager, State};
@@ -133,58 +133,30 @@ fn write_config(config: Config) -> Reply<Config> {
     Ok(config)
 }
 
-/// The collector this window would schedule: its bundled sidecar, or the CLI
+/// The collector shipped with this window: its bundled sidecar, or the CLI
 /// built beside it in a development tree.
+///
+/// Nothing is installed anywhere. The binary the window runs is the one it was
+/// built with, so it can never be an older build than the window, and a machine
+/// with no scheduler of its own is not a machine lore cannot archive on.
 fn collector() -> Option<std::path::PathBuf> {
-    agent::beside(&std::env::current_exe().ok()?)
-}
-
-#[tauri::command]
-fn agent_state(_archive: State<Archive>) -> Reply<AgentView> {
-    let config = Config::load().unwrap_or_default();
-    // Judged against the collector this window ships, so "stale" means the bytes
-    // on the schedule differ from the bytes it would install — which two builds
-    // of the same uncommitted tree do, and a version label would not.
-    let source = collector();
-    let s = agent::status_from(&config, source.as_deref())?;
-    Ok(AgentView {
-        installed: s.installed,
-        loaded: s.loaded,
-        binary_stale: s.binary_stale,
-        interval_mins: s.interval_mins,
-        scheduled_interval_mins: s.scheduled_interval_mins,
-        log: s.log.to_string_lossy().to_string(),
-        config_path: paths::config_file()?.to_string_lossy().to_string(),
-        db_path: paths::db_file()?.to_string_lossy().to_string(),
-    })
+    lore_core::collector::beside(&std::env::current_exe().ok()?)
 }
 
 #[derive(Serialize)]
-struct AgentView {
-    installed: bool,
-    loaded: bool,
-    binary_stale: bool,
-    /// Asked for, and actually scheduled. They differ whenever the interval was
-    /// saved without reinstalling, which is the case settings has to warn about.
-    interval_mins: u64,
-    scheduled_interval_mins: Option<u64>,
-    log: String,
+struct Paths {
     config_path: String,
     db_path: String,
 }
 
-// `async` so `launchctl` runs off the main thread. Tauri executes a plain
-// synchronous command on the UI event loop, where any wait is a frozen window.
-#[tauri::command(async)]
-fn install_agent() -> Reply<()> {
-    let config = Config::load()?;
-    let source = collector().ok_or_else(|| Failure {
-        message: "no collector ships with this build of the window — \
-                  install the agent with `lore agent install`"
-            .into(),
-    })?;
-    agent::install_from(&config, &source)?;
-    Ok(())
+/// Where the two files a user might want to look at actually live. No log among
+/// them: the collector's output now comes back through the window that ran it.
+#[tauri::command]
+fn paths() -> Reply<Paths> {
+    Ok(Paths {
+        config_path: paths::config_file()?.to_string_lossy().to_string(),
+        db_path: paths::db_file()?.to_string_lossy().to_string(),
+    })
 }
 
 /// Runs the collector as a separate process.
@@ -198,12 +170,9 @@ fn install_agent() -> Reply<()> {
 /// scan — minutes, on a run that finds real work.
 #[tauri::command(async)]
 fn run_collector(action: String) -> Reply<String> {
-    let binary = paths::installed_binary()?;
-    if !binary.exists() {
-        return Err(Failure {
-            message: "the collector is not installed — install the agent first".into(),
-        });
-    }
+    let binary = collector().ok_or_else(|| Failure {
+        message: "no collector ships with this build of the window".into(),
+    })?;
     let verb = match action.as_str() {
         "scan" => "scan",
         "rebuild" => "rebuild",
@@ -254,10 +223,9 @@ pub fn run() {
             lanes,
             session,
             commit_files,
+            paths,
             read_config,
             write_config,
-            agent_state,
-            install_agent,
             run_collector
         ])
         .run(tauri::generate_context!())

@@ -17,7 +17,7 @@ Confirmed by the user:
 - **Core + collectors:** Rust
 - **Storage:** SQLite (WAL), with full-text search over archived text
 
-Process split: a background collector process is the sole DB writer; the Tauri app opens the database read-only. The app has no tray or menu-bar surface, so collector health must be visible **inside the window**.
+Process split: the collector binary is the sole DB writer; the Tauri app opens the database read-only and spawns the collector rather than writing itself. The collector ships inside the app bundle and is never installed anywhere. The app has no tray or menu-bar surface, so collector health must be visible **inside the window**.
 
 The window may edit configuration and ask the collector to run, but never writes to the archive itself: a Scan or Rebuild button spawns the collector binary rather than opening the database for writing, which keeps the single-writer rule intact even when the request comes from the UI.
 
@@ -53,7 +53,9 @@ This produces two properties a live-observation tracker cannot have:
 - Work done while lore was not running is still captured, because the evidence outlives the moment
 - Retention is unbounded, because the archive is not subject to the sources' cleanup policies
 
-The one requirement this creates: lore must run at least once inside each source's retention window (~30 days) or that window's history is lost for good. Scanning therefore belongs to the operating system rather than to remembering: a macOS user agent (`dev.lore.collector`) runs the collector on the configured interval and at every login, installed and removed through `lore agent install` / `lore agent uninstall`.
+The one requirement this creates: lore must run at least once inside each source's retention window (~30 days) or that window's history is lost for good.
+
+Scanning happens **while the window is open, and only then** — once on open, then on the configured interval. There is no scheduled agent. An OS scheduler would make the guarantee automatic, and lore had one (a `launchd` user agent) before it was removed deliberately: it required an install step, kept a copy of the collector that could fall behind the app, and existed only on macOS, so every other platform would have needed its own implementation of the same idea. Opening the window is now the act that archives, and the cost of not opening it for a month is stated plainly in settings rather than hidden behind a daemon.
 
 ## Operating Context
 
