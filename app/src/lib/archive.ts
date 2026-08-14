@@ -138,7 +138,7 @@ export type Block =
 	| { b: 'p'; spans: Span[] }
 	| { b: 'h'; level: number; spans: Span[] }
 	| { b: 'code'; lang?: string; text: string }
-	| { b: 'list'; ordered: boolean; items: Block[][] }
+	| { b: 'list'; ordered: boolean; start?: number; items: Block[][] }
 	| { b: 'quote'; blocks: Block[] }
 	| { b: 'table'; head: Span[][]; rows: Span[][][] }
 	| { b: 'rule' };

@@ -20,7 +20,14 @@
 	{:else if block.b === 'h'}
 		<!-- Six markdown levels fold onto three steps of the existing ramp; a
 		     conversation does not need its own type scale. -->
-		<p class="h" data-level={Math.min(block.level, 3)}><Spans spans={block.spans} /></p>
+		<p
+			class="h"
+			data-level={Math.min(block.level, 3)}
+			role="heading"
+			aria-level={Math.min(block.level, 3) + 2}
+		>
+			<Spans spans={block.spans} />
+		</p>
 	{:else if block.b === 'code'}
 		{@const lines = block.text.split('\n')}
 		{#if lines.length > CODE_LINES}
@@ -36,7 +43,7 @@
 		{/if}
 	{:else if block.b === 'list'}
 		{#if block.ordered}
-			<ol>
+			<ol start={block.start ?? 1}>
 				{#each block.items as item, j (j)}<li><Self blocks={item} /></li>{/each}
 			</ol>
 		{:else}
@@ -52,7 +59,9 @@
 			<table>
 				{#if block.head.length}
 					<thead>
-						<tr>{#each block.head as cell, j (j)}<th><Spans spans={cell} /></th>{/each}</tr>
+						<tr>
+							{#each block.head as cell, j (j)}<th scope="col"><Spans spans={cell} /></th>{/each}
+						</tr>
 					</thead>
 				{/if}
 				<tbody>
@@ -68,6 +77,13 @@
 {/each}
 
 <style>
+	/* A typed message keeps the lines it was typed with. Markdown would collapse a
+	   single newline to a space, which reads as one run-on sentence for anything
+	   written across lines. */
+	p,
+	li {
+		white-space: pre-wrap;
+	}
 	p {
 		margin: 0 0 10px;
 	}

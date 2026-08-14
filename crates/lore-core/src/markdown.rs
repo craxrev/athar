@@ -38,7 +38,14 @@ pub enum Block {
         text: String,
     },
     #[serde(rename = "list")]
-    List { ordered: bool, items: Vec<Vec<Block>> },
+    List {
+        ordered: bool,
+        /// Where an ordered list begins. Carried because a list written from 3
+        /// renumbered itself to 1, which changes what the message said.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        start: Option<u64>,
+        items: Vec<Vec<Block>>,
+    },
     #[serde(rename = "quote")]
     Quote { blocks: Vec<Block> },
     #[serde(rename = "table")]
@@ -144,11 +151,16 @@ pub fn parse(text: &str) -> Vec<Block> {
 
             Event::Start(Tag::List(first)) => stack.push(Frame::List {
                 ordered: first.is_some(),
+                start: first.filter(|n| *n != 1),
                 items: Vec::new(),
             }),
             Event::End(TagEnd::List(_)) => {
-                if let Some(Frame::List { ordered, items }) = stack.pop() {
-                    push(&mut blocks, &mut stack, Block::List { ordered, items });
+                if let Some(Frame::List { ordered, start, items }) = stack.pop() {
+                    push(
+                        &mut blocks,
+                        &mut stack,
+                        Block::List { ordered, start, items },
+                    );
                 }
             }
             Event::Start(Tag::Item) => stack.push(Frame::Item(Vec::new())),
@@ -212,7 +224,11 @@ pub fn parse(text: &str) -> Vec<Block> {
                 None => spans.push(Span::Text { text: t.to_string() }),
             },
             Event::Code(t) => spans.push(Span::Code { text: t.to_string() }),
-            Event::SoftBreak => spans.push(Span::Text { text: " ".into() }),
+            // Kept as a newline rather than collapsed to a space. Markdown would
+            // fold it, but these turns are typed messages, not authored documents:
+            // 180 prompts in this archive put their lines apart deliberately, and
+            // running them together changes what they say.
+            Event::SoftBreak => spans.push(Span::Text { text: "\n".into() }),
             Event::HardBreak => spans.push(Span::Text { text: "\n".into() }),
             Event::Rule => push(&mut blocks, &mut stack, Block::Rule),
 
@@ -241,7 +257,11 @@ pub fn parse(text: &str) -> Vec<Block> {
 enum Frame {
     Paragraph,
     Heading,
-    List { ordered: bool, items: Vec<Vec<Block>> },
+    List {
+        ordered: bool,
+        start: Option<u64>,
+        items: Vec<Vec<Block>>,
+    },
     Item(Vec<Block>),
     Quote(Vec<Block>),
 }
@@ -317,6 +337,7 @@ mod tests {
                 },
                 Block::List {
                     ordered: false,
+                    start: None,
                     items: vec![
                         vec![Block::Paragraph { spans: vec![text("first")] }],
                         vec![Block::Paragraph { spans: vec![text("second")] }],
@@ -393,6 +414,39 @@ mod tests {
             "which contains the inner list: {:?}",
             items[0]
         );
+    }
+
+    /// A typed message is not an authored document. Markdown folds a single
+    /// newline into a space, which turns a prompt written across lines into one
+    /// run-on — and 180 prompts in this archive are written that way.
+    #[test]
+    fn a_typed_newline_survives() {
+        assert_eq!(
+            parse("what about the agent?\nand the timer?"),
+            vec![Block::Paragraph {
+                spans: vec![
+                    text("what about the agent?"),
+                    text("\n"),
+                    text("and the timer?"),
+                ]
+            }]
+        );
+    }
+
+    /// Found by the test above: a list written from 3 was renumbering itself to 1.
+    #[test]
+    fn an_ordered_list_keeps_where_it_started() {
+        let Block::List { ordered, start, items } = &parse("3. third\n4. fourth")[0] else {
+            panic!("expected a list");
+        };
+        assert!(ordered);
+        assert_eq!(*start, Some(3), "the numbers the message used");
+        assert_eq!(items.len(), 2);
+
+        let Block::List { start, .. } = &parse("1. first\n2. second")[0] else {
+            panic!("expected a list");
+        };
+        assert_eq!(*start, None, "a list from 1 needs no attribute");
     }
 
     #[test]

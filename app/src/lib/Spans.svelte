@@ -16,8 +16,9 @@
 <style>
 	code {
 		font-family: var(--mono);
-		/* 0.92em keeps mono beside prose without dropping under the 13px floor. */
-		font-size: 0.92em;
+		/* Mono sits slightly smaller than the prose around it, but never under the
+		   floor: inside a 13.5px table cell, 0.92em alone computes to 12.42px. */
+		font-size: max(13px, 0.92em);
 		padding: 1px 5px;
 		border-radius: 4px;
 		background: var(--surface-inset);
@@ -31,9 +32,10 @@
 
 	/* Not an anchor: nothing in this window navigates, and an archive that opened a
 	   browser from a five-year-old link would be doing something unasked. The
-	   destination stays readable on the title. */
+	   destination stays readable on the title, and the underline is dotted rather
+	   than solid because a solid one reads as something you can click. */
 	.link {
 		color: var(--text);
-		border-bottom: 1px solid var(--line-strong);
+		border-bottom: 1px dotted var(--line-strong);
 	}
 </style>
