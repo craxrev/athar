@@ -198,7 +198,22 @@ fn run_collector(action: String) -> Reply<String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+
+    // Registered before anything else, as this plugin requires. A second launch
+    // raises the window already open instead of opening another: two windows
+    // share one config file, each holds its own copy in memory, and whichever
+    // saves last overwrites the other's edits without either one noticing.
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.unminimize();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+
+    builder
         .setup(|app| {
             let config = Config::load().unwrap_or_default();
             // A missing archive is an empty state, not a startup failure: the
