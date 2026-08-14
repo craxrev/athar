@@ -125,10 +125,28 @@ export interface ToolCall {
 	failed: boolean;
 }
 
+/** Markdown, parsed in Rust. The window renders these nodes as components rather
+ *  than building markup, so archived text can never become markup. */
+export type Span =
+	| { s: 't'; text: string }
+	| { s: 'c'; text: string }
+	| { s: 'b'; spans: Span[] }
+	| { s: 'i'; spans: Span[] }
+	| { s: 'a'; href: string; spans: Span[] };
+
+export type Block =
+	| { b: 'p'; spans: Span[] }
+	| { b: 'h'; level: number; spans: Span[] }
+	| { b: 'code'; lang?: string; text: string }
+	| { b: 'list'; ordered: boolean; items: Block[][] }
+	| { b: 'quote'; blocks: Block[] }
+	| { b: 'table'; head: Span[][]; rows: Span[][][] }
+	| { b: 'rule' };
+
 export interface Turn {
 	role: 'user' | 'assistant';
 	ts_ms: number | null;
-	text: string;
+	blocks: Block[];
 	truncated: boolean;
 	tools: ToolCall[];
 }

@@ -48,7 +48,12 @@ enum Command {
     },
     /// Exercise every query the desktop app makes, against the real archive.
     /// A failure here is a failure the app can only show as a stuck window.
-    Check,
+    Check {
+        /// Read this session rather than the first one found. Useful for timing
+        /// the longest conversation in the archive rather than a typical one.
+        #[arg(long)]
+        session: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -75,7 +80,7 @@ fn main() -> Result<()> {
         Command::Day { date } => day_view(date.as_deref()),
         Command::Config(cmd) => config(cmd),
         Command::Prune { apply } => prune(apply),
-        Command::Check => check(),
+        Command::Check { session } => check(session.as_deref()),
     }
 }
 
@@ -395,7 +400,7 @@ fn duration(ms: i64) -> String {
     }
 }
 
-fn check() -> Result<()> {
+fn check(session: Option<&str>) -> Result<()> {
     use lore_core::api;
     let config = Config::load()?;
     let conn = api::open_readonly(&paths::db_file()?)?;
@@ -444,10 +449,24 @@ fn check() -> Result<()> {
         let files = step!("commit_files", api::commit_files(&conn, &sha));
         println!("        {} files for {}", files.len(), &sha[..7]);
     }
-    if let Some(block) = blocks.iter().find(|b| !b.sessions.is_empty()) {
-        let id = block.sessions[0].id.clone();
+    let chosen = session.map(str::to_string).or_else(|| {
+        blocks
+            .iter()
+            .find(|b| !b.sessions.is_empty())
+            .map(|b| b.sessions[0].id.clone())
+    });
+    if let Some(id) = chosen {
         let detail = step!("session", api::session(&conn, &config, &id));
-        println!("        {} turns", detail.map(|d| d.turns.len()).unwrap_or(0));
+        if let Some(d) = detail {
+            // The payload matters: every turn crosses the IPC boundary as a
+            // markdown tree, and a long session is eight hundred of them.
+            let bytes = serde_json::to_string(&d.turns).map(|s| s.len()).unwrap_or(0);
+            println!(
+                "        {} turns, {:.2} MB of turns over IPC",
+                d.turns.len(),
+                bytes as f64 / 1e6
+            );
+        }
     }
 
     println!("\nall queries answered");

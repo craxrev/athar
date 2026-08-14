@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import Markdown from './Markdown.svelte';
 	import type { SessionDetail } from './archive';
 	import { clock, clockRange, duration, fullDay, shortPath, tokens } from './format';
 
@@ -109,8 +110,11 @@
 						<span class="role">{turn.role === 'user' ? 'You' : 'Assistant'}</span>
 						<span class="num at">{clock(turn.ts_ms)}</span>
 					</div>
-					{#if turn.text}
-						<div class="text">{turn.text}{#if turn.truncated}<span class="cut"> … shortened on archive</span>{/if}</div>
+					{#if turn.blocks.length}
+						<div class="text">
+							<Markdown blocks={turn.blocks} />
+							{#if turn.truncated}<p class="cut">… shortened on archive</p>{/if}
+						</div>
 					{/if}
 					{#if turn.tools.length}
 						<ul class="tools">
@@ -402,11 +406,21 @@
 	}
 
 	.text {
-		white-space: pre-wrap;
 		overflow-wrap: anywhere;
 		font-size: 15px;
 		line-height: 1.62;
 		color: var(--text);
+	}
+
+	/* A long conversation is two thousand turns, and markdown turns each one into
+	   many more nodes than the plain text it replaced. This lets the browser skip
+	   layout and paint for turns that are off screen, while leaving them in the
+	   document — so find-in-page and the scrollbar still see the whole thing,
+	   which a windowed list would break. The estimate keeps the scrollbar from
+	   lurching as real heights replace it. */
+	article {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 180px;
 	}
 	article.assistant .text {
 		color: var(--text-dim);

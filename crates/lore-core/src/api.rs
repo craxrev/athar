@@ -143,7 +143,9 @@ pub struct Lane {
 pub struct Turn {
     pub role: String,
     pub ts_ms: Option<i64>,
-    pub text: String,
+    /// The turn as a tree of markdown nodes, parsed here so the window never
+    /// builds markup out of archived text.
+    pub blocks: Vec<crate::markdown::Block>,
     /// True when the archived text is a head of a longer original.
     pub truncated: bool,
     pub tools: Vec<ToolCall>,
@@ -620,9 +622,9 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
     )?;
     let mut rows = stmt.query([session_id])?;
     let mut out = Vec::new();
-    // Held back until the transcript has been read, since whether to keep one
-    // depends on what the transcript turned out to contain.
-    let mut from_history: Vec<Turn> = Vec::new();
+    // Held back as raw text until the transcript has been read, since whether to
+    // keep one depends on what the transcript turned out to contain.
+    let mut from_history: Vec<(Option<i64>, String)> = Vec::new();
     let mut transcript_prompts: std::collections::HashSet<String> = Default::default();
     let mut saw_transcript = false;
 
@@ -636,13 +638,7 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
 
         if kind == "prompt_history" {
             if let Some(text) = value.get("display").and_then(Value::as_str) {
-                from_history.push(Turn {
-                    role: "user".into(),
-                    ts_ms,
-                    text: text.to_string(),
-                    truncated: false,
-                    tools: Vec::new(),
-                });
+                from_history.push((ts_ms, text.to_string()));
             }
             continue;
         }
@@ -721,24 +717,29 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
         out.push(Turn {
             role: if kind == "user" { "user" } else { "assistant" }.into(),
             ts_ms,
-            text,
+            blocks: crate::markdown::parse(&text),
             truncated,
             tools,
         });
     }
 
-    for turn in from_history {
+    for (ts_ms, text) in from_history {
         // With no transcript, the history is the whole conversation.
         let keep = if saw_transcript {
             // A placeholder for content the transcript holds in full, and a prompt
             // the transcript already carries, are both the same prompt twice.
-            !turn.text.starts_with("[Pasted text")
-                && !transcript_prompts.contains(turn.text.trim())
+            !text.starts_with("[Pasted text") && !transcript_prompts.contains(text.trim())
         } else {
             true
         };
         if keep {
-            out.push(turn);
+            out.push(Turn {
+                role: "user".into(),
+                ts_ms,
+                blocks: crate::markdown::parse(&text),
+                truncated: false,
+                tools: Vec::new(),
+            });
         }
     }
 
@@ -958,6 +959,38 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
 mod tests {
     use super::*;
     use crate::db;
+    use crate::markdown::{Block, Span};
+
+    /// Turns carry a markdown tree now. These tests are about which turns survive
+    /// and what they say, so they read the tree back as plain text.
+    fn plain(turn: &Turn) -> String {
+        fn spans(list: &[Span], out: &mut String) {
+            for span in list {
+                match span {
+                    Span::Text { text } | Span::Code { text } => out.push_str(text),
+                    Span::Strong { spans: inner }
+                    | Span::Em { spans: inner }
+                    | Span::Link { spans: inner, .. } => spans(inner, out),
+                }
+            }
+        }
+        fn walk(list: &[Block], out: &mut String) {
+            for block in list {
+                match block {
+                    Block::Paragraph { spans: s } | Block::Heading { spans: s, .. } => {
+                        spans(s, out)
+                    }
+                    Block::Code { text, .. } => out.push_str(text),
+                    Block::Quote { blocks } => walk(blocks, out),
+                    Block::List { items, .. } => items.iter().for_each(|i| walk(i, out)),
+                    Block::Table { .. } | Block::Rule => {}
+                }
+            }
+        }
+        let mut out = String::new();
+        walk(&turn.blocks, &mut out);
+        out
+    }
 
     fn temp_db() -> Connection {
         use std::sync::atomic::{AtomicU64, Ordering};
@@ -1010,11 +1043,11 @@ mod tests {
         record(&conn, h, 3, 1060, "prompt_history", r#"{"display":"[Pasted text #1 +8 lines]"}"#);
 
         let turns = turns(&conn, "s").unwrap();
-        let texts: Vec<&str> = turns.iter().map(|t| t.text.as_str()).collect();
+        let texts: Vec<String> = turns.iter().map(plain).collect();
 
         assert_eq!(
             texts,
-            vec!["fix the footer", "/model", "done"],
+            vec!["fix the footer".to_string(), "/model".into(), "done".into()],
             "the duplicate prompt and the paste placeholder both go; the command stays"
         );
         // And the command lands where it was typed, not appended at the end.
@@ -1035,7 +1068,7 @@ mod tests {
         record(&conn, h, 1, 1000, "prompt_history", r#"{"display":"/model"}"#);
         record(&conn, h, 2, 2000, "prompt_history", r#"{"display":"/impeccable doctor"}"#);
 
-        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| plain(&t)).collect();
         assert_eq!(texts, vec!["/model", "/impeccable doctor"]);
     }
 
@@ -1058,7 +1091,7 @@ mod tests {
         record(&conn, t, 5, 1400, "user", &user("<task-notification>\n<task-id>abc</task-id>\n</task-notification>"));
         record(&conn, t, 6, 1500, "user", &user("a real message"));
 
-        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| plain(&t)).collect();
         assert_eq!(
             texts,
             vec![
@@ -1079,7 +1112,7 @@ mod tests {
         let prose = "why does <command-name>/model</command-name> show up twice?";
         record(&conn, t, 1, 1000, "user", &user(prose));
 
-        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| plain(&t)).collect();
         assert_eq!(texts, vec![prose]);
     }
 
@@ -1093,7 +1126,7 @@ mod tests {
         record(&conn, h, 2, 2000, "prompt_history", r#"{"display":"[Pasted text #1 +8 lines]"}"#);
         record(&conn, h, 3, 3000, "prompt_history", r#"{"display":"second"}"#);
 
-        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| plain(&t)).collect();
         assert_eq!(
             texts,
             vec!["first", "[Pasted text #1 +8 lines]", "second"],

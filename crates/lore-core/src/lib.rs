@@ -18,6 +18,7 @@ pub mod collector;
 pub mod config;
 pub mod db;
 pub mod derive;
+pub mod markdown;
 pub mod paths;
 pub mod stats;
 pub mod truncate;
