@@ -36,7 +36,25 @@ const BACKSTOP_HEAD: usize = 32_768;
 
 /// Line kinds dropped entirely: transient UI bookkeeping with no evidentiary
 /// value, measured at ~10% of transcript bytes.
-pub const DROPPED_KINDS: &[&str] = &["attachment", "queue-operation"];
+///
+/// The two `file-history` kinds are Claude Code's undo bookkeeping. They record
+/// no content — only a pointer into Claude's backup store, which is deleted on
+/// the same cycle as everything else, so what survives is a reference to a file
+/// that no longer exists. The snapshot restates the entire tracked-file list on
+/// every message (10.7 MB across this machine's archive, 10% of it); the delta
+/// carries no session id at all, so nothing can attribute it. What either might
+/// have told us — which file was touched when — already comes from the `Write`
+/// and `Edit` tool calls, which do carry a session and an absolute path.
+///
+/// `last-prompt` restates the prompt already archived as a `user` record and
+/// again in `history.jsonl`. A third copy answers nothing the first two do not.
+pub const DROPPED_KINDS: &[&str] = &[
+    "attachment",
+    "queue-operation",
+    "file-history-snapshot",
+    "file-history-delta",
+    "last-prompt",
+];
 
 pub fn is_dropped_kind(kind: &str) -> bool {
     DROPPED_KINDS.contains(&kind)

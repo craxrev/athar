@@ -37,6 +37,15 @@ enum Command {
     /// Inspect or create the configuration file.
     #[command(subcommand)]
     Config(ConfigCommand),
+    /// Remove archived records of kinds lore no longer keeps.
+    ///
+    /// Reports by default. The archive is append-only, so removing from it is a
+    /// deliberate act and has to be asked for.
+    Prune {
+        /// Actually delete. Without this, nothing is written.
+        #[arg(long)]
+        apply: bool,
+    },
     /// Exercise every query the desktop app makes, against the real archive.
     /// A failure here is a failure the app can only show as a stuck window.
     Check,
@@ -65,6 +74,7 @@ fn main() -> Result<()> {
         Command::Rebuild => rebuild(),
         Command::Day { date } => day_view(date.as_deref()),
         Command::Config(cmd) => config(cmd),
+        Command::Prune { apply } => prune(apply),
         Command::Check => check(),
     }
 }
@@ -441,6 +451,57 @@ fn check() -> Result<()> {
     }
 
     println!("\nall queries answered");
+    Ok(())
+}
+
+/// Removes records whose kind lore has stopped archiving.
+///
+/// These are already skipped on ingest, so this is only about the bytes stored
+/// before that decision. Derived tables never read these kinds, so nothing needs
+/// rebuilding afterwards — and the origin cursors are left alone, so a later scan
+/// does not re-read the lines this removes.
+fn prune(apply: bool) -> Result<()> {
+    let conn = db::open_default()?;
+
+    let mut total_rows = 0i64;
+    let mut total_bytes = 0i64;
+    println!("{:<24}{:>9}{:>11}", "kind", "records", "stored");
+    for kind in lore_core::truncate::DROPPED_KINDS {
+        let (rows, bytes): (i64, Option<i64>) = conn.query_row(
+            "SELECT count(*), sum(length(json)) FROM raw_records WHERE kind = ?1",
+            [kind],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )?;
+        if rows == 0 {
+            continue;
+        }
+        println!("{:<24}{:>9}{:>10.1}M", kind, rows, bytes.unwrap_or(0) as f64 / 1e6);
+        total_rows += rows;
+        total_bytes += bytes.unwrap_or(0);
+    }
+
+    if total_rows == 0 {
+        println!("\nnothing to remove");
+        return Ok(());
+    }
+    println!(
+        "\n{total_rows} records, {:.1} MB",
+        total_bytes as f64 / 1e6
+    );
+
+    if !apply {
+        println!("reporting only — run `lore prune --apply` to remove them");
+        return Ok(());
+    }
+
+    let mut removed = 0usize;
+    for kind in lore_core::truncate::DROPPED_KINDS {
+        removed += conn.execute("DELETE FROM raw_records WHERE kind = ?1", [kind])?;
+    }
+    // Space is returned to the filesystem rather than left as free pages: the
+    // point of this command is the disk it gives back.
+    conn.execute_batch("VACUUM")?;
+    println!("removed {removed} records");
     Ok(())
 }
 
