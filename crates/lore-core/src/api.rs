@@ -602,6 +602,16 @@ pub fn session(conn: &Connection, config: &Config, session_id: &str) -> Result<O
 }
 
 /// The conversation, both sides, rebuilt from archived records.
+///
+/// A typed prompt is recorded twice by Claude Code: once in the session transcript
+/// and once in its own `history.jsonl`. Rendering both showed every prompt twice.
+///
+/// Neither source can simply be dropped. The transcript is the fuller record — it
+/// holds pasted content in full, where the history keeps only a placeholder — but
+/// Claude Code deletes transcripts after about thirty days, and for the large
+/// majority of archived sessions the history is the only surviving record of what
+/// was asked. So the transcript wins where it exists, and the history supplies
+/// what the transcript never had: slash commands, which are not messages.
 pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
     let mut stmt = conn.prepare(
         "SELECT kind, ts_ms, json FROM raw_records
@@ -610,6 +620,11 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
     )?;
     let mut rows = stmt.query([session_id])?;
     let mut out = Vec::new();
+    // Held back until the transcript has been read, since whether to keep one
+    // depends on what the transcript turned out to contain.
+    let mut from_history: Vec<Turn> = Vec::new();
+    let mut transcript_prompts: std::collections::HashSet<String> = Default::default();
+    let mut saw_transcript = false;
 
     while let Some(row) = rows.next()? {
         let kind: String = row.get(0)?;
@@ -621,7 +636,7 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
 
         if kind == "prompt_history" {
             if let Some(text) = value.get("display").and_then(Value::as_str) {
-                out.push(Turn {
+                from_history.push(Turn {
                     role: "user".into(),
                     ts_ms,
                     text: text.to_string(),
@@ -631,6 +646,7 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
             }
             continue;
         }
+        saw_transcript = true;
 
         // Harness bookkeeping is not part of the conversation.
         if value.get("isMeta").and_then(Value::as_bool) == Some(true) {
@@ -689,6 +705,9 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
         if text.trim().is_empty() && tools.is_empty() {
             continue;
         }
+        if kind == "user" {
+            transcript_prompts.insert(text.trim().to_string());
+        }
         out.push(Turn {
             role: if kind == "user" { "user" } else { "assistant" }.into(),
             ts_ms,
@@ -698,6 +717,23 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
         });
     }
 
+    for turn in from_history {
+        // With no transcript, the history is the whole conversation.
+        let keep = if saw_transcript {
+            // A placeholder for content the transcript holds in full, and a prompt
+            // the transcript already carries, are both the same prompt twice.
+            !turn.text.starts_with("[Pasted text")
+                && !transcript_prompts.contains(turn.text.trim())
+        } else {
+            true
+        };
+        if keep {
+            out.push(turn);
+        }
+    }
+
+    // Merged rather than appended: a slash command belongs where it was typed.
+    out.sort_by_key(|t| t.ts_ms.unwrap_or(i64::MAX));
     Ok(out)
 }
 
@@ -787,4 +823,90 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
             .map(|r| r.path.to_string_lossy().to_string())
             .collect(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db;
+
+    fn temp_db() -> Connection {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "lore-api-{}-{}",
+            std::process::id(),
+            SEQ.fetch_add(1, Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        db::open_writable(&dir.join("lore.db")).unwrap()
+    }
+
+    /// `line_no` is per-origin, so transcript and history get their own.
+    fn record(conn: &Connection, origin: i64, line: i64, ts: i64, kind: &str, json: &str) {
+        conn.execute(
+            "INSERT INTO raw_records (origin_id, line_no, ts_ms, kind, session_id, json, bytes_original)
+             VALUES (?1, ?2, ?3, ?4, 's', ?5, length(?5))",
+            rusqlite::params![origin, line, ts, kind, json],
+        )
+        .unwrap();
+    }
+
+    fn origins(conn: &Connection) -> (i64, i64) {
+        let a = db::origin_cursor(conn, "claude", "/t/s.jsonl").unwrap().id;
+        let b = db::origin_cursor(conn, "claude", "/t/history.jsonl").unwrap().id;
+        (a, b)
+    }
+
+    fn user(text: &str) -> String {
+        format!(
+            r#"{{"type":"user","message":{{"role":"user","content":[{{"type":"text","text":{}}}]}}}}"#,
+            serde_json::to_string(text).unwrap()
+        )
+    }
+
+    /// The defect: a typed prompt lives in the transcript *and* in history, so the
+    /// reader showed every prompt twice.
+    #[test]
+    fn a_prompt_in_both_sources_is_one_turn() {
+        let conn = temp_db();
+        let (t, h) = origins(&conn);
+
+        record(&conn, t, 1, 1000, "user", &user("fix the footer"));
+        record(&conn, t, 2, 1100, "assistant",
+            r#"{"message":{"role":"assistant","content":[{"type":"text","text":"done"}]}}"#);
+        // The same prompt as the transcript carries, plus two the transcript never had.
+        record(&conn, h, 1, 1000, "prompt_history", r#"{"display":"fix the footer"}"#);
+        record(&conn, h, 2, 1050, "prompt_history", r#"{"display":"/model"}"#);
+        record(&conn, h, 3, 1060, "prompt_history", r#"{"display":"[Pasted text #1 +8 lines]"}"#);
+
+        let turns = turns(&conn, "s").unwrap();
+        let texts: Vec<&str> = turns.iter().map(|t| t.text.as_str()).collect();
+
+        assert_eq!(
+            texts,
+            vec!["fix the footer", "/model", "done"],
+            "the duplicate prompt and the paste placeholder both go; the command stays"
+        );
+        // And the command lands where it was typed, not appended at the end.
+        assert!(turns[1].ts_ms.unwrap() < turns[2].ts_ms.unwrap());
+    }
+
+    /// 936 of this machine's 1,034 sessions have no transcript left: Claude Code
+    /// deleted it, and history is the only record of what was asked.
+    #[test]
+    fn without_a_transcript_history_is_the_whole_conversation() {
+        let conn = temp_db();
+        let (_, h) = origins(&conn);
+        record(&conn, h, 1, 1000, "prompt_history", r#"{"display":"first"}"#);
+        record(&conn, h, 2, 2000, "prompt_history", r#"{"display":"[Pasted text #1 +8 lines]"}"#);
+        record(&conn, h, 3, 3000, "prompt_history", r#"{"display":"second"}"#);
+
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        assert_eq!(
+            texts,
+            vec!["first", "[Pasted text #1 +8 lines]", "second"],
+            "nothing may be dropped when it is the only source"
+        );
+    }
 }
