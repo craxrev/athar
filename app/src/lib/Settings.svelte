@@ -7,6 +7,9 @@
 	let { onClose }: { onClose: () => void } = $props();
 
 	let config = $state<LoreConfig | null>(null);
+	/** Which file the values above came from. Sent back on save so an edit made
+	 *  elsewhere is refused rather than overwritten. */
+	let revision = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let saved = $state(false);
 	let where = $state<Paths | null>(null);
@@ -14,7 +17,10 @@
 	$effect(() => {
 		archive
 			.config()
-			.then((c) => (config = c))
+			.then((c) => {
+				config = c.config;
+				revision = c.revision;
+			})
 			.catch((e: Error) => (error = e.message));
 		archive
 			.paths()
@@ -25,12 +31,25 @@
 	async function save() {
 		if (!config) return;
 		try {
-			config = await archive.saveConfig($state.snapshot(config));
+			const written = await archive.saveConfig($state.snapshot(config), revision);
+			config = written.config;
+			revision = written.revision;
 			error = null;
 			saved = true;
 			setTimeout(() => (saved = false), 2000);
 		} catch (e) {
 			error = (e as Error).message;
+			// A refused save leaves the fields showing a change that was not made.
+			// Reloading costs whatever was just typed and is still right: a pane
+			// that disagrees with the file is the thing worth avoiding.
+			try {
+				const current = await archive.config();
+				config = current.config;
+				revision = current.revision;
+				error = `${error} — reloaded, so your last change was not saved.`;
+			} catch {
+				// Leave the original failure standing; it is the more useful one.
+			}
 		}
 	}
 

@@ -165,6 +165,13 @@ export interface LoreConfig {
 	sources: { claude: { enabled: boolean; path?: string | null } };
 }
 
+/** The config, with an identifier for the file it came from. Handing that back on
+ *  save is what lets a stale copy be refused instead of overwriting. */
+export interface ConfigView {
+	config: LoreConfig;
+	revision: string | null;
+}
+
 export interface Paths {
 	config_path: string;
 	db_path: string;
@@ -201,7 +208,8 @@ export const archive = {
 		call<Lane[]>('lanes', { fromMs, toMs, category: category ?? null }),
 	session: (id: string) => call<SessionDetail | null>('session', { id }),
 	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha }),
-	config: () => call<LoreConfig>('read_config'),
-	saveConfig: (config: LoreConfig) => call<LoreConfig>('write_config', { config }),
+	config: () => call<ConfigView>('read_config'),
+	saveConfig: (config: LoreConfig, revision: string | null) =>
+		call<ConfigView>('write_config', { config, revision }),
 	runCollector: (action: 'scan' | 'rebuild') => call<string>('run_collector', { action })
 };

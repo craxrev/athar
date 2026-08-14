@@ -142,7 +142,22 @@ impl Config {
     /// Comments below the header are not preserved: the file is generated from
     /// the values, and a round-trip that silently dropped a hand-written note
     /// would be worse than saying so here.
-    pub fn save_over(&self, path: &Path) -> Result<()> {
+    ///
+    /// `expecting` is the [`Self::revision`] the caller last read, and `None` means
+    /// it read no file at all. A save writes every field rather than the one that
+    /// changed, so a caller holding an older copy would silently undo whatever
+    /// happened in between; this refuses instead.
+    ///
+    /// The comparison is total on purpose. Treating `None` as "write anyway" would
+    /// leave one hole open — a file created between the read and the save — and
+    /// that is exactly the case the check exists for.
+    pub fn save_over(&self, path: &Path, expecting: Option<&str>) -> Result<()> {
+        if Self::revision(path).as_deref() != expecting {
+            bail!(
+                "the configuration changed since it was read — reload before saving, \
+                 or this would overwrite that change"
+            );
+        }
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
         }
@@ -150,6 +165,18 @@ impl Config {
         fs::write(path, format!("{CONFIG_HEADER}{body}"))
             .with_context(|| format!("writing {}", path.display()))?;
         Ok(())
+    }
+
+    /// Identifies the file's current contents, for detecting a save that would
+    /// overwrite someone else's edit.
+    ///
+    /// Contents rather than a modified time: a file rewritten with the same values
+    /// is not a conflict, and mtime resolution is coarse enough to miss two saves
+    /// in the same instant.
+    pub fn revision(path: &Path) -> Option<String> {
+        use sha2::{Digest, Sha256};
+        let body = fs::read(path).ok()?;
+        Some(format!("{:x}", Sha256::digest(&body)))
     }
 
     /// Rejects a configuration that would quietly collect nothing.
@@ -248,6 +275,54 @@ const CONFIG_HEADER: &str = "\
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A save writes every field, so a window holding an older copy would undo
+    /// whatever happened in between. This is the check that stops it.
+    #[test]
+    fn a_save_against_a_changed_file_is_refused() {
+        let root = temp_root();
+        let path = root.join("config.toml");
+
+        let mut first = Config::default();
+        first.scan_interval_mins = 60;
+        // Nothing on disk yet, so nothing to conflict with.
+        first.save_over(&path, None).unwrap();
+        let seen = Config::revision(&path).expect("a written file has a revision");
+
+        // Someone else edits the file — another window, or a terminal.
+        let mut meanwhile = Config::default();
+        meanwhile.scan_interval_mins = 15;
+        meanwhile.save_over(&path, Some(&seen)).unwrap();
+
+        // The first caller still holds the old revision, and its save must fail
+        // rather than quietly restore 60.
+        let mut stale = Config::default();
+        stale.scan_interval_mins = 60;
+        let refused = stale.save_over(&path, Some(&seen));
+        assert!(refused.is_err(), "a stale save must be refused");
+        assert!(refused.unwrap_err().to_string().contains("changed since it was read"));
+
+        // The file still holds the other edit.
+        let on_disk: Config = toml::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk.scan_interval_mins, 15);
+
+        // Reloading gives a revision that saves cleanly.
+        let fresh = Config::revision(&path).unwrap();
+        assert!(stale.save_over(&path, Some(&fresh)).is_ok());
+        fs::remove_dir_all(&root).ok();
+    }
+
+    /// The hole a "None means write anyway" check would leave open.
+    #[test]
+    fn expecting_no_file_is_refused_once_one_exists() {
+        let root = temp_root();
+        let path = root.join("config.toml");
+        Config::default().save_over(&path, None).unwrap();
+
+        let refused = Config::default().save_over(&path, None);
+        assert!(refused.is_err(), "a file created since the read is a conflict");
+        fs::remove_dir_all(&root).ok();
+    }
 
     fn temp_root() -> PathBuf {
         use std::sync::atomic::{AtomicU64, Ordering};

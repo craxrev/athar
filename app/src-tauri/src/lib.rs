@@ -121,16 +121,34 @@ fn session(archive: State<Archive>, id: String) -> Reply<Option<api::SessionDeta
 }
 
 /// The configuration, as the settings surface reads and writes it.
-#[tauri::command]
-fn read_config() -> Reply<Config> {
-    Config::load().map_err(Into::into)
+///
+/// `revision` identifies the file the values came from. Handing it back on save
+/// is what turns "silently overwrote an edit made elsewhere" into a refusal the
+/// window can show, since a save writes every field rather than the one changed.
+#[derive(Serialize)]
+struct ConfigView {
+    config: Config,
+    revision: Option<String>,
 }
 
 #[tauri::command]
-fn write_config(config: Config) -> Reply<Config> {
+fn read_config() -> Reply<ConfigView> {
+    let path = paths::config_file()?;
+    Ok(ConfigView {
+        config: Config::load()?,
+        revision: Config::revision(&path),
+    })
+}
+
+#[tauri::command]
+fn write_config(config: Config, revision: Option<String>) -> Reply<ConfigView> {
+    let path = paths::config_file()?;
     config.validate()?;
-    config.save_over(&paths::config_file()?)?;
-    Ok(config)
+    config.save_over(&path, revision.as_deref())?;
+    Ok(ConfigView {
+        revision: Config::revision(&path),
+        config,
+    })
 }
 
 /// The collector shipped with this window: its bundled sidecar, or the CLI
