@@ -176,6 +176,10 @@ pub struct Session {
     pub cache_read_tokens: i64,
     pub models: HashSet<String>,
     pub has_transcript: bool,
+    /// Prompts seen in `history.jsonl`. Kept apart from `prompts` because the
+    /// same prompt is usually in the transcript too, and counting both would
+    /// double every session that still has one.
+    history_prompts: i64,
 }
 
 fn read_sessions(
@@ -221,6 +225,9 @@ fn read_sessions(
                     s.title = Some(t.to_string());
                 }
             }
+            "prompt_history" => {
+                s.history_prompts += 1;
+            }
             "user" => {
                 s.has_transcript = true;
                 // A user record whose content is only tool results is the
@@ -256,6 +263,17 @@ fn read_sessions(
                 }
             }
             _ => {}
+        }
+    }
+
+    // A session whose transcript Claude Code has deleted still has its prompts,
+    // in the history file lore archived separately. Without this those sessions
+    // reported nothing typed at all — on this machine, 936 of them, holding seven
+    // thousand prompts between them. Where a transcript survives it is the better
+    // record and the history is the same prompts again, so it is not added.
+    for session in out.values_mut() {
+        if !session.has_transcript {
+            session.prompts = session.history_prompts;
         }
     }
 
@@ -1194,6 +1212,60 @@ mod tests {
         );
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The prompts of a session Claude Code has deleted are still countable: the
+    /// history file survives, and reporting zero would understate the archive at
+    /// exactly the point where it is the only copy left.
+    #[test]
+    fn a_transcript_less_session_counts_its_history_prompts() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        for (i, text) in ["first", "second", "third"].iter().enumerate() {
+            f.add(
+                "prompt_history",
+                base + i as i64 * MIN,
+                Some("gone"),
+                json!({ "display": text, "timestamp": base }),
+            );
+        }
+        rebuild(&mut f.conn, &test_config()).unwrap();
+
+        let (prompts, transcript): (i64, i64) = f
+            .conn
+            .query_row(
+                "SELECT prompts, has_transcript FROM sessions WHERE session_id='gone'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(prompts, 3, "history is the only record of what was asked");
+        assert_eq!(transcript, 0);
+    }
+
+    /// And where a transcript survives, the history is the same prompts again.
+    #[test]
+    fn a_transcript_session_does_not_count_history_twice() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "kept", "do the thing");
+        f.add(
+            "prompt_history",
+            base,
+            Some("kept"),
+            json!({ "display": "do the thing", "timestamp": base }),
+        );
+        rebuild(&mut f.conn, &test_config()).unwrap();
+
+        let prompts: i64 = f
+            .conn
+            .query_row(
+                "SELECT prompts FROM sessions WHERE session_id='kept'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(prompts, 1, "one prompt recorded twice is still one prompt");
     }
 
     #[test]
