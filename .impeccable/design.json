@@ -57,9 +57,10 @@
     "tokens": {
       "bar-grow": "620ms, scaleX from 0.02, transform-origin left, staggered 22ms per lane up to 12",
       "reader-arrive": "260ms, opacity 0.6 → 1 with 6px rise",
-      "state-change": "120ms ease-out on background and color for rows and toggles"
+      "state-change": "--motion-state, 120ms ease-out on background and color for rows, toggles and buttons",
+      "live-state": "--motion-live, 1.6s ease-in-out alternate on opacity 1 → 0.35, footer dot only, while a collector run is open"
     },
-    "rule": "One authored moment per surface, from an already-visible default. All motion disabled under prefers-reduced-motion."
+    "rule": "One authored moment per surface, from an already-visible default. All motion disabled under prefers-reduced-motion. Repeating motion is allowed only for live state — something happening now that stops on its own — and only in the footer dot."
   },
   "breakpoints": {
     "detail-folds": "1120px",

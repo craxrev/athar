@@ -496,26 +496,6 @@
 		flex: 1;
 	}
 
-	.act {
-		padding: 6px 12px;
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-sm);
-		background: var(--surface-raised);
-		color: var(--text);
-		font-size: 14px;
-		font-weight: 540;
-	}
-	.act:hover:not(:disabled) {
-		background: var(--surface-hover);
-	}
-	.act:disabled {
-		opacity: 0.55;
-		cursor: default;
-	}
-	.act.strong {
-		background: var(--accent-soft);
-		border-color: var(--accent-edge);
-	}
 
 	.actions {
 		display: flex;

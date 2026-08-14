@@ -236,7 +236,7 @@
 		font-size: 14.5px;
 		font-weight: 520;
 		text-align: left;
-		transition: background 120ms ease-out, color 120ms ease-out;
+		transition: background var(--motion-state), color var(--motion-state);
 	}
 	.row:hover {
 		background: var(--surface-hover);
@@ -315,18 +315,18 @@
 	.dot.stale {
 		background: var(--amber);
 	}
-	/* The one moving thing in the window, and only while work is actually
-	   happening — a scan runs for minutes and otherwise shows nothing at all. */
+	/* The only repeating motion in the app, and the only place it is warranted:
+	   something is happening right now, outside this window, and will stop on its
+	   own. Magenta because live state is magenta. */
 	.dot.busy {
 		background: var(--accent);
-		animation: pulse 1.6s ease-in-out infinite;
+		animation: pulse var(--motion-live) infinite alternate;
 	}
 	@keyframes pulse {
-		0%,
-		100% {
+		from {
 			opacity: 1;
 		}
-		50% {
+		to {
 			opacity: 0.35;
 		}
 	}

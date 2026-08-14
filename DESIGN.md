@@ -313,6 +313,13 @@ character stands in for an icon anywhere.
   along the axis, staggered down the lanes; the reader arrives with a 260ms settle
   from an already-visible default. Both on `cubic-bezier(0.16, 1, 0.3, 1)`, both
   disabled under `prefers-reduced-motion`.
+- **Motion is chosen by purpose, and every kind is a token.** `--motion-state`
+  (120ms ease-out) is the response to a pointer or a toggle. `--motion-live`
+  (1.6s ease-in-out) is the one kind that repeats, and it is allowed exactly where
+  something is happening right now and will stop on its own: the footer dot while
+  a collector runs, in magenta because live state is magenta. A repeating
+  animation anywhere else is a defect, and this one is disabled under
+  `prefers-reduced-motion` like the rest.
 
 ## Do's and Don'ts
 

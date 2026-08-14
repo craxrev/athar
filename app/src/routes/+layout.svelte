@@ -66,6 +66,13 @@
 		--radius: 9px;
 		--radius-sm: 6px;
 
+		/* Motion by purpose, not by feel.
+		   `state` is the response to a pointer or a toggle. `live` is the one kind
+		   that repeats: something is happening right now and will stop on its own.
+		   Entrances keep their own curve where they are authored, one per surface. */
+		--motion-state: 120ms ease-out;
+		--motion-live: 1.6s ease-in-out;
+
 		/* Elevation carries an offset and a soft blur. A raised surface that only
 		   changes its border is not raised. */
 		--lift-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28);
@@ -115,6 +122,32 @@
 		background: none;
 		border: none;
 		cursor: pointer;
+	}
+
+	/* The one written button in the app: settings actions, and the recovery button
+	   on an error state. Defined once here because a second copy drifts — the two
+	   had already diverged on hover and disabled handling. */
+	:global(.act) {
+		padding: 6px 12px;
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-sm);
+		background: var(--surface-raised);
+		color: var(--text);
+		font-size: 14px;
+		font-weight: 540;
+		transition: background var(--motion-state), color var(--motion-state);
+	}
+	:global(.act:hover:not(:disabled)) {
+		background: var(--surface-hover);
+	}
+	:global(.act:disabled) {
+		opacity: 0.55;
+		cursor: default;
+	}
+	/* The primary of a pair, and never more than one in a group. */
+	:global(.act.strong) {
+		background: var(--accent-soft);
+		border-color: var(--accent-edge);
 	}
 
 	:global(:focus-visible) {

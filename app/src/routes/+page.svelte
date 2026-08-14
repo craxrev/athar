@@ -646,7 +646,7 @@
 		color: var(--text-dim);
 		font-size: 14px;
 		font-weight: 560;
-		transition: background 120ms ease-out, color 120ms ease-out;
+		transition: background var(--motion-state), color var(--motion-state);
 	}
 	.views button:hover {
 		color: var(--text);
@@ -773,18 +773,8 @@
 		font-size: var(--fs-meta);
 		color: var(--del);
 	}
-	.state .act {
+	.state :global(.act) {
 		margin-top: 6px;
-		padding: 6px 12px;
-		border: 1px solid var(--line-strong);
-		border-radius: var(--radius-sm);
-		background: var(--surface-raised);
-		color: var(--text);
-		font-size: 14px;
-		font-weight: 540;
-	}
-	.state .act:hover {
-		background: var(--surface-hover);
 	}
 	code {
 		font-family: var(--mono);
