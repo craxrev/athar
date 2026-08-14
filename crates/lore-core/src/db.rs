@@ -133,9 +133,9 @@ pub struct Run {
 /// Claims the right to run, or reports the collector that already holds it.
 ///
 /// Returns `Some(existing)` when another collector is working, and the caller
-/// should stop. `launchd` will not overlap its own job, but the window's button
-/// and a terminal can both fire into a scheduled scan — and two collectors
-/// against one archive means a blocked writer at best.
+/// should stop. The window scans on its own timer, its buttons can fire one, and
+/// a terminal can too — and two collectors against one archive means a blocked
+/// writer at best.
 ///
 /// The check and the claim share one immediate transaction, so two collectors
 /// starting together cannot both see an idle archive.
@@ -151,17 +151,19 @@ pub fn claim_run(conn: &mut Connection, action: &str) -> Result<Option<Run>> {
 
 /// Records that a collector run has begun.
 ///
-/// Two things start collectors — the schedule and the window's button — so
-/// neither `launchd` nor the window alone can answer "is one running now". The
-/// process doing the work is the only witness to both, and this is where it says
-/// so. The window reads it through its read-only connection.
+/// The process doing the work is the only thing that knows it is happening — a
+/// window that spawned it, another window, and a terminal all need the same
+/// answer. It goes in the archive, which the window reads read-only.
 fn mark_run_start(conn: &Connection, action: &str) -> Result<()> {
     let now = chrono::Utc::now().timestamp_millis();
     let pid = std::process::id() as i64;
     for (key, value) in [
         ("run_action", action.to_string()),
         ("run_started_ms", now.to_string()),
-        ("run_pid", pid.to_string()),
+        // Presence is what marks a run open, not a comparison of timestamps: a run
+        // that starts in the same millisecond the last one ended is indistinguishable
+        // under ordering, and would read as idle while it worked.
+        ("run_open_pid", pid.to_string()),
     ] {
         conn.execute(
             "INSERT INTO meta (key, value) VALUES (?1, ?2)
@@ -169,13 +171,6 @@ fn mark_run_start(conn: &Connection, action: &str) -> Result<()> {
             rusqlite::params![key, value],
         )?;
     }
-    // Cleared rather than deleted: a finish older than its start is what marks a
-    // run as over, and a missing row would be indistinguishable from a fresh archive.
-    conn.execute(
-        "INSERT INTO meta (key, value) VALUES ('run_finished_ms', '0')
-         ON CONFLICT(key) DO UPDATE SET value = '0'",
-        [],
-    )?;
     Ok(())
 }
 
@@ -185,6 +180,7 @@ pub fn mark_run_end(conn: &Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         [chrono::Utc::now().timestamp_millis().to_string()],
     )?;
+    conn.execute("DELETE FROM meta WHERE key = 'run_open_pid'", [])?;
     Ok(())
 }
 
@@ -198,18 +194,15 @@ pub fn current_run(conn: &Connection) -> Option<Run> {
         conn.query_row("SELECT value FROM meta WHERE key = ?1", [key], |r| r.get(0))
             .ok()
     };
-    let started_ms: i64 = value("run_started_ms")?.parse().ok()?;
-    let finished_ms: i64 = value("run_finished_ms")?.parse().unwrap_or(0);
-    if finished_ms >= started_ms {
-        return None;
-    }
-    let pid: i32 = value("run_pid")?.parse().ok()?;
+    // No open row, no run. The row is written at the start and deleted at the end,
+    // so its absence is unambiguous where a timestamp comparison was not.
+    let pid: i32 = value("run_open_pid")?.parse().ok()?;
     if !process_alive(pid) {
         return None;
     }
     Some(Run {
         action: value("run_action").unwrap_or_else(|| "scan".into()),
-        started_ms,
+        started_ms: value("run_started_ms")?.parse().unwrap_or(0),
         pid,
     })
 }
@@ -276,6 +269,37 @@ mod tests {
         );
     }
 
+    /// The window reads this to say when a scan last completed. A run in flight
+    /// must not erase that answer, and neither must one that dies without
+    /// finishing — otherwise the footer reports "never scanned" on a live archive.
+    #[test]
+    fn an_open_run_keeps_the_previous_finish() {
+        let mut conn = temp_db();
+
+        claim_run(&mut conn, "scan").unwrap();
+        mark_run_end(&conn).unwrap();
+        let first: i64 = conn
+            .query_row(
+                "SELECT CAST(value AS INTEGER) FROM meta WHERE key='run_finished_ms'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(first > 0, "a completed run records its finish");
+
+        // A second run opens; the first run's finish is still the last one known.
+        mark_run_start(&conn, "scan").unwrap();
+        let during: i64 = conn
+            .query_row(
+                "SELECT CAST(value AS INTEGER) FROM meta WHERE key='run_finished_ms'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(during, first, "an open run must not erase the last finish");
+        assert!(current_run(&conn).is_some(), "and it still reads as running");
+    }
+
     #[test]
     fn a_run_whose_process_died_does_not_block_the_next() {
         let conn = temp_db();
@@ -283,7 +307,7 @@ mod tests {
         // PID 1 is launchd and always alive, so a pid that cannot exist is used:
         // the mark stays open, and only the liveness check can clear it.
         conn.execute(
-            "UPDATE meta SET value = '2147483647' WHERE key = 'run_pid'",
+            "UPDATE meta SET value = '2147483647' WHERE key = 'run_open_pid'",
             [],
         )
         .unwrap();
