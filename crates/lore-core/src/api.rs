@@ -702,6 +702,14 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
             _ => {}
         }
 
+        // A slash command reaches the transcript as markup, not as the thing that
+        // was typed. Rendered verbatim it is unreadable, and the history file
+        // carries the same command in its typed form — so reading it back into
+        // that form makes the turn legible and lets the two records match.
+        if let Some(command) = as_command(&text) {
+            text = command;
+        }
+
         if text.trim().is_empty() && tools.is_empty() {
             continue;
         }
@@ -735,6 +743,33 @@ pub fn turns(conn: &Connection, session_id: &str) -> Result<Vec<Turn>> {
     // Merged rather than appended: a slash command belongs where it was typed.
     out.sort_by_key(|t| t.ts_ms.unwrap_or(i64::MAX));
     Ok(out)
+}
+
+/// The command a transcript turn represents, when its content is only the markup
+/// Claude Code records for one.
+///
+/// `<command-name>/model</command-name>` and its siblings are how an invocation is
+/// stored; nobody typed that. Turns carrying anything else are left alone, so a
+/// message that merely mentions a command is not rewritten into one.
+fn as_command(text: &str) -> Option<String> {
+    let between = |tag: &str| -> Option<String> {
+        let open = format!("<{tag}>");
+        let close = format!("</{tag}>");
+        let start = text.find(&open)? + open.len();
+        let end = text[start..].find(&close)? + start;
+        Some(text[start..end].trim().to_string())
+    };
+
+    let name = between("command-name")?;
+    if !text.trim_start().starts_with("<command-") {
+        return None;
+    }
+    let args = between("command-args").unwrap_or_default();
+    Some(if args.is_empty() {
+        name
+    } else {
+        format!("{name} {args}")
+    })
 }
 
 /// Reads a string that may have been shortened on archive, reporting which.
@@ -890,6 +925,36 @@ mod tests {
         );
         // And the command lands where it was typed, not appended at the end.
         assert!(turns[1].ts_ms.unwrap() < turns[2].ts_ms.unwrap());
+    }
+
+    /// A slash command is recorded as markup in the transcript and as typed text in
+    /// the history, so it was showing twice — once unreadably.
+    #[test]
+    fn a_slash_command_is_one_readable_turn() {
+        let conn = temp_db();
+        let (t, h) = origins(&conn);
+
+        record(&conn, t, 1, 1000, "user", &user(
+            "<command-name>/model</command-name>\n            <command-message>model</command-message>\n            <command-args></command-args>"));
+        record(&conn, t, 2, 2000, "user", &user(
+            "<command-name>/impeccable</command-name>\n<command-args>doctor</command-args>"));
+        record(&conn, h, 1, 1000, "prompt_history", r#"{"display":"/model"}"#);
+        record(&conn, h, 2, 2000, "prompt_history", r#"{"display":"/impeccable doctor"}"#);
+
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        assert_eq!(texts, vec!["/model", "/impeccable doctor"]);
+    }
+
+    /// Mentioning the markup is not invoking it.
+    #[test]
+    fn prose_about_a_command_is_left_alone() {
+        let conn = temp_db();
+        let (t, _) = origins(&conn);
+        let prose = "why does <command-name>/model</command-name> show up twice?";
+        record(&conn, t, 1, 1000, "user", &user(prose));
+
+        let texts: Vec<String> = turns(&conn, "s").unwrap().into_iter().map(|t| t.text).collect();
+        assert_eq!(texts, vec![prose]);
     }
 
     /// 936 of this machine's 1,034 sessions have no transcript left: Claude Code
