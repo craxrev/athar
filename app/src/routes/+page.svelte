@@ -22,6 +22,7 @@
 		compactDuration,
 		duration,
 		rangeLabel,
+		retention,
 		shortPath,
 		startOfDay,
 		startOfMonth,
@@ -153,6 +154,11 @@
 	let fromMs = $derived(range.from);
 	let toMs = $derived(range.to);
 	let atPresent = $derived(offset === 0);
+	/** The one fact the product's guarantee rests on. It lives in the rail footer,
+	 *  which folds itself below 1120px and is gone on every reader or settings
+	 *  visit — so a closing window outranks a running scan for the range bar's
+	 *  spare slot. */
+	let health = $derived(retention(status?.last_scan_ms ?? null, clock.now));
 	let steppable = $derived(scope !== 'all');
 
 	function stepRange(by: number) {
@@ -269,27 +275,49 @@
 		};
 	});
 
-	// The timeline. Range and view only — lanes and blocks load unfiltered so the
-	// rail can keep offering every category and project in range, including the one
-	// that would clear the current filter. Narrowing happens client-side below.
+	// Lanes, range only. The rail derives its category and project options from
+	// this, so narrowing it would remove the very rows that clear a filter.
+	$effect(() => {
+		const from = fromMs;
+		const to = toMs;
+		void archiveVersion;
+
+		archive
+			.lanes(from, to)
+			.then((l) => {
+				lanes = l;
+				error = null;
+			})
+			.catch((e: Error) => {
+				error = e.message ?? String(e);
+				lanes = [];
+			});
+	});
+
+	// Blocks, narrowed in SQL. The 300-cap has to apply to the *filtered* set or it
+	// silently truncates a filter's results while the banner stays hidden: gated on
+	// an unfiltered fetch, `summary.blocks > blocks.length` compared a narrowed
+	// count against a whole-range 300 and read false exactly when it mattered.
 	$effect(() => {
 		const from = fromMs;
 		const to = toMs;
 		const wanted = view;
-		// Refetch when the collector has archived something new.
+		const forProject = project;
+		const forCategory = category;
 		void archiveVersion;
 		loading = true;
 
-		Promise.all([
-			archive.lanes(from, to),
-			// Capped: the widest range holds thousands of blocks, and rendering
-			// them all is neither useful nor fast.
-			wanted === 'stream'
-				? archive.timeline(from, to, STREAM_LIMIT)
-				: Promise.resolve<BlockDetail[]>([])
-		])
-			.then(([l, b]) => {
-				lanes = l;
+		(wanted === 'stream'
+			? archive.timeline(
+					from,
+					to,
+					STREAM_LIMIT,
+					forProject ?? undefined,
+					forCategory ?? undefined
+				)
+			: Promise.resolve<BlockDetail[]>([])
+		)
+			.then((b) => {
 				blocks = b;
 				error = null;
 			})
@@ -299,7 +327,6 @@
 				// state this window can render.
 				error = e.message ?? String(e);
 				summary = null;
-				lanes = [];
 				blocks = [];
 			})
 			.finally(() => (loading = false));
@@ -413,11 +440,9 @@
 	 *  reach for: project, session title, commit subject, file path. */
 	let filteredBlocks = $derived.by(() => {
 		const q = query.trim().toLowerCase();
-		const scoped = blocks.filter(
-			(b) =>
-				(!category || b.category === category) &&
-				(!project || b.project_path === project)
-		);
+		// Project and category are applied in SQL now, so only the text query is
+		// left to narrow here — re-applying them would be a second, drifting copy.
+		const scoped = blocks;
 		if (!q) return scoped;
 		return scoped.filter(
 			(b) =>
@@ -540,11 +565,20 @@
 	);
 
 	/** Every block on screen in view order, so the keyboard can walk them. */
-	let walkable = $derived.by(() =>
-		view === 'lanes'
-			? filteredLanes.flatMap((l) => l.bars.map((b) => b.block_id))
-			: filteredBlocks.map((b) => b.id)
-	);
+	/** Every block on screen in the order the eye reads them.
+	 *
+	 *  In Lanes that is time order, not lane order: flat-mapping the lanes walked
+	 *  project-major, so three presses of `j` went 09:00, 11:00, 14:00 in one
+	 *  project and then back to 08:30 in the next — a keyboard walk contradicting
+	 *  the axis it walks along. */
+	let walkable = $derived.by(() => {
+		if (view !== 'lanes') return filteredBlocks.map((b) => b.id);
+		return filteredLanes
+			.flatMap((l) => l.bars)
+			.slice()
+			.sort((a, b) => a.started_ms - b.started_ms)
+			.map((b) => b.block_id);
+	});
 
 	function step(delta: number) {
 		if (walkable.length === 0) return;
@@ -572,7 +606,8 @@
 
 	/** Every binding, grouped, in one place. The sheet renders this list, so a
 	 *  shortcut that exists but is not listed here is a bug in one direction and a
-	 *  shortcut listed but not bound is a bug in the other. Eleven of these were
+	 *  shortcut listed but not bound is a bug in the other — and nothing enforces
+	 *  that, so the pair has to be kept honest by hand. Thirteen of these were
 	 *  reachable and three were hinted, in tooltips, on icons. */
 	const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
 		{
@@ -610,6 +645,12 @@
 		}
 	];
 	let shortcutsOpen = $state(false);
+	let sheetEl = $state<HTMLElement | null>(null);
+	// Focus follows the sheet in and back out again. Without it a screen reader got
+	// a scrim and no announcement, and Tab kept walking the timeline underneath.
+	$effect(() => {
+		if (shortcutsOpen) sheetEl?.focus({ preventScroll: true });
+	});
 
 	/** Single-key shortcuts, no modifier: this is a tool for someone whose hands
 	 *  are already on the keyboard, and reaching for the mouse to change range is
@@ -639,7 +680,10 @@
 		if (event.key === 'Escape') {
 			// A field takes the first Escape: leaving what you were typing should
 			// not also leave the surface you were typing on.
-			if (shortcutsOpen) shortcutsOpen = false;
+			if (shortcutsOpen) {
+				shortcutsOpen = false;
+				restoreFocus();
+			}
 			else if (typing) focused?.blur();
 			else if (settingsOpen) {
 				settingsOpen = false;
@@ -656,7 +700,13 @@
 		// exists to fix. Matched on the character, since `?` is a shifted key.
 		if (event.key === '?' && !typing) {
 			event.preventDefault();
-			shortcutsOpen = !shortcutsOpen;
+			if (shortcutsOpen) {
+				shortcutsOpen = false;
+				restoreFocus();
+			} else {
+				rememberFocus();
+				shortcutsOpen = true;
+			}
 			return;
 		}
 		if (shortcutsOpen) return;
@@ -855,7 +905,7 @@
 					class="stepper back"
 					onclick={() => stepRange(-1)}
 					disabled={!steppable}
-					title="Previous {scope} (←)"
+					title={steppable ? `Previous ${scope} (←)` : 'All time cannot be stepped'}
 					aria-label="Previous {scope}"
 					>
 					<Icon name="chevron" size={16} />
@@ -865,17 +915,34 @@
 					class="stepper"
 					onclick={() => stepRange(1)}
 					disabled={!steppable || atPresent}
-					title="Next {scope} (→)"
+					title={steppable ? `Next ${scope} (→)` : 'All time cannot be stepped'}
 					aria-label="Next {scope}"
 					>
 					<Icon name="chevron" size={16} />
 					</button>
-					{#if collector.busy && !railOpen}
+					{#if !railOpen && health.state === 'lapsed'}
+						<span class="working bad" role="status">
+							Not scanned in {health.daysSince} days — anything the sources have since
+							deleted is gone
+						</span>
+					{:else if !railOpen && health.state === 'alarm'}
+						<span class="working warn" role="status">
+							{health.daysLeft} day{health.daysLeft === 1 ? '' : 's'} of source history left
+						</span>
+					{:else if !railOpen && health.state === 'never'}
+						<span class="working warn" role="status">Never scanned</span>
+					{:else if collector.busy && !railOpen}
 						<span class="working">
 							<span class="pip" aria-hidden="true"></span>
 							{collector.busy === 'rebuild' ? 'Rebuilding' : 'Scanning'}
 						</span>
 					{/if}
+					{#each activeFilters as f (f.label)}
+						<button class="chip small" onclick={f.clear} title="Clear this filter">
+							{f.label}
+							<Icon name="close" size={12} />
+						</button>
+					{/each}
 					{#if !atPresent}
 						<button
 							class="now"
@@ -1075,10 +1142,24 @@
 			role="button"
 			tabindex="-1"
 			aria-label="Close shortcuts"
-			onclick={() => (shortcutsOpen = false)}
-			onkeydown={(e) => e.key === 'Enter' && (shortcutsOpen = false)}
+			onclick={() => {
+				shortcutsOpen = false;
+				restoreFocus();
+			}}
+			onkeydown={(e) => {
+				if (e.key !== 'Enter') return;
+				shortcutsOpen = false;
+				restoreFocus();
+			}}
 		>
-			<div class="sheet" role="dialog" aria-modal="false" aria-label="Keyboard shortcuts">
+			<div
+				class="sheet"
+				role="dialog"
+				aria-modal="false"
+				aria-label="Keyboard shortcuts"
+				tabindex="-1"
+				bind:this={sheetEl}
+			>
 				<h2>Keyboard</h2>
 				<div class="groups">
 					{#each SHORTCUTS as g (g.group)}
@@ -1355,9 +1436,23 @@
 		align-items: center;
 		gap: 7px;
 		margin-left: auto;
+		text-align: right;
 		font-size: var(--fs-meta);
 		font-weight: 540;
 		color: var(--text-dim);
+	}
+	.working.warn {
+		color: var(--amber);
+	}
+	.working.bad {
+		color: var(--del);
+	}
+	/* The same chip as the empty state's, at range-bar scale. Present whenever a
+	   narrowing is, so the figures above are never an unexplained subset. */
+	.chip.small {
+		min-height: 22px;
+		padding: 2px 8px;
+		font-size: var(--fs-min);
 	}
 	.pip {
 		width: 7px;

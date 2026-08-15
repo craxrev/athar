@@ -77,6 +77,31 @@ export function relative(ms: number | null, now: number = Date.now()): string {
 	return `${Math.round(hours / 24)}d ago`;
 }
 
+/** How long a source keeps its own history before deleting it. lore has to run at
+ *  least once inside this window or that stretch is gone from every source at once. */
+export const RETENTION_DAYS = 30;
+
+export type Retention = {
+	state: 'never' | 'lapsed' | 'alarm' | 'ok';
+	daysSince: number | null;
+	daysLeft: number | null;
+};
+
+/** Derived in one place because two surfaces show it: the rail footer, and the
+ *  range bar for when the rail is folded — which below 1120px it folds by itself,
+ *  and does on every visit to the reader or settings. A second copy of this rule
+ *  is how the two start disagreeing about the one number the product rests on. */
+export function retention(lastScanMs: number | null, now: number): Retention {
+	if (lastScanMs === null) return { state: 'never', daysSince: null, daysLeft: null };
+	const daysSince = Math.floor((now - lastScanMs) / 86_400_000);
+	const daysLeft = RETENTION_DAYS - daysSince;
+	return {
+		state: daysLeft <= 0 ? 'lapsed' : daysLeft <= 7 ? 'alarm' : 'ok',
+		daysSince,
+		daysLeft
+	};
+}
+
 /** Keeps the tail, which is the part that identifies a file. */
 export function shortPath(path: string, segments = 2): string {
 	const parts = path.split('/').filter(Boolean);

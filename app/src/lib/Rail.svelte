@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
-	import { compactDuration, relative } from './format';
+	import { compactDuration, relative, retention } from './format';
 	import { clock } from './collector.svelte';
 
 	let {
@@ -51,13 +51,11 @@
 	 *  once inside this window or that stretch is gone for good, from every source
 	 *  at once. The footer used to report a timestamp in green — an archive five
 	 *  days from permanent loss looked exactly like one scanned this morning. */
-	const RETENTION_DAYS = 30;
-	let daysSince = $derived(
-		lastScanMs === null ? null : Math.floor((clock.now - lastScanMs) / 86_400_000)
-	);
-	let daysLeft = $derived(daysSince === null ? null : RETENTION_DAYS - daysSince);
-	let alarm = $derived(daysLeft !== null && daysLeft <= 7);
-	let lapsed = $derived(daysLeft !== null && daysLeft <= 0);
+	let health = $derived(retention(lastScanMs, clock.now));
+	let daysSince = $derived(health.daysSince);
+	let daysLeft = $derived(health.daysLeft);
+	let alarm = $derived(health.state === 'alarm');
+	let lapsed = $derived(health.state === 'lapsed');
 
 	// The rail answers "what am I looking at". Long project lists stay readable by
 	// showing the ones with recent activity first, which the query already orders.
@@ -153,7 +151,7 @@
 		{/if}
 	</section>
 
-	<footer role="status" aria-live="polite">
+	<footer role="status">
 		<span
 			class="dot"
 			class:stale={lastScanMs === null || alarm}

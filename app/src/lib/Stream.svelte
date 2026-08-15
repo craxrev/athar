@@ -150,7 +150,7 @@
 						onclick={() => onSelect(block.id)}
 					>
 						<span class="num when">{clock(block.started_ms)}</span>
-						<span class="project">{block.project}</span>
+						<span class="project" title={block.project_path}>{block.project}</span>
 						<span class="swatch" data-category={block.category}>{block.category}</span>
 						<span class="composition">{prepared.get(block.id)?.composition ?? ''}</span>
 						<span class="num span">{duration(block.ended_ms - block.started_ms)}</span>

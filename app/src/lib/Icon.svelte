@@ -17,8 +17,6 @@
 		| 'panelRight'
 		| 'search'
 		| 'back'
-		
-		
 		| 'settings';
 
 	let { name, size = 20 }: { name: Name; size?: number } = $props();

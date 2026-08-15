@@ -360,11 +360,16 @@ being trustworthy.
 ### Shortcut sheet
 
 `?` from any surface. A sheet, not a modal: it protects no task and interrupts
-none, so it dismisses on any click and needs no confirmation. Its contents are
-derived from the same list the key handler reads, so a binding that exists but is
-unlisted and a binding listed but unbound are both impossible.
+none, so it dismisses on any click and needs no confirmation. It takes focus on
+open and returns it on close, because a sheet that announces nothing is a scrim.
 
-Fifteen bindings were reachable and three were discoverable, in tooltips, on
+Its contents are a **hand-maintained list beside the key handler, not derived from
+it.** They agree today; nothing enforces that they keep agreeing, and a binding
+added to one and not the other is the failure mode to watch. Deriving the sheet
+from the handler — or the handler from the sheet — is the fix, and it has not been
+made.
+
+Thirteen bindings were reachable and three were discoverable, in tooltips, on
 icons. An accelerator nobody can find is not an accelerator.
 
 ## Elevation & Depth

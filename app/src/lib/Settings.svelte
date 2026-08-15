@@ -68,6 +68,10 @@
 	 *  this is a confirm rather than an undo — but it is not nothing. */
 	let confirming = $state<string | null>(null);
 
+	function focusOnMount(node: HTMLElement) {
+		node.focus({ preventScroll: true });
+	}
+
 	async function removeRoot(path: string) {
 		if (!config) return;
 		confirming = null;
@@ -139,7 +143,16 @@
 								aria-label="Category for {root.path}"
 							/>
 							{#if confirming === root.path}
-								<button class="act danger" onclick={() => removeRoot(root.path)}>Remove</button>
+								<!-- Focused on appearance: this replaces the control that opened it,
+								     so without it focus fell to the document body and the
+								     destructive choice was reachable only by tabbing from the top. -->
+								<button
+									class="act danger"
+									onclick={() => removeRoot(root.path)}
+									use:focusOnMount
+								>
+									Remove
+								</button>
 								<button class="act" onclick={() => (confirming = null)}>Keep</button>
 							{:else}
 								<button
