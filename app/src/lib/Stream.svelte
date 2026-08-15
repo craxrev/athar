@@ -17,6 +17,20 @@
 		onOpenSession: (id: string) => void;
 	} = $props();
 
+	/** Derived once per block list rather than per render.
+	 *
+	 *  `entriesOf` sorts and clusters, and `composition` builds strings; both were
+	 *  called straight from the template, so both ran for all 300 blocks every time
+	 *  anything re-rendered — including selecting a block, which changes nothing
+	 *  either of them reads. */
+	let prepared = $derived.by(() => {
+		const m = new Map<number, { entries: Entry[]; composition: string }>();
+		for (const block of blocks) {
+			m.set(block.id, { entries: entriesOf(block), composition: composition(block) });
+		}
+		return m;
+	});
+
 	/** Day headings are dividers in one continuous column, not a grid of dates. */
 	let days = $derived.by(() => {
 		const out: { key: string; at: number; blocks: BlockDetail[] }[] = [];
@@ -130,11 +144,11 @@
 						<span class="num when">{clock(block.started_ms)}</span>
 						<span class="project">{block.project}</span>
 						<span class="swatch" data-category={block.category}>{block.category}</span>
-						<span class="composition">{composition(block)}</span>
+						<span class="composition">{prepared.get(block.id)?.composition ?? ''}</span>
 						<span class="num span">{duration(block.ended_ms - block.started_ms)}</span>
 					</button>
 
-					{#each entriesOf(block) as entry (entry.key)}
+					{#each prepared.get(block.id)?.entries ?? [] as entry (entry.key)}
 						{#if entry.kind === 'session'}
 							<button
 								class="item session"
@@ -321,6 +335,11 @@
 		min-height: 0;
 		overflow-y: auto;
 		padding: 4px 20px 40px;
+	}
+
+	article {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 120px;
 	}
 
 	.day {

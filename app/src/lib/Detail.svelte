@@ -114,7 +114,7 @@
 			{#if block.file_changes.length}
 				<section>
 					<h3>File changes <span class="num floor">{block.file_changes.length} recorded</span></h3>
-					<Moments changes={block.file_changes} />
+					<Moments changes={block.file_changes} limit={8} />
 					<p class="caveat">
 						A count of changes is a floor: saves between two scans leave only the most
 						recent timestamp behind.

@@ -376,6 +376,12 @@
 		display: flex;
 		align-items: center;
 		height: 40px;
+		/* The row height is fixed, so the estimate is exact and the browser can skip
+		   laying out and painting every lane that is off screen. Over a wide range
+		   this view renders a bar per block with a gradient each, and most of them
+		   are never looked at. */
+		content-visibility: auto;
+		contain-intrinsic-size: auto 40px;
 		padding-left: 16px;
 	}
 	.lane:hover {
