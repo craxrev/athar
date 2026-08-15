@@ -280,7 +280,9 @@
 					{/if}
 				</div>
 				{#if collector.error}
-					<p class="banner bad"><Icon name="warn" size={16} /><span>{collector.error}</span></p>
+					<p class="banner bad" role="alert">
+						<Icon name="warn" size={16} /><span>{collector.error}</span>
+					</p>
 				{/if}
 				{#if collector.result}
 					<pre class="result">{collector.result}</pre>
@@ -411,7 +413,7 @@
 		flex: 1;
 	}
 	.banner.bad {
-		background: rgba(229, 85, 92, 0.14);
+		background: var(--del-soft);
 		color: var(--del);
 	}
 

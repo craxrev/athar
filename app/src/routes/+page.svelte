@@ -619,7 +619,6 @@
 <main
 	class="shell"
 	class:rail-closed={!railOpen}
-	class:reading={!!reader}
 >
 	<h1 class="offscreen">lore — archive of your work</h1>
 	<p class="offscreen" role="status" aria-live="polite">{announcement}</p>
@@ -1025,6 +1024,9 @@
 		min-width: 0;
 		border: none;
 		background: none;
+		/* The field draws the ring for the whole control; without this the input
+		   drew a second one just inside it. */
+		outline: none;
 		color: var(--text);
 		font: inherit;
 		font-size: 14px;

@@ -17,6 +17,7 @@
 		--surface: #12141a;
 		--surface-raised: #191c24;
 		--surface-hover: #1f2330;
+		--wash: rgba(255, 255, 255, 0.022);
 		--line: rgba(255, 255, 255, 0.07);
 		--line-strong: rgba(255, 255, 255, 0.14);
 
@@ -31,12 +32,16 @@
 		--accent-soft: rgba(233, 61, 151, 0.16);
 		--accent-edge: rgba(233, 61, 151, 0.42);
 		--on-accent: #14040c;
+		/* Text sitting on an accent fill needs the lightened form, exactly as the
+		   category hues do: the solid accent on accent-soft measures 4.48:1. */
+		--accent-tint: #ea439a;
 
 		/* Uncertainty, and git's own vocabulary kept intact. */
 		--amber: #f2a93b;
 		--amber-soft: rgba(242, 169, 59, 0.14);
 		--add: #56c98a;
-		--del: #e5555c;
+		--del: #e65c63; /* 4.52:1 on --surface-hover, the worst surface it lands on */
+		--del-soft: rgba(230, 92, 99, 0.14);
 
 		/* Category identity, defined once. Each hue needs three forms: the solid
 		   for legend swatches, a translucent fill for chips, and a

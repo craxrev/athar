@@ -385,7 +385,7 @@
 		padding-left: 16px;
 	}
 	.lane:hover {
-		background: rgba(255, 255, 255, 0.022);
+		background: var(--wash);
 	}
 
 	.gutter .project {
@@ -535,7 +535,7 @@
 	.bar.on:hover {
 		--ink: var(--accent); /* 5.20:1 */
 		--ink-bed: var(--accent-soft);
-		--ink-link: color-mix(in srgb, var(--accent) 72%, transparent); /* 3.14:1 */
+		--ink-link: color-mix(in srgb, var(--accent) 72%, transparent); /* 3.15:1 */
 		box-shadow: var(--lift-1);
 	}
 	.bar.on .commits i {

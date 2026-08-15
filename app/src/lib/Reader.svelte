@@ -377,12 +377,12 @@
 		color: var(--text-faint);
 	}
 	.badge.wrote {
-		color: var(--accent);
+		color: var(--accent-tint);
 		background: var(--accent-soft);
 	}
 	.badge.err {
 		color: var(--del);
-		background: rgba(229, 85, 92, 0.14);
+		background: var(--del-soft);
 	}
 
 	.turns {
@@ -462,7 +462,7 @@
 		font-size: var(--fs-meta);
 	}
 	.tools li.failed {
-		background: rgba(229, 85, 92, 0.08);
+		background: color-mix(in srgb, var(--del) 8%, transparent);
 	}
 	.tool {
 		font-weight: 620;

@@ -194,7 +194,7 @@
 		min-height: 0;
 		overflow: hidden;
 		border-right: 1px solid var(--line);
-		background: rgba(255, 255, 255, 0.022);
+		background: var(--wash);
 	}
 
 	.drag {
