@@ -413,8 +413,7 @@ pub fn lanes(
           ORDER BY p.path, b.started_ms",
     )?;
     let rows = stmt.query_map([from_ms, to_ms], |r| {
-        let (sessions, commits, file_changes): (i64, i64, i64) =
-            (r.get(4)?, r.get(5)?, r.get(6)?);
+        let (sessions, commits, file_changes): (i64, i64, i64) = (r.get(4)?, r.get(5)?, r.get(6)?);
         Ok((
             r.get::<_, String>(0)?,
             Bar {
