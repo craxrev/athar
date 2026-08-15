@@ -62,6 +62,15 @@
 	let visible = $derived(
 		category ? projects.filter((p) => p.category === category) : projects
 	);
+
+	/** No rung of the timeline lists projects as rows any more, so this list is
+	 *  the only place they are enumerated — and the only place their sizes can be
+	 *  compared. The durations were always here; the bar behind the label is what
+	 *  turns a column of figures back into a ranking. Scaled against the busiest
+	 *  in view, so the leader always fills and the rest read as shares of it. */
+	let busiest = $derived(visible.reduce((most, p) => Math.max(most, p.ms), 0));
+	let categoryPeak = $derived(categories.reduce((most, c) => Math.max(most, c.ms), 0));
+	const share = (ms: number, peak: number) => (peak > 0 ? (ms / peak) * 100 : 0);
 </script>
 
 <nav class="rail">
@@ -116,6 +125,8 @@
 							aria-current={category === c.name ? 'true' : undefined}
 							onclick={() => onCategory(category === c.name ? null : c.name)}
 						>
+							<span class="share" style="width: {share(c.ms, categoryPeak)}%" aria-hidden="true"
+							></span>
 							<span class="swatch" data-category={c.name} aria-hidden="true"></span>
 							<span class="label">{c.name}</span>
 							<span class="num trail">{compactDuration(c.ms)}</span>
@@ -141,6 +152,7 @@
 							onclick={() => onProject(project === p.path ? null : p.path)}
 							title={p.path}
 						>
+							<span class="share" style="width: {share(p.ms, busiest)}%" aria-hidden="true"></span>
 							<span class="swatch" data-category={p.category} aria-hidden="true"></span>
 							<span class="label">{p.label}</span>
 							<span class="num trail">{compactDuration(p.ms)}</span>
@@ -263,6 +275,7 @@
 	}
 
 	.row {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: 9px;
@@ -273,7 +286,26 @@
 		font-size: 14.5px;
 		font-weight: 520;
 		text-align: left;
+		overflow: hidden;
 		transition: background var(--motion-state), color var(--motion-state);
+	}
+
+	/* The ranking, folded into the list that already carried the number. It sits
+	   behind the label rather than beside it, so a row costs no more width than
+	   it did and the figure stays the thing you read. */
+	.share {
+		position: absolute;
+		left: 0;
+		top: 0;
+		bottom: 0;
+		border-radius: var(--radius-sm);
+		background: var(--fill-subtle);
+	}
+	.row.on .share {
+		background: var(--accent-soft);
+	}
+	.row > :not(.share) {
+		position: relative;
 	}
 	.row:hover {
 		background: var(--surface-hover);

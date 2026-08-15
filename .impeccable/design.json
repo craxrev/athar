@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-15T12:00:00Z",
+  "generatedAt": "2026-08-15T20:50:00Z",
   "title": "Design System: lore",
   "extensions": {
     "colorMeta": {
@@ -276,6 +276,16 @@
         "role": "tertiary",
         "displayName": "Deletion Fill",
         "canonical": "rgba(230, 92, 99, 0.14)"
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "rgba(255, 255, 255, 0.03)"
+      },
+      "mark-cut": {
+        "role": "neutral",
+        "displayName": "Mark Cut",
+        "canonical": "rgba(0, 0, 0, 0.42)"
       }
     },
     "typographyMeta": {
@@ -324,7 +334,7 @@
       {
         "name": "lift-1",
         "value": "0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28)",
-        "purpose": "Detail cards, the selected block, the selected lane bar. The only elevation in use."
+        "purpose": "Detail cards, the selected block, the selected timeline mark. The only elevation in use."
       }
     ],
     "motion": [
@@ -371,44 +381,68 @@
   },
   "components": [
     {
-      "name": "Lane Bar — from sessions",
+      "name": "Timeline Mark — from sessions",
       "kind": "custom",
-      "refersTo": "lane-bar",
-      "description": "A block whose span a conversation brackets. Solid, because the whole span is evidenced.",
-      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-sessions\"></span></div>",
-      "css": ".ds-lane { position: relative; height: 40px; background: var(--ground, #0b0c0f); } .ds-bar { position: absolute; top: 50%; left: 8%; width: 60%; height: 23px; transform: translateY(-50%); border-radius: 4px; --ink: rgba(255,255,255,0.36); --ink-bed: rgba(255,255,255,0.11); cursor: pointer; } .ds-bar-sessions { background: var(--ink); } .ds-bar-sessions:hover { --ink: rgba(255,255,255,0.54); }"
+      "refersTo": "timeline-mark",
+      "description": "A span a conversation brackets end to end. Hue says whose work it was; a solid surface says the whole span is known.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark \" style=\"left: 18%; width: 34%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } "
     },
     {
-      "name": "Lane Bar — from commits",
+      "name": "Timeline Mark — from commits",
       "kind": "custom",
-      "refersTo": "lane-bar",
-      "description": "Exact at the commits, inferred between them. The hatch claims no positions.",
-      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-commits\"></span></div>",
-      "css": ".ds-bar-commits { background-color: var(--ink-bed); background-image: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 6px); } .ds-bar-commits:hover { --ink: rgba(255,255,255,0.54); --ink-bed: rgba(255,255,255,0.2); }"
+      "refersTo": "timeline-mark",
+      "description": "Exact at the commits, inferred between them. The hatch claims no positions inside the span.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-commits\" style=\"left: 18%; width: 34%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-commits { background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.42) 0 2px, transparent 2px 5px); }"
     },
     {
-      "name": "Lane Bar — from saves",
+      "name": "Timeline Mark — from saves",
       "kind": "custom",
-      "refersTo": "lane-bar-saves",
-      "description": "Two mtimes and nothing known between. The ends are marked because the ends are what the archive has.",
-      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-saves\"></span></div>",
-      "css": ".ds-bar-saves { --ink: var(--amber, #f2a93b); --ink-link: color-mix(in srgb, var(--amber, #f2a93b) 52%, transparent); background-image: linear-gradient(var(--ink-link), var(--ink-link)); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; } .ds-bar-saves::before, .ds-bar-saves::after { content: ''; position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--ink); } .ds-bar-saves::before { left: 0; } .ds-bar-saves::after { right: 0; }"
+      "refersTo": "timeline-mark-saves",
+      "description": "Two mtimes and nothing known between. The ends are marked in amber because the ends are what the archive has.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-saves\" style=\"left: 18%; width: 34%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-saves { box-shadow: inset 2px 0 0 var(--amber, #f2a93b), inset -2px 0 0 var(--amber, #f2a93b); }"
     },
     {
-      "name": "Lane Bar — from records only",
+      "name": "Timeline Mark — from records only",
       "kind": "custom",
-      "refersTo": "lane-bar",
-      "description": "Records the timeline cannot itemise. The span is real; nothing in it is describable, so it claims no ends.",
-      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-bare\"></span></div>",
-      "css": ".ds-bar-bare { background-image: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 7px); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; }"
+      "refersTo": "timeline-mark",
+      "description": "The span is real; nothing in it is describable, so the surface is broken and it claims no ends.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-bare\" style=\"left: 18%; width: 34%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-bare { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.45) 0 3px, transparent 3px 6px); }"
     },
     {
-      "name": "Lane Bar — selected",
+      "name": "Timeline Mark — selected",
       "kind": "custom",
-      "refersTo": "lane-bar-selected",
-      "description": "Selection takes the ink, never the shape. A selected saves-only block is still a pair of end marks.",
-      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-saves ds-bar-on\"></span></div>",
-      "css": ".ds-bar-on { --ink: var(--accent, #e93d97); --ink-bed: rgba(233,61,151,0.16); --ink-link: color-mix(in srgb, var(--accent, #e93d97) 72%, transparent); box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28); }"
+      "refersTo": "timeline-mark-selected",
+      "description": "Selection takes the ink, never the shape: a selected saves-only span is still visibly a pair of end marks.",
+      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-saves ds-mark-on\" style=\"left: 18%; width: 34%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-on { background-color: var(--accent, #e93d97); box-shadow: inset 2px 0 0 var(--on-accent, #14040c), inset -2px 0 0 var(--on-accent, #14040c), 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28); }"
+    },
+    {
+      "name": "Day Tile",
+      "kind": "card",
+      "refersTo": "day-tile",
+      "description": "The month rung's atom: the last grain where a day can still say a name.",
+      "html": "<button class=\"ds-tile\"><span class=\"ds-tile-head\"><span class=\"ds-tile-day\">14</span><span class=\"ds-tile-held\">6.2h</span></span><span class=\"ds-tile-who\"><span class=\"ds-tile-dot\"></span>lore-app</span><span class=\"ds-tile-who\"><span class=\"ds-tile-dot ds-work\"></span>gfny_fe</span><span class=\"ds-tile-micro\"><i style=\"left:34%;width:22%\"></i><i style=\"left:64%;width:12%\"></i></span></button>",
+      "css": ".ds-tile { display: flex; flex-direction: column; gap: 3px; width: 118px; min-height: 82px; padding: 6px 7px 7px; border: 1px solid var(--line, rgba(255,255,255,0.07)); border-radius: 6px; background: var(--surface, #12141a); text-align: left; cursor: pointer; font: inherit; color: var(--text-dim, #a2a8b6); } .ds-tile:hover { border-color: var(--line-strong, rgba(255,255,255,0.14)); background: var(--surface-raised, #191c24); } .ds-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; } .ds-tile-day { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 620; font-variant-numeric: tabular-nums; } .ds-tile-held { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: var(--text, #edeef2); font-variant-numeric: tabular-nums; } .ds-tile-who { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--text-faint, #878e9d); } .ds-tile-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--cat-research, #e93d97); } .ds-work { background: var(--cat-work, #4c8dff); } .ds-tile-micro { position: relative; height: 5px; margin-top: auto; border-radius: 2px; background: rgba(255,255,255,0.04); } .ds-tile-micro i { position: absolute; top: 0; bottom: 0; border-radius: 1px; background: var(--cat-research, #e93d97); }"
+    },
+    {
+      "name": "Day Cells",
+      "kind": "custom",
+      "refersTo": "day-cell",
+      "description": "The all-time rung: one cell a day, hue by the class that took most of it, opacity by hours. Every cell carries real evidence — a date with nothing in it is the metaphor the anti-reference was written against.",
+      "html": "<div class=\"ds-cells\"><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.55\"></span><span class=\"ds-cell\" style=\"opacity:.9\"></span><span class=\"ds-cell\" style=\"opacity:1\"></span><span class=\"ds-cell\" style=\"opacity:.38\"></span><span class=\"ds-cell\" style=\"opacity:.7\"></span><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.85\"></span><span class=\"ds-cell\" style=\"opacity:.45\"></span><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.62\"></span><span class=\"ds-cell\" style=\"opacity:.95\"></span><span class=\"ds-cell\" style=\"opacity:.3\"></span><span class=\"ds-cell\" style=\"opacity:.5\"></span></div>",
+      "css": ".ds-cells { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 8px); gap: 2px; } .ds-cell { width: 8px; height: 8px; border-radius: 3px; background: var(--cat-research, #e93d97); }"
+    },
+    {
+      "name": "Rail Row — ranked",
+      "kind": "nav",
+      "refersTo": "rail-row",
+      "description": "The rail's project list is the ranked view: the duration it already carried, with a share bar behind the label scaled to the busiest in range.",
+      "html": "<button class=\"ds-rank\"><span class=\"ds-rank-share\" style=\"width:72%\"></span><span class=\"ds-rank-swatch\"></span><span class=\"ds-rank-label\">lore-app</span><span class=\"ds-rank-trail\">19h</span></button>",
+      "css": ".ds-rank { position: relative; display: flex; align-items: center; gap: 9px; width: 220px; padding: 7px 8px; border: 0; border-radius: 6px; background: none; overflow: hidden; cursor: pointer; color: var(--text-dim, #a2a8b6); font: inherit; font-size: 14.5px; font-weight: 520; text-align: left; } .ds-rank:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rank-share { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(255,255,255,0.06); } .ds-rank > :not(.ds-rank-share) { position: relative; } .ds-rank-swatch { width: 9px; height: 9px; border-radius: 3px; background: var(--cat-research, #e93d97); } .ds-rank-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-rank-trail { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--text-faint, #878e9d); font-variant-numeric: tabular-nums; }"
     },
     {
       "name": "Rail Row",
@@ -477,7 +511,7 @@
   ],
   "narrative": {
     "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
-    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on — the digest and the lane bars — said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit — this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
+    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: **every figure on screen carries how it was established.** The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on — the digest and the timeline — said nothing about their own footing. Both now carry it: the marks in their texture, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit — this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
     "keyCharacteristics": [
       "Dark only, by decision rather than default",
       "One accent, magenta, because git owns red and green and amber is reserved for uncertainty",
@@ -490,7 +524,7 @@
     "rules": [
       {
         "name": "The Two Axes Rule",
-        "body": "Two different questions run through this interface and must never share a vocabulary. **Attribution** asks who made a change — `witnessed`, `files match`, `inferred`, `unattributed` — and speaks in the ring icons and the green/amber pair. **Evidence** asks what kind of record backs a span of time — `from sessions`, `from commits`, `from saves`, `from records only` — and speaks in the fill of a lane bar and the split under the digest. A colour or a word borrowed across the two collapses both. Amber is the one deliberate overlap: it means uncertainty on either axis, which is why it carries `saves` as well as `inferred`.",
+        "body": "Attribution asks who made a change and speaks in the ring icons and the green/amber pair. Evidence asks what kind of record backs a span and speaks in the digest split and in the texture of a timeline mark. Hue and texture are separate channels and a mark may carry both: hue says which project, texture says how well the span is known. Hue may never say what state.",
         "section": "components"
       },
       {
@@ -512,6 +546,16 @@
         "name": "The Legible Mark Rule",
         "body": "Every mark that carries a class clears 3:1 against `ground` on its own — solid 3.28, hatch strokes 4.22, amber caps 9.79, connector 3.34, selected connector 3.15. A hatch *bed* is exempt because its strokes carry identity, but a connector is not: without it, two end marks are two unrelated dots. The category fills this replaced measured 1.60–2.25 and all failed.",
         "section": "components"
+      },
+      {
+        "name": "The Grain Ladder Rule",
+        "body": "The timeline's unit is the day, and the range decides what survives of one: an hour at day grain, a row at week, a tile at month, a cell at all time. Each rung drops exactly one channel, and the drop happens where the previous rung stops fitting.",
+        "section": "layout"
+      },
+      {
+        "name": "The Density Floor Rule",
+        "body": "A cell's hours ride its hue, never its alpha alone. The floor is 0.72 alpha, set by the worst case: solid cat-research reaches 3:1 on ground at 0.70. Density then rides a mix toward the category's own tint, so a quiet day measures 3.14:1 and a heavy one 7.26:1 — a full step apart, both clearing the Legible Mark Rule.",
+        "section": "colors"
       }
     ],
     "dos": [
@@ -528,14 +572,15 @@
       "Set interface type below 13px or below weight 500. Reading prose is the one",
       "Use the accent as a glow, a gradient, or a decorative fill.",
       "Extend vibrancy beyond the scope rail, or add blur for atmosphere.",
-      "Render a calendar grid or a contribution heatmap as a primary view.",
       "Print a figure lore cannot support — no `0m` for a real block, no clock range",
       "Introduce a second accent, or let a category hue carry state.",
-      "Put a category hue back on a lane bar. The group heading above it and the rail",
       "Borrow a word or a colour across the attribution and evidence axes.",
       "Leave a figure unlabelled about what it covers. The digest is narrowed by the",
       "Ship an uncapped view. Lanes was the one view users were told was safe for a",
-      "Animate a bar with a transform that deforms the marks inside it."
+      "Animate a bar with a transform that deforms the marks inside it.",
+      "Don't let hue carry state anywhere on the timeline. Project class may tint a mark; selection and live state stay magenta.",
+      "Don't draw a date cell that carries nothing but its date. A cell earns its place by holding real hours and a real class.",
+      "Don't draw a class-carrying mark below 3:1 on ground, including at the bottom of a density ramp. The floor is the design, not the exception."
     ]
   }
 }

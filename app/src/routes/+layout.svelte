@@ -21,6 +21,15 @@
 		/* A chip's ground: lighter than a divider, darker than a surface step. Was
 		   hand-copied into two components before it had a name. */
 		--fill-subtle: rgba(255, 255, 255, 0.06);
+		/* The empty half of a mark's own container — a track behind a span, the
+		   unheld cell in a sheet. Sits between `wash` and `fill-subtle`, and had
+		   been hand-copied at four slightly different alphas before it had a
+		   name. */
+		--well: rgba(255, 255, 255, 0.03);
+		/* Cut into a mark rather than laid over the ground: the hatch of a commits
+		   span and the breaks in a records-only line. Dark, because it subtracts
+		   from the mark's own hue instead of competing with it. */
+		--mark-cut: rgba(0, 0, 0, 0.42);
 		--line: rgba(255, 255, 255, 0.07);
 		--line-strong: rgba(255, 255, 255, 0.14);
 

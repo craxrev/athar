@@ -94,8 +94,23 @@
 	}
 	function toggleDetail() {
 		detailOpen = !detailOpen;
+		if (detailOpen) detailAsked = true;
 		if (tight && detailOpen) railOpen = false;
 	}
+
+	/** Lanes is the view whose whole problem is horizontal room: with both side
+	 *  panes open the timeline gets 492px of a 1280px window, and 123px at the
+	 *  window's own 880px minimum. The detail pane is the answer to a selection,
+	 *  so on arrival — Lanes, nothing selected — it has nothing to answer and
+	 *  starts folded, handing the axis 372px back.
+	 *
+	 *  Asking for it outranks that for the rest of the session. The rule is about
+	 *  what the window opens as, not a pane that keeps closing itself under
+	 *  someone who wants it. */
+	let detailAsked = $state(false);
+	$effect(() => {
+		if (view === 'lanes' && selectedBlock === null && !detailAsked) detailOpen = false;
+	});
 
 	let status = $state<CollectorStatus | null>(null);
 	let summary = $state<Summary | null>(null);
@@ -166,6 +181,28 @@
 		// Never past the current period: there is no record of the future, and an
 		// empty range that cannot contain anything is not a state worth reaching.
 		offset = Math.min(0, offset + by);
+		clearSelection();
+	}
+
+	/** Walk down the grain ladder to the period holding `at`.
+	 *
+	 *  The timeline never owns its own range — it draws what the rail hands it —
+	 *  so a click on a cell or a tile resolves to the same two pieces of state
+	 *  the rail already sets. Offset stays "periods back from the present", which
+	 *  is what makes this a navigation and not a second range model. */
+	function drillTo(next: Scope, at: number) {
+		const now = Date.now();
+		if (next === 'day') {
+			offset = Math.round((startOfDay(at) - startOfDay(now)) / 86_400_000);
+		} else if (next === 'week') {
+			offset = Math.round((startOfWeek(at) - startOfWeek(now)) / (7 * 86_400_000));
+		} else {
+			const there = new Date(at);
+			const here = new Date(now);
+			offset = (there.getFullYear() - here.getFullYear()) * 12 + (there.getMonth() - here.getMonth());
+		}
+		offset = Math.min(0, offset);
+		scope = next;
 		clearSelection();
 	}
 
@@ -1105,6 +1142,7 @@
 							{scope}
 							selected={selectedBlock}
 							onSelect={select}
+							onDrill={drillTo}
 						/>
 					{/key}
 				{:else}

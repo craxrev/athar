@@ -7,6 +7,8 @@ colors:
   surface: "#12141a"
   surface-raised: "#191c24"
   surface-hover: "#1f2330"
+  well: "rgba(255, 255, 255, 0.03)"
+  mark-cut: "rgba(0, 0, 0, 0.42)"
   line: "rgba(255, 255, 255, 0.07)"
   line-strong: "rgba(255, 255, 255, 0.14)"
   text: "#edeef2"
@@ -155,18 +157,27 @@ components:
     rounded: "{rounded.pill}"
     padding: "2px 7px"
     typography: "{typography.meta}"
-  lane-bar:
-    backgroundColor: "rgba(255, 255, 255, 0.36)"
-    rounded: "{rounded.bar}"
-    height: "23px"
-  lane-bar-saves:
+  timeline-mark:
+    backgroundColor: "{colors.text-faint}"
+    rounded: "{rounded.micro}"
+    height: "20px"
+  timeline-mark-saves:
     backgroundColor: "{colors.uncertain-amber}"
-    rounded: "{rounded.bar}"
-    height: "23px"
-  lane-bar-selected:
+    rounded: "{rounded.micro}"
+    height: "20px"
+  timeline-mark-selected:
     backgroundColor: "{colors.accent-magenta}"
-    rounded: "{rounded.bar}"
-    height: "23px"
+    rounded: "{rounded.micro}"
+    height: "20px"
+  day-tile:
+    backgroundColor: "{colors.surface}"
+    rounded: "{rounded.sm}"
+    padding: "6px 7px 7px"
+    height: "82px"
+  day-cell:
+    backgroundColor: "{colors.text-faint}"
+    rounded: "{rounded.swatch}"
+    size: "10px"
   digest-lead:
     textColor: "{colors.text}"
     typography: "{typography.figure}"
@@ -190,19 +201,59 @@ carries how it was established.**
 The discipline has to hold at the top as well as at the leaf. It is easy to grade
 a single commit and then present a week as one confident number; for a while this
 build did exactly that, annotating every detail while the two surfaces a person
-actually lands on — the digest and the lane bars — said nothing about their own
-footing. Both now carry it: the bars in their fill, the digest in a split that
-adds up.
+actually lands on — the digest and the timeline — said nothing about their own
+footing. Both now carry it: the marks in their texture, the digest in a split
+that adds up.
 
 The system is dark only, and by decision rather than by category habit — this is
 read at a desk, on the machine that produced the work, usually late. Its restraint
 is the restraint of an instrument panel: one accent, no ornament, dense
 information set at sizes that stay comfortable for a long look.
 
-Anti-reference: the calendar grid and the contribution heatmap. Time appears as
-lanes of real projects along a real axis, never as dates in boxes. The build
-deliberately executes the conventional desktop-tool form at full craft rather than
-dressing the product in a metaphor.
+**The grain ladder.** The timeline's unit is the **day**, and what survives of a
+day is set by the range it is read at. The rail's scopes were always named for
+the unit rather than the window — "By day", "By week" — and the view now honours
+what they hand it:
+
+| Scope | A day is | and it still carries |
+|---|---|---|
+| By day | an **hour** | exact times, one row per project |
+| By week | a **row** | all twenty-four hours, resolved |
+| By month | a **tile** | its date, its hours, what was worked on |
+| All time | a **cell** | its position and its ink |
+
+Each rung drops exactly one channel, and the drop happens where the previous
+rung stops fitting. **Category grouping lives on the day rung and nowhere else.**
+Rows are projects only there, so that is the only rung where a heading can name a
+class and sum it; above it a category can be a hue and nothing more, and the
+per-class totals move to the rail. Dropping the heading everywhere was the
+ladder's one silent subtraction, and it is restored where it means something
+rather than everywhere it used to sit.
+
+**The ladder is also the target-size answer.** A year of days
+at a pointer-sized 24px would need 1,272px of width for the columns alone, so the
+cell rung is deliberately below WCAG 2.5.8's minimum and relies on that criterion's
+equivalent-control exception: the same day is reachable at 22px in the months
+sheet and at 110×82px as a tile, one and two clicks in. A rung that shrinks the
+target must hand the reader a larger one for the same job. Thirty days as rows is twenty-six pixels each and a wasted
+axis; as tiles it is a page you can read. The tile is the last rung where a day
+can still say a name.
+
+This replaces the earlier rule that time appears only as lanes of real projects
+along one shared axis. That rule was written when every range drew the same way,
+and it is what made all time unreadable: over seven years the archive floors
+twenty-two of every twenty-three blocks at the minimum bar width, so fifteen
+hours of work rendered as a row of identical dots. Project lanes survive at day
+grain, which is the range where blocks are wide enough to compare side by side.
+
+**The calendar anti-reference is revoked, deliberately and with the measurement
+that revoked it.** A grid of dates was banned as a metaphor standing in for the
+work. At all time it is not a metaphor: it is the only arrangement that shows
+2,697 days at once and still resolves one of them. What the ban was protecting
+against — dates in boxes standing in for evidence — is answered by the cells
+carrying real hours and real class, not by refusing the shape. The build still
+executes the conventional desktop-tool form at full craft and still refuses to
+dress the product in a metaphor.
 
 ## Colors
 
@@ -238,8 +289,25 @@ the floor and measures 5.95:1 on `ground`, which is where it was set after an
 earlier value failed the 4.5:1 requirement.
 
 Category hues (`work`, `research`, `personal`, `freelance`) identify project
-groups derived from the filesystem. They never compete with the accent for state,
-and they no longer appear on a lane bar — see **The Two Axes Rule** below.
+groups derived from the filesystem. They never compete with the accent for state.
+They do tint a timeline mark, because a day row holds several projects at once
+and the mark has to say whose work it was — see **The Two Axes Rule** below for
+the channel split that makes that safe.
+
+**The Density Floor Rule.** A cell's hours ride its **hue**, never its alpha
+alone. Ramping opacity from near-nothing was the obvious way to draw density and
+it put most days between 1.3:1 and 2.3:1 against ground — under the 3:1 that the
+Legible Mark Rule demands of anything carrying a class, on the very marks the
+widest ranges are made of. The floor is `0.72` alpha, set by the worst case:
+solid `cat-research` reaches 3:1 at `0.70`. Density then rides a mix toward the
+category's own **tint**, which is what the tints were minted for. A quiet day
+measures 3.14:1 and a heavy one 7.26:1 — a full step apart, both legal.
+
+Two utility neutrals carry the parts of a mark that are not the mark: `well` is
+the empty half of a mark's own container — the track behind a span, an unheld
+cell — and `mark-cut` is the dark that is *subtracted* from a mark to texture it,
+in the commits hatch and the records-only break. Both existed as four
+hand-copied alphas before they had names.
 
 Each hue exists in two forms, defined once as tokens rather than repeated per
 component: the **solid** for legend swatches and group headings, and a **fill** at
@@ -254,9 +322,22 @@ never share a vocabulary. **Attribution** asks who made a change — `witnessed`
 `files match`, `inferred`, `unattributed` — and speaks in the ring icons and the
 green/amber pair. **Evidence** asks what kind of record backs a span of time —
 `from sessions`, `from commits`, `from saves`, `from records only` — and speaks in
-the fill of a lane bar and the split under the digest. A colour or a word borrowed
-across the two collapses both. Amber is the one deliberate overlap: it means
-uncertainty on either axis, which is why it carries `saves` as well as `inferred`.
+the split under the digest and in the **texture** of a mark on the timeline. A
+colour or a word borrowed across the two collapses both. Amber is the one
+deliberate overlap: it means uncertainty on either axis, which is why it carries
+`saves` as well as `inferred`.
+
+**Hue and texture are separate channels, and a mark may carry both.** Evidence
+used to own a lane bar's fill outright, because a lane was a project and its
+category was already stated by the heading above it. Under the grain ladder a row
+is a day and holds several projects at once, so the mark has to say whose work it
+was: **hue carries project class, texture carries evidence.** Solid for
+`sessions`, a 45° hatch for `commits`, amber end caps for `saves`, a broken line
+for `records only` — the same four treatments, moved off the fill and onto the
+surface. Two questions, two channels, still no shared vocabulary. This is the
+narrow exception to the rule below about keeping category hue off a timeline
+mark, and it is narrow on purpose: hue may say *which project*, never *what
+state*. State stays magenta.
 
 ## Typography
 
@@ -318,9 +399,19 @@ The window uses an overlaid titlebar with hidden title; every pane reserves a
 clear the traffic lights.
 
 Rhythm: tight inside a group, generous between groups, and more space above a
-heading than below it. Lane rows are 40px with 23px bars; the lane gutter is
-`clamp(112px, 16vw, 172px)` so a narrow window gives its width to the time axis
-rather than to project names.
+heading than below it. The timeline's rows follow the grain: a project row at day
+grain is 42px, a day row at week grain is 44px, a day tile is at least 82px, and
+a day cell is 8px square on a 2px gutter. One `--edge` (16px) governs the hour
+axis and every mark under it, so a label and the mark below it cannot drift apart
+— they did once, when the axis had no indent and the rows had sixteen pixels of
+it, which put every gridline sixteen pixels right of its own tick.
+
+The fixed project gutter that used to sit beside the track is gone. It cost
+`clamp(112px, 16vw, 172px)` of a centre pane that holds 664px with both side
+panes open — a quarter of the axis spent on a name that fits on a line of its
+own — and the day rungs now set names above their track instead. With the detail
+pane folded on arrival, the timeline went from 492px to 1036px at a 1280px
+window.
 
 The spacing scale in the frontmatter is a **stated target, not an implemented
 one**, and deliberately has no tokens. The build uses fourteen distinct values
@@ -382,7 +473,8 @@ icons. An accelerator nobody can find is not an accelerator.
   `rgba(255,255,255,0.022)` — and lets the material through. Dense content never
   sits on a live background.
 - **Shadow with offset and blur** on genuinely raised surfaces: detail cards, the
-  selected block, the selected lane bar. There is exactly one step, `lift-1`, and
+  selected block, the selected timeline mark. There is exactly one step,
+  `lift-1`, and
   that is the whole vocabulary. A second step was defined for a surface floating
   above a pane; nothing in this product floats — the reader and settings *replace*
   the timeline rather than hovering over it — so it was deleted rather than left
@@ -406,7 +498,8 @@ else.
 ## Shapes
 
 Radii: `9px` for panes, block cards and control groups; `6px` for controls and
-inner cards; `4px` for lane bars; `3px` for category swatches; `2px` for marks and
+inner cards; `4px` for progress and share bars; `3px` for category swatches and
+day cells; `2px` for timeline marks and
 commit ticks; `999px` for chips and scrollbars; `50%` for the status dot. Category
 swatches are 9px squares at 3px radius — square-ish, so they read as legend keys
 rather than bullets, which is why they do not take the pill.
@@ -441,18 +534,25 @@ character stands in for an icon anywhere.
   across-projects is a plain sum, every block carries exactly one class, and the
   parts therefore add up exactly and print with no caveat. A range holding one
   class says `all from sessions` rather than restating a figure it just gave.
-- **Lane bars** carry evidence in the fill and nothing else. See below.
+- **Timeline marks** carry evidence in their texture and project class in their
+  hue. See below.
+- **The rail's project list is the ranked view.** No rung of the ladder lists
+  projects as rows, so this is the only place they are enumerated: the durations
+  it already carried gain a share bar behind the label, and the list answers
+  "where did it go" while the ladder answers "when". It caps by relevance and says
+  so, in the same voice as Stream.
 - **Empty and partial states** name what they hold rather than rendering blank: a
   block with nothing itemised states its record count; a continued session states
   where it began and that its figures count once.
-- **Motion**: one authored moment per surface. Lane bars are revealed from their
-  own start along the axis, staggered down the lanes; the reader arrives with a
-  260ms settle from an already-visible default. Both on
-  `cubic-bezier(0.16, 1, 0.3, 1)`, both disabled under `prefers-reduced-motion`.
-  The lane reveal animates `clip-path`, not `scaleX`: scaling squashed the end
-  marks of a saves-only bar into slivers and stretched the hatch pitch, distorting
-  precisely the two treatments that carry the most meaning. An entrance that
-  deforms its own content is not an entrance. Every animation *and* every state
+- **Motion**: one authored moment per surface. Timeline marks are revealed from
+  their own start along the axis, staggered down the rows; day tiles settle in
+  place rather than sliding, because a grid that arrives in sequence reads as a
+  loading state; the reader arrives with a 260ms settle from an already-visible
+  default. All on `cubic-bezier(0.16, 1, 0.3, 1)`, all disabled under
+  `prefers-reduced-motion`. The mark reveal animates `clip-path`, not `scaleX`:
+  scaling squashed the end marks of a saves-only span into slivers and stretched
+  the hatch pitch, distorting precisely the two treatments that carry the most
+  meaning. An entrance that deforms its own content is not an entrance. Every animation *and* every state
   transition is covered by a `prefers-reduced-motion` guard, per component rather
   than by one global kill — a blanket reset would take the state feedback with it.
 - **Motion is chosen by purpose, and every kind is a token.** `--motion-state`
@@ -465,15 +565,15 @@ character stands in for an icon anywhere.
 
 ### Evidence class
 
-The system's other signature, and the reason a lane bar gives up its category
-hue. A block's start and end are the timestamps of its first and last record, so
-*what its width means* changes with what those records are. Drawn identically, a
-three-hour conversation and two file saves make the same claim and only one of
-them has earned it.
+The system's other signature. A block's start and end are the timestamps of its
+first and last record, so *what its width means* changes with what those records
+are. Drawn identically, a three-hour conversation and two file saves make the
+same claim and only one of them has earned it.
 
 Four treatments, one descending scale of how much of the span is actually known.
-One ink drives all four, which is what lets selection recolour a bar without
-flattening what it is:
+They are drawn as **texture over the mark's own hue**, so a day row can say whose
+work a span was and how well it is known at the same time. Selection recolours
+without flattening what a mark is:
 
 | Class | Treatment | The claim |
 |---|---|---|
@@ -515,8 +615,8 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Set data in the mono token with tabular numerals.
 - Say what a surface does hold when it cannot show what was expected.
 - Cap a view by relevance, not by chance, and state the remainder in the same
-  voice everywhere: Stream keeps the most recent 300 blocks, Lanes the 120 busiest
-  projects, and both say so.
+  voice everywhere: Stream keeps the most recent 300 blocks, the rail's project
+  list the busiest of the range, and both say so.
 - Give a raised surface a shadow with offset and blur.
 - Let a mark that carries meaning clear 3:1 against its ground on its own.
 - Split a figure only where the parts add up. Elapsed does not; across-projects
@@ -528,17 +628,24 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
   exception and sets at 400.
 - Use the accent as a glow, a gradient, or a decorative fill.
 - Extend vibrancy beyond the scope rail, or add blur for atmosphere.
-- Render a calendar grid or a contribution heatmap as a primary view.
 - Print a figure lore cannot support — no `0m` for a real block, no clock range
   without dates across days, no total where the data only supports a floor, no
   digest over a range holding nothing.
 - Introduce a second accent, or let a category hue carry state.
-- Put a category hue back on a lane bar. The group heading above it and the rail
-  row that filtered to it already say it; the fill is spent on evidence now.
+- Let hue carry state anywhere on the timeline. Project class may tint a mark,
+  because a day row holds several projects and the mark has to say whose work it
+  was; selection and live state stay magenta, and no third meaning joins them.
+- Draw a class-carrying mark below 3:1 on ground, including at the bottom of a
+  density ramp. The floor is the design, not the exception.
+- Draw a date cell that carries nothing but its date. A cell earns its place by
+  holding real hours and a real class; a grid of positions with no evidence in it
+  is the metaphor the anti-reference was written against, and revoking the ban
+  did not revoke that.
 - Borrow a word or a colour across the attribution and evidence axes.
 - Leave a figure unlabelled about what it covers. The digest is narrowed by the
   rail's filters in SQL; the one narrowing it cannot follow is a text query, and
   it says so.
-- Ship an uncapped view. Lanes was the one view users were told was safe for a
-  wide range and the only one with no limit at all.
+- Ship an uncapped view. The timeline is bounded by the range itself now — a
+  grain always resolves to a finite set of days — but the rail's project list is
+  not, and it states what it holds back in Stream's voice.
 - Animate a bar with a transform that deforms the marks inside it.
