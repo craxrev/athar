@@ -9,7 +9,7 @@
 		{ id: 'sessions', label: 'from sessions' },
 		{ id: 'commits', label: 'from commits' },
 		{ id: 'saves', label: 'from saves' },
-		{ id: 'bare', label: 'records only' }
+		{ id: 'bare', label: 'from records only' }
 	];
 	const evidenceLabel = new Map(EVIDENCE.map((e) => [e.id, e.label]));
 
@@ -147,7 +147,7 @@
 		if (b.file_changes) parts.push(`${b.file_changes} file change${b.file_changes === 1 ? '' : 's'}`);
 		// The class is the one thing the shape says and no number does. It rides
 		// the same string as the label, so the screen reader gets it too.
-		parts.push(evidenceLabel.get(b.evidence) ?? 'records only');
+		parts.push(evidenceLabel.get(b.evidence) ?? 'from records only');
 		return parts.join(' · ');
 	}
 </script>

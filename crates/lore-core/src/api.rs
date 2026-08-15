@@ -42,6 +42,8 @@ pub struct Summary {
     /// Share of touched files the AI wrote, as a percentage of files seen in the
     /// range. Absent when there is nothing to compare.
     pub ai_share: Option<f64>,
+    /// `project_ms` split by what evidences each block. Sums to `project_ms`.
+    pub by_evidence: crate::stats::EvidenceMs,
 }
 
 #[derive(Debug, Serialize)]
@@ -120,31 +122,11 @@ pub struct BlockDetail {
     pub file_changes: Vec<FileChangeSummary>,
 }
 
-/// What kind of record backs a block's span, strongest present first.
-///
-/// A block's start and end are the timestamps of its first and last record, so
-/// *what its width means* changes with what those records are: a session
-/// brackets continuous work, commits are exact points with the idle-gap rule
-/// filling between them, and a file save is a point whose coverage is a floor.
-/// Drawn identically, a three-hour conversation and two file saves make the same
-/// claim, and only one of them has earned it.
-///
-/// A session counts whether or not its transcript survived. Prompt timestamps
-/// are exact, so the span is evidenced even where the content is gone — that
-/// absence is a different axis, and `prompts only` already carries it.
-pub fn evidence_of(sessions: i64, commits: i64, file_changes: i64) -> &'static str {
-    if sessions > 0 {
-        "sessions"
-    } else if commits > 0 {
-        "commits"
-    } else if file_changes > 0 {
-        "saves"
-    } else {
-        // Records the timeline does not itemise — harness state, prompt history.
-        // Real, and not a claim about any of the three above.
-        "bare"
-    }
-}
+/// Re-exported so the one rule keeps one name. It lives in `stats` because the
+/// block walk that splits the digest lives there, and `api` depends on `stats`
+/// rather than the other way round — the alternative was a second copy of the
+/// rule, which is the thing this stamp exists to prevent.
+pub use crate::stats::evidence_of;
 
 #[derive(Debug, Serialize)]
 pub struct Bar {
@@ -337,6 +319,7 @@ pub fn summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Summary> {
         input_tokens,
         output_tokens,
         ai_share,
+        by_evidence: base.by_evidence,
     })
 }
 

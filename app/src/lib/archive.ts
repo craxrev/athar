@@ -31,6 +31,16 @@ export interface ProjectInfo {
 	blocks: number;
 }
 
+/** Counted time split by what evidences it. Splits `project_ms`, not
+ *  `elapsed_ms`: elapsed merges overlapping blocks, so a per-class split of it
+ *  would total more than the whole. These four add up exactly. */
+export interface EvidenceMs {
+	sessions: number;
+	commits: number;
+	saves: number;
+	bare: number;
+}
+
 export interface Summary {
 	elapsed_ms: number;
 	project_ms: number;
@@ -42,6 +52,7 @@ export interface Summary {
 	input_tokens: number;
 	output_tokens: number;
 	ai_share: number | null;
+	by_evidence: EvidenceMs;
 }
 
 export interface SessionSummary {

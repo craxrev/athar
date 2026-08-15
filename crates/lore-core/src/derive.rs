@@ -1164,6 +1164,45 @@ mod tests {
         assert!(crate::api::block(&f.conn, &config, 9_999).unwrap().is_none());
     }
 
+    /// The digest prints these four beneath "across projects" with no caveat, so
+    /// they have to add up. They split `project_ms` and not `elapsed_ms` for
+    /// exactly that reason: elapsed merges overlapping blocks, so splitting it
+    /// would total more than the whole.
+    #[test]
+    fn the_evidence_split_sums_to_the_counted_time() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        // One block per class, each an idle gap apart so they stay separate.
+        f.prompt(base, "s1", "hi");
+        f.prompt(base + 3 * MIN, "s1", "more");
+        f.commit(base + 90 * MIN, "ccc333", "feat: a", &["a.rs"]);
+        f.commit(base + 95 * MIN, "ddd444", "feat: b", &["b.rs"]);
+
+        let config = test_config();
+        rebuild(&mut f.conn, &config).unwrap();
+
+        let from = base - MIN;
+        let to = base + 300 * MIN;
+        let s = crate::api::summary(&f.conn, from, to).unwrap();
+        let e = &s.by_evidence;
+
+        assert_eq!(
+            e.sessions + e.commits + e.saves + e.bare,
+            s.project_ms,
+            "the four parts must account for the counted time exactly"
+        );
+        assert!(e.sessions > 0, "the prompt block is evidenced by a session");
+        assert!(e.commits > 0, "the commit block has no session to claim it");
+        assert_eq!(e.saves, 0);
+
+        // And the classifier the digest uses is the one the lane bars are
+        // stamped with — not a second copy that can drift from it.
+        assert_eq!(crate::api::evidence_of(1, 4, 9), "sessions");
+        assert_eq!(crate::api::evidence_of(0, 2, 9), "commits");
+        assert_eq!(crate::api::evidence_of(0, 0, 1), "saves");
+        assert_eq!(crate::api::evidence_of(0, 0, 0), "bare");
+    }
+
     #[test]
     fn rebuilding_twice_produces_the_same_result() {
         let mut f = Fixture::new("/w/proj");

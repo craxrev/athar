@@ -1,5 +1,57 @@
 use anyhow::Result;
 use rusqlite::Connection;
+use serde::Serialize;
+
+/// What kind of record backs a block's span, strongest present first.
+///
+/// A block's start and end are the timestamps of its first and last record, so
+/// *what its width means* changes with what those records are: a session
+/// brackets continuous work, commits are exact points with the idle-gap rule
+/// filling between them, and a file save is a point whose coverage is a floor.
+/// Drawn identically, a three-hour conversation and two file saves make the same
+/// claim, and only one of them has earned it.
+///
+/// A session counts whether or not its transcript survived. Prompt timestamps
+/// are exact, so the span is evidenced even where the content is gone — that
+/// absence is a different axis, and `prompts only` already carries it.
+pub fn evidence_of(sessions: i64, commits: i64, file_changes: i64) -> &'static str {
+    if sessions > 0 {
+        "sessions"
+    } else if commits > 0 {
+        "commits"
+    } else if file_changes > 0 {
+        "saves"
+    } else {
+        // Records the timeline does not itemise — harness state, prompt history.
+        // Real, and not a claim about any of the three above.
+        "bare"
+    }
+}
+
+/// Counted time split by what evidences it.
+///
+/// This splits `project_ms` — the sum across projects — and not `elapsed_ms`,
+/// which merges overlapping blocks so that a per-class split of it would total
+/// more than the whole. Every block has exactly one class, so these four add up
+/// to `project_ms` exactly, and the digest can print them without a caveat.
+#[derive(Debug, Default, Clone, Copy, Serialize)]
+pub struct EvidenceMs {
+    pub sessions: i64,
+    pub commits: i64,
+    pub saves: i64,
+    pub bare: i64,
+}
+
+impl EvidenceMs {
+    fn add(&mut self, class: &str, ms: i64) {
+        match class {
+            "sessions" => self.sessions += ms,
+            "commits" => self.commits += ms,
+            "saves" => self.saves += ms,
+            _ => self.bare += ms,
+        }
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct Archive {
@@ -249,11 +301,13 @@ pub struct RangeSummary {
     pub project_ms: i64,
     pub blocks: i64,
     pub projects: i64,
+    pub by_evidence: EvidenceMs,
 }
 
 pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<RangeSummary> {
     let mut stmt = conn.prepare(
-        "SELECT started_ms, ended_ms, project_id FROM blocks
+        "SELECT started_ms, ended_ms, project_id, sessions, commits, file_changes
+           FROM blocks
           WHERE started_ms < ?2 AND ended_ms >= ?1
           ORDER BY started_ms",
     )?;
@@ -262,6 +316,7 @@ pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Rang
             r.get::<_, i64>(0)?,
             r.get::<_, i64>(1)?,
             r.get::<_, i64>(2)?,
+            evidence_of(r.get(3)?, r.get(4)?, r.get(5)?),
         ))
     })?;
 
@@ -270,7 +325,7 @@ pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Rang
     let mut merged: Option<(i64, i64)> = None;
 
     for row in rows {
-        let (start, end, project_id) = row?;
+        let (start, end, project_id, class) = row?;
         let start = start.max(from_ms);
         let end = end.min(to_ms);
         if end < start {
@@ -278,6 +333,9 @@ pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Rang
         }
         summary.blocks += 1;
         summary.project_ms += end - start;
+        // Clamped to the range first, so the split reports the time this range
+        // actually holds rather than the whole of a block that overhangs it.
+        summary.by_evidence.add(class, end - start);
         projects.insert(project_id);
 
         merged = match merged {

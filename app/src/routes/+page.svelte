@@ -350,6 +350,25 @@
 			.sort((a, b) => b.ms - a.ms || a.label.localeCompare(b.label));
 	});
 
+	/** The counted time, split by what evidences it. Same four classes and the
+	 *  same words the lane legend uses: a split the timeline calls something
+	 *  else would be two vocabularies for one fact. Zero-length parts are
+	 *  dropped rather than printed as `0m`. */
+	const EVIDENCE_SPLIT = [
+		{ id: 'sessions', label: 'from sessions' },
+		{ id: 'commits', label: 'from commits' },
+		{ id: 'saves', label: 'from saves' },
+		// Phrased "from …" like the rest so it reads in both positions: as a part
+		// ("38m from records only") and as the whole ("all from records only").
+		{ id: 'bare', label: 'from records only' }
+	] as const;
+
+	let split = $derived.by(() => {
+		const by = summary?.by_evidence;
+		if (!by) return [];
+		return EVIDENCE_SPLIT.map((e) => ({ ...e, ms: by[e.id] })).filter((p) => p.ms > 0);
+	});
+
 	let isEmpty = $derived(
 		!loading && !error && (view === 'lanes' ? filteredLanes.length === 0 : filteredBlocks.length === 0)
 	);
@@ -548,25 +567,47 @@
 				</button>
 			</div>
 
-			{#if summary}
+			{#if summary && summary.blocks > 0}
 				<!-- Insight lives beside the range it describes, not on its own screen.
-				     Two time figures because they answer different questions: elapsed is
-				     wall clock, across-projects is the sum and may exceed the day. -->
+				     Two tiers, because the strip carried six peers and led with none:
+				     time answers "where did it go", the census answers "how much of
+				     what". Two time figures because they answer different questions:
+				     elapsed is wall clock, across-projects is the sum and may exceed
+				     the day — which is why the split hangs off the second one. -->
 				<div class="digest">
-					<span title="Wall clock: overlapping blocks counted once">
-						<b>{duration(summary.elapsed_ms)}</b> elapsed
-					</span>
-					<span title="Sum of every project's blocks; can exceed the range">
-						<b>{compactDuration(summary.project_ms)}</b> across projects
-					</span>
-					<span><b>{summary.sessions}</b> sessions</span>
-					<span><b>{summary.commits}</b> commits</span>
-					<span><b>{tokens(summary.input_tokens + summary.output_tokens)}</b> tokens</span>
-					{#if summary.ai_share !== null}
-						<span title="Share of files changed in this range that the assistant wrote">
-							<b>{Math.round(summary.ai_share)}%</b> AI-written
+					<div class="time">
+						<span class="lead" title="Wall clock: overlapping blocks counted once">
+							<b class="big">{duration(summary.elapsed_ms)}</b> elapsed
 						</span>
+						<span title="Sum of every project's blocks; can exceed the range">
+							<b class="mid">{compactDuration(summary.project_ms)}</b> across projects
+						</span>
+					</div>
+
+					{#if split.length === 1}
+						<p class="split"><span>all {split[0].label}</span></p>
+					{:else if split.length > 1}
+						<p class="split">
+							{#each split as part (part.id)}
+								<span><b>{compactDuration(part.ms)}</b> {part.label}</span>
+							{/each}
+						</p>
 					{/if}
+
+					<div class="census">
+						<span><b>{summary.sessions}</b> sessions</span>
+						<span><b>{summary.commits}</b> commits</span>
+						<span><b>{tokens(summary.input_tokens + summary.output_tokens)}</b> tokens</span>
+						{#if summary.ai_share !== null}
+							<span
+								class="inferred"
+								title="Inferred: the share of files changed in this range that the assistant wrote, from the same attribution the commits carry"
+							>
+								<Icon name="inferred" size={13} />
+								<b>{Math.round(summary.ai_share)}%</b> AI-written
+							</span>
+						{/if}
+					</div>
 				</div>
 			{/if}
 
@@ -777,15 +818,17 @@
 
 	.digest {
 		display: flex;
-		flex-wrap: wrap;
-		gap: 4px 18px;
+		flex-direction: column;
 		flex: none;
-		padding: 10px 18px 12px;
+		padding: 11px 18px 12px;
 		border-bottom: 1px solid var(--line);
 		font-size: 13.5px;
+		font-weight: 500;
 		color: var(--text-faint);
 	}
-	.digest > span {
+	/* Every metric is one atomic unit, so a wrap lands between metrics and never
+	   inside a phrase. */
+	.digest span {
 		white-space: nowrap;
 	}
 	.digest b {
@@ -794,6 +837,65 @@
 		font-variant-numeric: tabular-nums;
 		font-weight: 620;
 		font-size: 13.5px;
+	}
+
+	/* Tier one: where the time went. */
+	.time {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: 2px 18px;
+	}
+	.time .lead {
+		font-size: 14px;
+		color: var(--text-dim);
+	}
+	.digest b.big {
+		font-size: 19px;
+		font-weight: 640;
+		letter-spacing: -0.01em;
+	}
+	.digest b.mid {
+		font-size: 15px;
+	}
+
+	/* Bound to the figure above it by proximity: three of these sum to
+	   across-projects exactly, which is the whole reason the split lands there
+	   and not on elapsed. */
+	.split {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 2px 14px;
+		margin: 3px 0 0;
+	}
+	.split b {
+		font-weight: 560;
+	}
+
+	/* Tier two: how much of what. More space above it than inside either group,
+	   because it answers a different question. */
+	.census {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 18px;
+		margin-top: 9px;
+	}
+	/* Dimmer than the time tier and the split above it. These are supporting
+	   counts; left at full strength they read louder than the figure they
+	   support, which is the flat strip this replaced. */
+	.census b {
+		color: var(--text-dim);
+	}
+	/* The one figure here the archive infers rather than counts. The broken ring
+	   is the same mark the commit tiers use, on the same axis — attribution —
+	   so this borrows the existing grammar instead of starting another. */
+	.inferred {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+	}
+	.inferred :global(svg) {
+		color: var(--amber);
 	}
 
 	.stage {
