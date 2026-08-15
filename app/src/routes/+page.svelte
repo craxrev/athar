@@ -130,9 +130,9 @@
 				return status?.earliest_ms ?? now - 365 * 86_400_000;
 		}
 	});
-	let toMs = $derived(
-		scope === 'day' ? startOfDay(Date.now()) + 86_400_000 : startOfDay(Date.now()) + 86_400_000
-	);
+	// Always the end of today: every scope ends at now, and quantising to the day
+	// keeps a recomputation from shifting the range by milliseconds.
+	let toMs = $derived(startOfDay(Date.now()) + 86_400_000);
 
 	$effect(() => {
 		const onError = (e: ErrorEvent) => (crash = `${e.message} — ${e.filename}:${e.lineno}`);
@@ -444,6 +444,7 @@
 	let announcement = $derived.by(() => {
 		if (crash) return `The window failed: ${crash}`;
 		if (error) return `The archive could not be read: ${error}`;
+		if (statusError) return `Collector status is unavailable: ${statusError}`;
 		if (loading) return 'Reading the archive';
 		if (isEmpty) return query ? `Nothing matches ${query}` : 'Nothing recorded in this range';
 		const n = view === 'lanes' ? filteredLanes.length : filteredBlocks.length;

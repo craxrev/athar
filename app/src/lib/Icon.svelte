@@ -17,8 +17,8 @@
 		| 'panelRight'
 		| 'search'
 		| 'back'
-		| 'folder'
-		| 'tokens'
+		
+		
 		| 'settings';
 
 	let { name, size = 20 }: { name: Name; size?: number } = $props();
@@ -84,17 +84,11 @@
 		<circle cx="8.75" cy="8.75" r="5" />
 		<path d="M12.5 12.5 16.75 16.75" />
 	{:else if name === 'back'}
-		<path d="M12.25 4.75 7 10l5.25 5.25" />
-	{:else if name === 'folder'}
-		<path d="M3.25 6.25A1.75 1.75 0 0 1 5 4.5h2.9c.55 0 1.07.26 1.4.7l.9 1.2H15A1.75 1.75 0 0 1 16.75 8.35v6.4A1.75 1.75 0 0 1 15 16.5H5a1.75 1.75 0 0 1-1.75-1.75z" />
-	{:else if name === 'settings'}
+		<path d="M12.25 4.75 7 10l5.25 5.25" />{:else if name === 'settings'}
 		<!-- Sliders rather than a gear: this pane is values you set, not machinery. -->
 		<path d="M3.5 6.25h4M11 6.25h5.5M3.5 13.75h6.5M13.5 13.75h3" />
 		<circle cx="9.25" cy="6.25" r="2" />
-		<circle cx="11.75" cy="13.75" r="2" />
-	{:else if name === 'tokens'}
-		<path d="M3.25 10c1.6-2.4 3.4-3.6 5.4-3.6 3 0 4.7 7.2 7.7 7.2 1 0 1.9-.6 2.4-1.4" />
-	{/if}
+		<circle cx="11.75" cy="13.75" r="2" />{/if}
 </svg>
 
 <style>

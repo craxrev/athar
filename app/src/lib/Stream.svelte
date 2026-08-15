@@ -74,9 +74,12 @@
 		for (const commit of block.commits) {
 			out.push({ at: commit.ts_ms, key: `commit\u0000${commit.sha}`, kind: 'commit', commit });
 		}
-		clusterMoments(block.file_changes).forEach((moment, i) => {
-			out.push({ at: moment.at, key: `files\u0000${i}`, kind: 'files', moment });
-		});
+		// Keyed on the moment's own timestamp, not its index. Clustering is 60s
+		// wide so two moments cannot share one, and a rescan that inserts an
+		// earlier moment no longer shifts every open row onto different data.
+		for (const moment of clusterMoments(block.file_changes)) {
+			out.push({ at: moment.at, key: `files\u0000${moment.at}`, kind: 'files', moment });
+		}
 		return out.sort((a, b) => a.at - b.at);
 	}
 

@@ -85,7 +85,6 @@
 		/* Elevation carries an offset and a soft blur. A raised surface that only
 		   changes its border is not raised. */
 		--lift-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28);
-		--lift-2: 0 2px 4px rgba(0, 0, 0, 0.45), 0 10px 26px rgba(0, 0, 0, 0.36);
 
 		/* The type floor. Nothing in the interface sets smaller than --fs-min,
 		   because "no small typography" is a binding constraint, and small type in

@@ -331,11 +331,12 @@ of window width.
   `rgba(255,255,255,0.022)` — and lets the material through. Dense content never
   sits on a live background.
 - **Shadow with offset and blur** on genuinely raised surfaces: detail cards, the
-  selected block, the selected lane bar. Only `lift-1` is in use. `lift-2` is
-  defined and referenced nowhere — it is the reserved step for a surface that
-  floats above a pane rather than sitting inside one, and nothing has needed it
-  yet. Either spend it deliberately or delete it; a token nobody reaches for is a
-  claim the system does not keep.
+  selected block, the selected lane bar. There is exactly one step, `lift-1`, and
+  that is the whole vocabulary. A second step was defined for a surface floating
+  above a pane; nothing in this product floats — the reader and settings *replace*
+  the timeline rather than hovering over it — so it was deleted rather than left
+  standing as a claim the system does not keep. Add a second step when something
+  genuinely needs one, not in advance.
 
 1px dividers at 7% white carry structure everywhere else. A raised surface changes
 its shadow, not just its border; a surface that only changes its border is not

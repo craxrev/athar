@@ -266,12 +266,17 @@
 					>
 						{collector.busy === 'rebuild' ? 'Rebuilding…' : 'Rebuild'}
 					</button>
+					<!-- Two different facts, not one choice. The write landing and the
+					     archive needing work are both true at once, and the else-chain
+					     meant a grouping change could never be confirmed — it sets
+					     needsRebuild, which always won. -->
+					{#if saved}
+						<span class="ok">Saved</span>
+					{/if}
 					{#if collector.needsScan}
 						<span class="pending">A root or identity changed — scan to read it.</span>
 					{:else if collector.needsRebuild}
 						<span class="pending">A grouping setting changed — rebuild to apply it.</span>
-					{:else if saved}
-						<span class="ok">Saved</span>
 					{/if}
 				</div>
 				{#if collector.error}

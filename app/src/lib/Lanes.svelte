@@ -212,7 +212,7 @@
 				{#each group.lanes as lane, i (lane.project_path)}
 					<div class="lane" style="--stagger: {Math.min(i, 12) * 22}ms">
 						<div class="gutter">
-							<span class="project" title={lane.project_path}>{lane.project}</span>
+							<span class="project" title={lane.project_path}>{label(lane)}</span>
 							<span class="num total">{compactDuration(lane.total_ms)}</span>
 						</div>
 						<div class="track">
