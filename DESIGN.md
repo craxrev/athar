@@ -338,6 +338,34 @@ puts its window controls, measured for two bar heights, and they move together.
 Reading measure is capped at 78ch in the conversation reader, centred, regardless
 of window width.
 
+### Range bar
+
+Navigation and context in one line above the timeline, and **rendered independently
+of the digest** — a range holding nothing still has to say which range it is and
+still has to let you leave.
+
+`‹ Mon 11 – Sun 17 Aug ›`, plus **Back to now** only when there is somewhere to
+come back from, plus a scan indicator only when the rail that normally carries one
+is folded. Forward is disabled at the present: there is no record of the future.
+
+**The Unit and the Instance Rule.** The rail selects the *unit* — by day, by week,
+by month, all time — and the range bar selects *which one*. That split is why the
+rail's labels are no longer "Today" and "This week": those were true only while the
+range sat on the present, and a range you can step makes them lies four fifths of
+the time. Changing the unit returns to the present, because "three back" means
+something different per unit and silently reinterpreting it is how a range stops
+being trustworthy.
+
+### Shortcut sheet
+
+`?` from any surface. A sheet, not a modal: it protects no task and interrupts
+none, so it dismisses on any click and needs no confirmation. Its contents are
+derived from the same list the key handler reads, so a binding that exists but is
+unlisted and a binding listed but unbound are both impossible.
+
+Fifteen bindings were reachable and three were discoverable, in tooltips, on
+icons. An accelerator nobody can find is not an accelerator.
+
 ## Elevation & Depth
 
 **Structural, not ambient.** Two devices, used for different jobs:
@@ -460,8 +488,9 @@ dots. The category fills this replaced measured 1.60–2.25 and all failed.
 Below 14px of rendered width the treatments stop being treatments — a hatch reads
 as noise, a pair of end marks touch — so a narrow bar keeps its class colour and
 gives up its texture. The lane legend names only the classes the range actually
-holds, and does not render below two: a key teaching a code the view is not using
-is its own puzzle. The class also rides the bar's `title`, which is reused
+holds, and always renders at least one. Suppressing it below two classes had the
+logic backwards: a day evidenced only by file saves is exactly when someone meets
+an unfamiliar treatment cold, and it was exactly when no key was drawn. The class also rides the bar's `title`, which is reused
 verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 
 ## Do's and Don'ts
@@ -472,6 +501,9 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Keep magenta for selection and live state; keep amber for uncertainty.
 - Set data in the mono token with tabular numerals.
 - Say what a surface does hold when it cannot show what was expected.
+- Cap a view by relevance, not by chance, and state the remainder in the same
+  voice everywhere: Stream keeps the most recent 300 blocks, Lanes the 120 busiest
+  projects, and both say so.
 - Give a raised surface a shadow with offset and blur.
 - Let a mark that carries meaning clear 3:1 against its ground on its own.
 - Split a figure only where the parts add up. Elapsed does not; across-projects
@@ -491,4 +523,9 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Put a category hue back on a lane bar. The group heading above it and the rail
   row that filtered to it already say it; the fill is spent on evidence now.
 - Borrow a word or a colour across the attribution and evidence axes.
+- Leave a figure unlabelled about what it covers. The digest is narrowed by the
+  rail's filters in SQL; the one narrowing it cannot follow is a text query, and
+  it says so.
+- Ship an uncapped view. Lanes was the one view users were told was safe for a
+  wide range and the only one with no limit at all.
 - Animate a bar with a transform that deforms the marks inside it.
