@@ -1,136 +1,484 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-13T00:00:00Z",
+  "generatedAt": "2026-08-15T00:00:00Z",
   "title": "Design System: lore",
-  "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
-  "colorRamps": {
-    "ground": {
-      "_rule": "The ramp runs both ways: inset recedes, raised lifts. A recessed panel steps down the ramp rather than mixing black into its parent.",
-      "window": "#0b0c0f",
-      "inset": "#0e1014",
-      "pane": "#12141a",
-      "raised": "#191c24",
-      "hover": "#1f2330"
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Near-Black Window",
+        "canonical": "#0b0c0f",
+        "tonalRamp": [
+          "oklch(15.0% 0.004 271.0)",
+          "oklch(26.4% 0.0047 271.0)",
+          "oklch(37.9% 0.0055 271.0)",
+          "oklch(49.3% 0.0062 271.0)",
+          "oklch(60.7% 0.0062 271.0)",
+          "oklch(72.1% 0.0055 271.0)",
+          "oklch(83.6% 0.0047 271.0)",
+          "oklch(95.0% 0.004 271.0)"
+        ]
+      },
+      "surface-inset": {
+        "role": "neutral",
+        "displayName": "Recessed Panel",
+        "canonical": "#0e1014",
+        "tonalRamp": [
+          "oklch(15.0% 0.0054 264.3)",
+          "oklch(26.4% 0.0064 264.3)",
+          "oklch(37.9% 0.0074 264.3)",
+          "oklch(49.3% 0.0084 264.3)",
+          "oklch(60.7% 0.0084 264.3)",
+          "oklch(72.1% 0.0074 264.3)",
+          "oklch(83.6% 0.0064 264.3)",
+          "oklch(95.0% 0.0054 264.3)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Pane Ground",
+        "canonical": "#12141a",
+        "tonalRamp": [
+          "oklch(15.0% 0.0075 270.7)",
+          "oklch(26.4% 0.009 270.7)",
+          "oklch(37.9% 0.0104 270.7)",
+          "oklch(49.3% 0.0118 270.7)",
+          "oklch(60.7% 0.0118 270.7)",
+          "oklch(72.1% 0.0104 270.7)",
+          "oklch(83.6% 0.009 270.7)",
+          "oklch(95.0% 0.0075 270.7)"
+        ]
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Raised Card",
+        "canonical": "#191c24",
+        "tonalRamp": [
+          "oklch(15.0% 0.0097 268.9)",
+          "oklch(26.4% 0.0116 268.9)",
+          "oklch(37.9% 0.0134 268.9)",
+          "oklch(49.3% 0.0153 268.9)",
+          "oklch(60.7% 0.0153 268.9)",
+          "oklch(72.1% 0.0134 268.9)",
+          "oklch(83.6% 0.0116 268.9)",
+          "oklch(95.0% 0.0097 268.9)"
+        ]
+      },
+      "surface-hover": {
+        "role": "neutral",
+        "displayName": "Pointer Feedback",
+        "canonical": "#1f2330",
+        "tonalRamp": [
+          "oklch(15.0% 0.0151 271.3)",
+          "oklch(26.4% 0.018 271.3)",
+          "oklch(37.9% 0.0209 271.3)",
+          "oklch(49.3% 0.0238 271.3)",
+          "oklch(60.7% 0.0238 271.3)",
+          "oklch(72.1% 0.0209 271.3)",
+          "oklch(83.6% 0.018 271.3)",
+          "oklch(95.0% 0.0151 271.3)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Cool Near-White",
+        "canonical": "#edeef2",
+        "tonalRamp": [
+          "oklch(15.0% 0.0033 275.0)",
+          "oklch(26.4% 0.0039 275.0)",
+          "oklch(37.9% 0.0045 275.0)",
+          "oklch(49.3% 0.0051 275.0)",
+          "oklch(60.7% 0.0051 275.0)",
+          "oklch(72.1% 0.0045 275.0)",
+          "oklch(83.6% 0.0039 275.0)",
+          "oklch(95.0% 0.0033 275.0)"
+        ]
+      },
+      "text-dim": {
+        "role": "neutral",
+        "displayName": "Muted Slate",
+        "canonical": "#a2a8b6",
+        "tonalRamp": [
+          "oklch(15.0% 0.0128 267.2)",
+          "oklch(26.4% 0.0152 267.2)",
+          "oklch(37.9% 0.0177 267.2)",
+          "oklch(49.3% 0.0201 267.2)",
+          "oklch(60.7% 0.0201 267.2)",
+          "oklch(72.1% 0.0177 267.2)",
+          "oklch(83.6% 0.0152 267.2)",
+          "oklch(95.0% 0.0128 267.2)"
+        ]
+      },
+      "text-faint": {
+        "role": "neutral",
+        "displayName": "Faint Slate",
+        "canonical": "#878e9d",
+        "tonalRamp": [
+          "oklch(15.0% 0.0143 265.7)",
+          "oklch(26.4% 0.017 265.7)",
+          "oklch(37.9% 0.0197 265.7)",
+          "oklch(49.3% 0.0225 265.7)",
+          "oklch(60.7% 0.0225 265.7)",
+          "oklch(72.1% 0.0197 265.7)",
+          "oklch(83.6% 0.017 265.7)",
+          "oklch(95.0% 0.0143 265.7)"
+        ]
+      },
+      "accent-magenta": {
+        "role": "primary",
+        "displayName": "Instrument Magenta",
+        "canonical": "#e93d97",
+        "tonalRamp": [
+          "oklch(15.0% 0.1324 353.4)",
+          "oklch(26.4% 0.1576 353.4)",
+          "oklch(37.9% 0.1828 353.4)",
+          "oklch(49.3% 0.2081 353.4)",
+          "oklch(60.7% 0.2081 353.4)",
+          "oklch(72.1% 0.1828 353.4)",
+          "oklch(83.6% 0.1576 353.4)",
+          "oklch(95.0% 0.1324 353.4)"
+        ]
+      },
+      "uncertain-amber": {
+        "role": "secondary",
+        "displayName": "Uncertainty Amber",
+        "canonical": "#f2a93b",
+        "tonalRamp": [
+          "oklch(15.0% 0.0882 73.0)",
+          "oklch(26.4% 0.105 73.0)",
+          "oklch(37.9% 0.1219 73.0)",
+          "oklch(49.3% 0.1387 73.0)",
+          "oklch(60.7% 0.1387 73.0)",
+          "oklch(72.1% 0.1219 73.0)",
+          "oklch(83.6% 0.105 73.0)",
+          "oklch(95.0% 0.0882 73.0)"
+        ]
+      },
+      "git-add": {
+        "role": "tertiary",
+        "displayName": "Insertion Green",
+        "canonical": "#56c98a",
+        "tonalRamp": [
+          "oklch(15.0% 0.0838 156.6)",
+          "oklch(26.4% 0.0997 156.6)",
+          "oklch(37.9% 0.1157 156.6)",
+          "oklch(49.3% 0.1316 156.6)",
+          "oklch(60.7% 0.1316 156.6)",
+          "oklch(72.1% 0.1157 156.6)",
+          "oklch(83.6% 0.0997 156.6)",
+          "oklch(95.0% 0.0838 156.6)"
+        ]
+      },
+      "git-del": {
+        "role": "tertiary",
+        "displayName": "Deletion Red",
+        "canonical": "#e5555c",
+        "tonalRamp": [
+          "oklch(15.0% 0.1073 20.9)",
+          "oklch(26.4% 0.1277 20.9)",
+          "oklch(37.9% 0.1481 20.9)",
+          "oklch(49.3% 0.1685 20.9)",
+          "oklch(60.7% 0.1685 20.9)",
+          "oklch(72.1% 0.1481 20.9)",
+          "oklch(83.6% 0.1277 20.9)",
+          "oklch(95.0% 0.1073 20.9)"
+        ]
+      },
+      "category-work": {
+        "role": "tertiary",
+        "displayName": "Work Blue",
+        "canonical": "#4c8dff",
+        "tonalRamp": [
+          "oklch(15.0% 0.1093 260.7)",
+          "oklch(26.4% 0.1301 260.7)",
+          "oklch(37.9% 0.151 260.7)",
+          "oklch(49.3% 0.1718 260.7)",
+          "oklch(60.7% 0.1718 260.7)",
+          "oklch(72.1% 0.151 260.7)",
+          "oklch(83.6% 0.1301 260.7)",
+          "oklch(95.0% 0.1093 260.7)"
+        ]
+      },
+      "category-research": {
+        "role": "tertiary",
+        "displayName": "Research Magenta",
+        "canonical": "#e93d97",
+        "tonalRamp": [
+          "oklch(15.0% 0.1324 353.4)",
+          "oklch(26.4% 0.1576 353.4)",
+          "oklch(37.9% 0.1828 353.4)",
+          "oklch(49.3% 0.2081 353.4)",
+          "oklch(60.7% 0.2081 353.4)",
+          "oklch(72.1% 0.1828 353.4)",
+          "oklch(83.6% 0.1576 353.4)",
+          "oklch(95.0% 0.1324 353.4)"
+        ]
+      },
+      "category-personal": {
+        "role": "tertiary",
+        "displayName": "Personal Green",
+        "canonical": "#56c98a",
+        "tonalRamp": [
+          "oklch(15.0% 0.0838 156.6)",
+          "oklch(26.4% 0.0997 156.6)",
+          "oklch(37.9% 0.1157 156.6)",
+          "oklch(49.3% 0.1316 156.6)",
+          "oklch(60.7% 0.1316 156.6)",
+          "oklch(72.1% 0.1157 156.6)",
+          "oklch(83.6% 0.0997 156.6)",
+          "oklch(95.0% 0.0838 156.6)"
+        ]
+      },
+      "category-freelance": {
+        "role": "tertiary",
+        "displayName": "Freelance Amber",
+        "canonical": "#f2a93b",
+        "tonalRamp": [
+          "oklch(15.0% 0.0882 73.0)",
+          "oklch(26.4% 0.105 73.0)",
+          "oklch(37.9% 0.1219 73.0)",
+          "oklch(49.3% 0.1387 73.0)",
+          "oklch(60.7% 0.1387 73.0)",
+          "oklch(72.1% 0.1219 73.0)",
+          "oklch(83.6% 0.105 73.0)",
+          "oklch(95.0% 0.0882 73.0)"
+        ]
+      }
     },
-    "text": {
-      "primary": "#edeef2",
-      "secondary": "#a2a8b6",
-      "tertiary": "#878e9d"
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The reader’s session title, and nothing else."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "The detail pane’s block heading."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "The rail wordmark and error-state headings."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "Settings group headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Reading prose in the conversation reader. The one role that sets at 400."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Rail rows and card titles."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "The workhorse: toolbar buttons, list labels, form controls."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Secondary figures, captions, honesty notes."
+      },
+      "data": {
+        "displayName": "Data",
+        "purpose": "Times, durations, token counts, shas, line counts, paths. Mono, tabular."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "The digest’s lead figure. Mono at display scale — the one number the Insight job leads with."
+      }
     },
-    "accent-magenta": {
-      "base": "#e93d97",
-      "fill": "rgba(233, 61, 151, 0.16)",
-      "edge": "rgba(233, 61, 151, 0.42)",
-      "on": "#14040c"
-    },
-    "semantic": {
-      "uncertain": "#f2a93b",
-      "uncertain-soft": "rgba(242, 169, 59, 0.14)",
-      "added": "#56c98a",
-      "removed": "#e5555c"
-    },
-    "category": {
-      "_rule": "Three forms per hue: solid for legend swatches, fill for chip backgrounds and lane bars, tint for text on that fill. Defined once as tokens; components never restate the literal.",
-      "work": { "solid": "#4c8dff", "fill": "rgba(76, 141, 255, 0.14)", "bar": "rgba(76, 141, 255, 0.42)", "tint": "#9dc0ff" },
-      "research": { "solid": "#e93d97", "fill": "rgba(233, 61, 151, 0.16)", "bar": "rgba(233, 61, 151, 0.38)", "tint": "#f79ec9" },
-      "personal": { "solid": "#56c98a", "fill": "rgba(86, 201, 138, 0.14)", "bar": "rgba(86, 201, 138, 0.38)", "tint": "#8fdcb1" },
-      "freelance": { "solid": "#f2a93b", "fill": "rgba(242, 169, 59, 0.14)", "bar": "rgba(242, 169, 59, 0.38)", "tint": "#f6c987" }
-    },
-    "line": {
-      "divider": "rgba(255, 255, 255, 0.07)",
-      "strong": "rgba(255, 255, 255, 0.14)"
-    }
-  },
-  "elevation": {
-    "philosophy": "structural",
-    "tokens": {
-      "lift-1": "0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28)",
-      "lift-2": "0 2px 4px rgba(0, 0, 0, 0.45), 0 10px 26px rgba(0, 0, 0, 0.36)"
-    },
-    "material": {
-      "vibrancy": "macOS underWindowBackground, followsWindowActiveState, radius 10 — applied at the window and revealed only by the scope rail, which paints rgba(255,255,255,0.022) of its own",
-      "rule": "Dense content never sits on a live background. A raised surface changes its shadow, not only its border."
-    }
-  },
-  "motion": {
-    "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
-    "tokens": {
-      "bar-grow": "620ms, scaleX from 0.02, transform-origin left, staggered 22ms per lane up to 12",
-      "reader-arrive": "260ms, opacity 0.6 → 1 with 6px rise",
-      "state-change": "--motion-state, 120ms ease-out on background and color for rows, toggles and buttons",
-      "live-state": "--motion-live, 1.6s ease-in-out alternate on opacity 1 → 0.35, footer dot only, while a collector run is open"
-    },
-    "rule": "One authored moment per surface, from an already-visible default. All motion disabled under prefers-reduced-motion. Repeating motion is allowed only for live state — something happening now that stops on its own — and only in the footer dot."
-  },
-  "breakpoints": {
-    "detail-folds": "1120px",
-    "rail-folds": "880px",
-    "window-min": "880x560",
-    "titlebar-inset": "30px",
-    "traffic-light-clearance": "62px"
-  },
-  "typeFloor": {
-    "minSize": "13px",
-    "metaSize": "13.5px",
-    "minWeight": 500,
-    "rule": "No micro-labels. Small type in a light weight is the combination this system rules out; the floor exists so a future surface cannot reintroduce it."
-  },
-  "numerics": {
-    "face": "ui-monospace, SF Mono, JetBrains Mono, Menlo, monospace",
-    "features": "tabular-nums",
-    "appliesTo": ["times", "durations", "token counts", "commit shas", "line counts", "file paths"],
-    "rules": [
-      "A span under one minute prints <1m, never 0m — a block holding a single record still happened.",
-      "A range crossing midnight prints its dates; clock times alone contradict a multi-day span.",
-      "A count the data can only floor is labelled as a floor, never as a total."
+    "shadows": [
+      {
+        "name": "lift-1",
+        "value": "0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28)",
+        "purpose": "Detail cards, the selected block, the selected lane bar. The only elevation in use."
+      },
+      {
+        "name": "lift-2",
+        "value": "0 2px 4px rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.36)",
+        "purpose": "Reserved for a surface floating above a pane. Currently referenced nowhere — spend it deliberately or delete it."
+      }
+    ],
+    "motion": [
+      {
+        "name": "motion-state",
+        "value": "120ms ease-out",
+        "purpose": "The response to a pointer or a toggle."
+      },
+      {
+        "name": "motion-live",
+        "value": "1.6s ease-in-out",
+        "purpose": "The only repeating animation in the app: the footer dot while a collector runs. Allowed because something is happening now and will stop on its own."
+      },
+      {
+        "name": "entrance",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Both authored entrances — the 620ms staggered lane reveal and the reader’s 260ms settle."
+      },
+      {
+        "name": "lane-reveal",
+        "value": "clip-path inset(0 100% 0 0) → inset(0 0 0 0), 620ms",
+        "purpose": "Reveals rather than scales: scaleX deformed the end marks and hatch pitch of the evidence treatments."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "detail-fold",
+        "value": "1120px"
+      },
+      {
+        "name": "rail-fold",
+        "value": "880px"
+      },
+      {
+        "name": "window-min",
+        "value": "880px"
+      }
     ]
   },
-  "confidence": {
-    "purpose": "The signature device: attribution carries the evidence that produced it.",
-    "tiers": {
-      "witnessed": { "color": "#56c98a", "icon": "closed ring with check", "meaning": "the transcript records the assistant running the commit" },
-      "files-match": { "color": "#a2a8b6", "icon": "broken ring with check", "meaning": "inferred — the commit's files were written in this session" },
-      "inferred": { "color": "#f2a93b", "icon": "broken ring with check", "meaning": "timing and project only; likely committed by hand" },
-      "unattributed": { "color": "#f2a93b", "icon": "warning triangle", "meaning": "no session to attribute this to" }
+  "components": [
+    {
+      "name": "Lane Bar — from sessions",
+      "kind": "custom",
+      "refersTo": "lane-bar",
+      "description": "A block whose span a conversation brackets. Solid, because the whole span is evidenced.",
+      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-sessions\"></span></div>",
+      "css": ".ds-lane { position: relative; height: 40px; background: var(--ground, #0b0c0f); } .ds-bar { position: absolute; top: 50%; left: 8%; width: 60%; height: 23px; transform: translateY(-50%); border-radius: 4px; --ink: rgba(255,255,255,0.36); --ink-bed: rgba(255,255,255,0.11); cursor: pointer; } .ds-bar-sessions { background: var(--ink); } .ds-bar-sessions:hover { --ink: rgba(255,255,255,0.54); }"
+    },
+    {
+      "name": "Lane Bar — from commits",
+      "kind": "custom",
+      "refersTo": "lane-bar",
+      "description": "Exact at the commits, inferred between them. The hatch claims no positions.",
+      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-commits\"></span></div>",
+      "css": ".ds-bar-commits { background-color: var(--ink-bed); background-image: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 6px); } .ds-bar-commits:hover { --ink: rgba(255,255,255,0.54); --ink-bed: rgba(255,255,255,0.2); }"
+    },
+    {
+      "name": "Lane Bar — from saves",
+      "kind": "custom",
+      "refersTo": "lane-bar-saves",
+      "description": "Two mtimes and nothing known between. The ends are marked because the ends are what the archive has.",
+      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-saves\"></span></div>",
+      "css": ".ds-bar-saves { --ink: var(--amber, #f2a93b); --ink-link: color-mix(in srgb, var(--amber, #f2a93b) 52%, transparent); background-image: linear-gradient(var(--ink-link), var(--ink-link)); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; } .ds-bar-saves::before, .ds-bar-saves::after { content: ''; position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--ink); } .ds-bar-saves::before { left: 0; } .ds-bar-saves::after { right: 0; }"
+    },
+    {
+      "name": "Lane Bar — from records only",
+      "kind": "custom",
+      "refersTo": "lane-bar",
+      "description": "Records the timeline cannot itemise. The span is real; nothing in it is describable, so it claims no ends.",
+      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-bare\"></span></div>",
+      "css": ".ds-bar-bare { background-image: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 7px); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; }"
+    },
+    {
+      "name": "Lane Bar — selected",
+      "kind": "custom",
+      "refersTo": "lane-bar-selected",
+      "description": "Selection takes the ink, never the shape. A selected saves-only block is still a pair of end marks.",
+      "html": "<div class=\"ds-lane\"><span class=\"ds-bar ds-bar-saves ds-bar-on\"></span></div>",
+      "css": ".ds-bar-on { --ink: var(--accent, #e93d97); --ink-bed: rgba(233,61,151,0.16); --ink-link: color-mix(in srgb, var(--accent, #e93d97) 72%, transparent); box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28); }"
+    },
+    {
+      "name": "Rail Row",
+      "kind": "nav",
+      "refersTo": "rail-row",
+      "description": "Scope, category and project rows in the vibrancy rail. Selection is a flat accent fill with a legible edge — never a glow.",
+      "html": "<nav class=\"ds-rail\"><button class=\"ds-rail-row\">This week</button><button class=\"ds-rail-row ds-rail-row-on\">This month</button></nav>",
+      "css": ".ds-rail { background: rgba(255,255,255,0.022); padding: 8px; display: flex; flex-direction: column; gap: 2px; } .ds-rail-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: none; border-radius: 6px; background: none; color: var(--text-dim, #a2a8b6); font: 520 14.5px/1.35 -apple-system, system-ui, sans-serif; text-align: left; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-rail-row:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rail-row:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; } .ds-rail-row-on { background: rgba(233,61,151,0.16); color: var(--text, #edeef2); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); }"
+    },
+    {
+      "name": "View Toggle",
+      "kind": "button",
+      "refersTo": "view-toggle",
+      "description": "The segmented Lanes/Stream switch in the toolbar. The selected icon turns accent.",
+      "html": "<div class=\"ds-views\"><button class=\"ds-view ds-view-on\">Lanes</button><button class=\"ds-view\">Stream</button></div>",
+      "css": ".ds-views { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--surface, #12141a); } .ds-view { display: flex; align-items: center; gap: 6px; padding: 5px 11px; border: none; border-radius: 6px; background: none; color: var(--text-dim, #a2a8b6); font: 560 14px/1.4 -apple-system, system-ui, sans-serif; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-view:hover { color: var(--text, #edeef2); } .ds-view:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; } .ds-view-on { background: rgba(233,61,151,0.16); color: var(--text, #edeef2); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); }"
+    },
+    {
+      "name": "Filter Field",
+      "kind": "input",
+      "refersTo": "filter-field",
+      "description": "The toolbar filter. Focus shifts the border to the accent edge.",
+      "html": "<label class=\"ds-filter\"><input class=\"ds-filter-input\" type=\"text\" placeholder=\"Filter projects, sessions, commits…\" aria-label=\"Filter\"></label>",
+      "css": ".ds-filter { display: flex; align-items: center; gap: 8px; width: 320px; padding: 0 10px; height: 30px; border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; background: var(--surface, #12141a); } .ds-filter:focus-within { border-color: rgba(233,61,151,0.42); } .ds-filter-input { flex: 1; min-width: 0; border: none; background: none; color: var(--text, #edeef2); font: 500 14px/1.4 -apple-system, system-ui, sans-serif; } .ds-filter-input::placeholder { color: var(--text-faint, #878e9d); } .ds-filter-input:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; }"
+    },
+    {
+      "name": "Action Button",
+      "kind": "button",
+      "refersTo": "button-act",
+      "description": "The one written button in the app: settings actions and error recovery. Never more than one strong variant in a group.",
+      "html": "<button class=\"ds-act ds-act-strong\">Scan now</button> <button class=\"ds-act\">Rebuild</button>",
+      "css": ".ds-act { padding: 6px 12px; border: 1px solid rgba(255,255,255,0.14); border-radius: 6px; background: var(--surface-raised, #191c24); color: var(--text, #edeef2); font: 540 14px/1.4 -apple-system, system-ui, sans-serif; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-act:hover:not(:disabled) { background: var(--surface-hover, #1f2330); } .ds-act:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; } .ds-act:disabled { opacity: 0.55; cursor: default; } .ds-act-strong { background: rgba(233,61,151,0.16); border-color: rgba(233,61,151,0.42); }"
+    },
+    {
+      "name": "Confidence Label",
+      "kind": "custom",
+      "refersTo": "confidence-label",
+      "description": "The system’s signature on the attribution axis. A closed ring for a witnessed claim, the same ring broken for an inferred one.",
+      "html": "<span class=\"ds-tier ds-tier-certain\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"10\" cy=\"10\" r=\"6.5\"/></svg>witnessed</span> <span class=\"ds-tier ds-tier-inferred\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M14.5 6.2A6.5 6.5 0 1 1 5.5 13.8\"/></svg>inferred</span>",
+      "css": ".ds-tier { display: inline-flex; align-items: center; gap: 5px; font: 500 13.5px/1.45 -apple-system, system-ui, sans-serif; } .ds-tier-certain { color: var(--add, #56c98a); } .ds-tier-inferred { color: var(--amber, #f2a93b); }"
+    },
+    {
+      "name": "Digest",
+      "kind": "custom",
+      "refersTo": "digest-lead",
+      "description": "Two tiers over the timeline. The evidence split divides across-projects, never elapsed, because only the sum adds up.",
+      "html": "<div class=\"ds-digest\"> <div class=\"ds-digest-time\"><span class=\"ds-lead\"><b class=\"ds-big\">2h 41m</b> elapsed</span><span><b class=\"ds-mid\">6h 10m</b> across projects</span></div> <p class=\"ds-split\"><span><b>4h 02m</b> from sessions</span><span><b>1h 30m</b> from commits</span><span><b>38m</b> from saves</span></p> <div class=\"ds-census\"><span><b>18</b> sessions</span><span><b>7</b> commits</span><span><b>412k</b> tokens</span></div> </div>",
+      "css": ".ds-digest { display: flex; flex-direction: column; padding: 11px 18px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); background: var(--ground, #0b0c0f); font: 500 13.5px/1.45 -apple-system, system-ui, sans-serif; color: var(--text-faint, #878e9d); } .ds-digest span { white-space: nowrap; } .ds-digest b { color: var(--text, #edeef2); font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 620; font-size: 13.5px; } .ds-digest-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 18px; } .ds-lead { font-size: 14px; color: var(--text-dim, #a2a8b6); } .ds-big { font-size: 19px; font-weight: 640; letter-spacing: -0.01em; } .ds-mid { font-size: 15px; } .ds-split { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 3px 0 0; } .ds-split b { font-weight: 560; } .ds-census { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 9px; } .ds-census b { color: var(--text-dim, #a2a8b6); }"
     }
-  },
-  "iconSystem": {
-    "grid": "20px",
-    "strokeWidth": 1.75,
-    "caps": "round",
-    "joins": "round",
-    "color": "currentColor",
-    "rule": "One drawn set. No glyph, emoji or text character stands in for an icon. Two icons encode certainty rather than objects: a closed ring for witnessed, the same ring broken for inferred."
-  },
-  "componentSnippets": {
-    "selection": ".row.on { background: rgba(233,61,151,0.16); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); color: #edeef2; }",
-    "honesty-flag": ".flag.amber { color: #f2a93b; background: rgba(242,169,59,0.14); border-radius: 999px; padding: 2px 8px; font-size: 13px; font-weight: 540; }",
-    "focus-ring": ":focus-visible { outline: 2px solid #e93d97; outline-offset: 2px; border-radius: 6px; }",
-    "scrollbar": "::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border: 3px solid transparent; background-clip: content-box; border-radius: 8px; }",
-    "digest-metric": ".digest > span { white-space: nowrap; } /* atomic, so a wrap lands between metrics and never inside a phrase */",
-    "moment-spine": ".spine::before { position: absolute; left: 4px; top: 0; bottom: 0; width: 1px; background: var(--line-strong); } .mark { width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); box-shadow: 0 0 0 3px var(--surface); }"
-  },
-  "timeAsStructure": {
-    "rule": "Where records carry a time, time structures the layout — it is never merely a column of labels. A run of file changes is grouped into moments (saves within one minute) hung off a continuous spine, and an idle stretch past five minutes prints its own duration, because the pause is part of the record.",
-    "appliesTo": ["file-change lists in the detail pane and the stream"],
-    "counterExample": "A flat table with a time column reads as a list, not a timeline; that was the first attempt and it was wrong."
-  },
-  "dos": [
-    "Show how a claim was established, next to the claim.",
-    "Keep magenta for selection and live state; keep amber for uncertainty.",
-    "Set data in the mono token with tabular numerals.",
-    "Name what a surface does hold when it cannot show what was expected.",
-    "Give a raised surface a shadow with offset and blur."
   ],
-  "donts": [
-    "Set type below 13px or below weight 500.",
-    "Use the accent as a glow, a gradient, or a decorative fill.",
-    "Extend vibrancy beyond the scope rail, or add blur for atmosphere.",
-    "Render a calendar grid or a contribution heatmap as a primary view.",
-    "Print a figure the data cannot support.",
-    "Introduce a second accent, or let a category hue carry state."
-  ],
-  "notCanonized": [
-    "The residual empty space below the lanes at short ranges. Lane rows and bars were enlarged to fill more of the stage, but a sparse week still leaves roughly a third of the view empty. That is a layout shortfall the build carries, not a rule for future surfaces to inherit."
-  ]
+  "narrative": {
+    "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
+    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on — the digest and the lane bars — said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit — this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
+    "keyCharacteristics": [
+      "Dark only, by decision rather than default",
+      "One accent, magenta, because git owns red and green and amber is reserved for uncertainty",
+      "Real macOS window vibrancy on the scope rail only; dense content on solid ground",
+      "Every span states what kind of record backs it",
+      "Two separate axes — attribution and evidence — that never share a vocabulary",
+      "A 13px type floor and a 500 weight floor for interface text; reading prose alone sets at 400",
+      "Time as lanes of real projects on a real axis, never a calendar grid or a contribution heatmap"
+    ],
+    "rules": [
+      {
+        "name": "The Two Axes Rule",
+        "section": "colors",
+        "body": "Attribution asks who made a change and speaks in ring icons and the green/amber pair. Evidence asks what kind of record backs a span and speaks in the fill of a lane bar and the split under the digest. A colour or a word borrowed across the two collapses both. Amber is the one deliberate overlap: it means uncertainty on either axis."
+      },
+      {
+        "name": "The Two Floors Rule",
+        "section": "typography",
+        "body": "Interface text never goes below weight 500 — labels, controls, rail rows, metadata, figures. Reading prose sets at 400, and only in the conversation reader and the markdown it renders. A 400 weight anywhere outside a reading surface is a defect."
+      },
+      {
+        "name": "The Ink Rule",
+        "section": "components",
+        "body": "Selection takes the ink, never the shape. A selected saves-only block is still visibly a pair of end marks in magenta, not a solid claim. Any state that flattens a treatment into a rectangle has destroyed the only thing the treatment was there to say."
+      },
+      {
+        "name": "The Legible Mark Rule",
+        "section": "components",
+        "body": "Every mark that carries a class clears 3:1 against ground on its own. A hatch bed is exempt because its strokes carry identity; a connector is not, because without it two end marks are two unrelated dots."
+      }
+    ],
+    "dos": [
+      "Do show how a claim was established, next to the claim.",
+      "Do keep magenta for selection and live state; keep amber for uncertainty.",
+      "Do set data in the mono token with tabular numerals.",
+      "Do say what a surface does hold when it cannot show what was expected.",
+      "Do give a raised surface a shadow with offset and blur.",
+      "Do let a mark that carries meaning clear 3:1 against its ground on its own.",
+      "Do split a figure only where the parts add up. Elapsed does not; across-projects does."
+    ],
+    "donts": [
+      "Don’t set interface type below 13px or below weight 500. Reading prose is the one exception and sets at 400.",
+      "Don’t use the accent as a glow, a gradient, or a decorative fill.",
+      "Don’t extend vibrancy beyond the scope rail, or add blur for atmosphere.",
+      "Don’t render a calendar grid or a contribution heatmap as a primary view.",
+      "Don’t print a figure lore cannot support — no 0m for a real block, no clock range without dates across days, no total where the data only supports a floor, no digest over a range holding nothing.",
+      "Don’t introduce a second accent, or let a category hue carry state.",
+      "Don’t put a category hue back on a lane bar. The group heading above it and the rail row that filtered to it already say it; the fill is spent on evidence now.",
+      "Don’t borrow a word or a colour across the attribution and evidence axes.",
+      "Don’t animate a bar with a transform that deforms the marks inside it."
+    ]
+  }
 }

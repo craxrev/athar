@@ -83,6 +83,12 @@ typography:
     fontWeight: 560
     lineHeight: 1.4
     letterSpacing: "normal"
+  figure:
+    fontFamily: "{typography.data.fontFamily}"
+    fontSize: "19px"
+    fontWeight: 640
+    lineHeight: 1.2
+    letterSpacing: "-0.01em"
 rounded:
   micro: "2px"
   swatch: "3px"
@@ -145,13 +151,26 @@ components:
     padding: "2px 7px"
     typography: "{typography.meta}"
   lane-bar:
-    backgroundColor: "rgba(255, 255, 255, 0.17)"
+    backgroundColor: "rgba(255, 255, 255, 0.36)"
+    rounded: "{rounded.bar}"
+    height: "23px"
+  lane-bar-saves:
+    backgroundColor: "{colors.uncertain-amber}"
     rounded: "{rounded.bar}"
     height: "23px"
   lane-bar-selected:
     backgroundColor: "{colors.accent-magenta}"
     rounded: "{rounded.bar}"
     height: "23px"
+  digest-lead:
+    textColor: "{colors.text}"
+    typography: "{typography.figure}"
+  digest-split:
+    textColor: "{colors.text}"
+    typography: "{typography.meta}"
+  digest-census:
+    textColor: "{colors.text-dim}"
+    typography: "{typography.meta}"
 ---
 
 # lore — design system
@@ -162,6 +181,13 @@ lore reads what other systems leave behind and keeps it after they delete it. Th
 interface exists to make an uneven record legible without smoothing it, so the
 governing idea is not an aesthetic but a discipline: **every figure on screen
 carries how it was established.**
+
+The discipline has to hold at the top as well as at the leaf. It is easy to grade
+a single commit and then present a week as one confident number; for a while this
+build did exactly that, annotating every detail while the two surfaces a person
+actually lands on — the digest and the lane bars — said nothing about their own
+footing. Both now carry it: the bars in their fill, the digest in a split that
+adds up.
 
 The system is dark only, and by decision rather than by category habit — this is
 read at a desk, on the machine that produced the work, usually late. Its restraint
@@ -197,20 +223,29 @@ and resting cards, `surface-raised` for cards inside a pane, `surface-hover` for
 pointer feedback. The inset step exists because the ramp otherwise only rose —
 expanding a commit in place needed a surface that recedes, and mixing black into
 one is how a system starts drifting. Text runs `text` → `text-dim` → `text-faint`; `text-faint` is
-the floor and sits at ~5.2:1 on `ground`, which is where it was set after
-measuring an earlier value that failed the 4.5:1 requirement.
+the floor and measures 5.95:1 on `ground`, which is where it was set after an
+earlier value failed the 4.5:1 requirement.
 
 Category hues (`work`, `research`, `personal`, `freelance`) identify project
-groups derived from the filesystem. They tint lane bars and chips; they never
-compete with the accent for state.
+groups derived from the filesystem. They never compete with the accent for state,
+and they no longer appear on a lane bar — see **The Two Axes Rule** below.
 
-Each hue exists in three forms, defined once as tokens rather than repeated per
-component: the **solid** for legend swatches, a **fill** at 14–16% for chip
-backgrounds and 38–42% for lane bars, and a lightened **tint** for text sitting on
-that fill. The tint is not optional — the solid hue is not legible as small text
-on a dark ground, which is what the tints exist to solve. Because categories come
-from the filesystem the set is open-ended, and an unknown category falls back to
+Each hue exists in two forms, defined once as tokens rather than repeated per
+component: the **solid** for legend swatches and group headings, and a **fill** at
+14–16% for chip backgrounds paired with a lightened **tint** for the text sitting
+on it. The tint is not optional — the solid hue is not legible as small text on a
+dark ground, which is what the tints exist to solve. Because categories come from
+the filesystem the set is open-ended, and an unknown category falls back to
 neutral rather than borrowing another category's hue.
+
+**The Two Axes Rule.** Two different questions run through this interface and must
+never share a vocabulary. **Attribution** asks who made a change — `witnessed`,
+`files match`, `inferred`, `unattributed` — and speaks in the ring icons and the
+green/amber pair. **Evidence** asks what kind of record backs a span of time —
+`from sessions`, `from commits`, `from saves`, `from records only` — and speaks in
+the fill of a lane bar and the split under the digest. A colour or a word borrowed
+across the two collapses both. Amber is the one deliberate overlap: it means
+uncertainty on either axis, which is why it carries `saves` as well as `inferred`.
 
 ## Typography
 
@@ -218,14 +253,23 @@ A workhorse system stack, set solid. There is no display face and no webfont: th
 is an Operate surface where legibility at density outranks voice, and the platform
 stack renders dense UI text better than anything self-hosted would.
 
-Ramp as actually used: **30 / 21 / 19 / 15.5 / 15 / 14.5 / 14 / 13.5 / 13**. Weights
-run 500–680; nothing is set lighter than 500. The `control` step (14px) is the
-workhorse — rail rows, toolbar buttons, list labels — and carries the most uses of
-any step in the build.
+Ramp as actually used: **30 / 21 / 19 / 15.5 / 15 / 14.5 / 14 / 13.5 / 13**. The
+`control` step (14px) is the workhorse — rail rows, toolbar buttons, list labels —
+and carries the most uses of any step in the build.
 
 **The 13px floor is normative.** `--fs-min: 13px` and `--fs-meta: 13.5px` exist so
 that no future surface reintroduces micro-labels. Small type in a light weight is
 the specific combination this system rules out.
+
+**The Two Floors Rule.** Weight has two floors, not one, and the difference is
+what the text is for. **Interface text never goes below 500** — labels, controls,
+rail rows, metadata, figures; that range runs 500–680 and is where the "no skinny
+typography" commitment bites. **Reading prose sets at 400**, and only in the
+conversation reader and the markdown it renders, at 15px on a 1.62 line-height
+across a 78ch measure. The brand constraint was aimed at hairline micro-labels,
+not at body copy, where 500 across a two-hundred-message transcript reads heavier
+than a long sitting wants. A 400 weight anywhere outside a reading surface is a
+defect.
 
 Data is set in the mono stack with `tabular-nums` at the `data` token: times,
 durations, token counts, commit shas, line counts, file paths. This is measurement,
@@ -238,8 +282,13 @@ contradiction against a multi-day span.
 
 ## Layout
 
-Three panes on a CSS grid: `244px | minmax(0, 1fr) | 372px`. The middle pane never
-collapses; the outer two do, by keyboard (`⌘B`, `⇧⌘B`) and automatically by width.
+Three panes in a row flexbox, sized by the panes themselves rather than by a
+parent track list: the rail is a fixed `244px`, the detail pane a fixed `372px`,
+both `flex: none`, and the centre takes `flex: 1` with `min-width: 0` so it
+absorbs every remaining pixel. The middle pane never collapses; the outer two do,
+by keyboard (`⌘B`, `⇧⌘B`) and automatically by width. Reach for a grid only if a
+pane ever needs to be resizable — the widths are owned by the panes today, which
+is why a hidden pane leaves no reserved track behind.
 
 | Breakpoint | Behaviour |
 |---|---|
@@ -255,6 +304,13 @@ heading than below it. Lane rows are 40px with 23px bars; the lane gutter is
 `clamp(112px, 16vw, 172px)` so a narrow window gives its width to the time axis
 rather than to project names.
 
+The spacing scale in the frontmatter is a **stated target, not an implemented
+one.** No spacing custom properties exist yet, and roughly four fifths of the
+build's padding and gap values sit off those six steps — `10px`, `8px`, `6px` and
+`12px` are the four most-used values in the app and none is on the scale. Treat
+the scale as binding for new work and reach for `/impeccable extract` before
+claiming the build honours it.
+
 Reading measure is capped at 78ch in the conversation reader, centred, regardless
 of window width.
 
@@ -266,8 +322,12 @@ of window width.
   on the scope rail *only*. The rail paints almost nothing of its own —
   `rgba(255,255,255,0.022)` — and lets the material through. Dense content never
   sits on a live background.
-- **Shadow with offset and blur** (`lift-1`, `lift-2`) on genuinely raised
-  surfaces: detail cards, the selected block, the selected lane bar.
+- **Shadow with offset and blur** on genuinely raised surfaces: detail cards, the
+  selected block, the selected lane bar. Only `lift-1` is in use. `lift-2` is
+  defined and referenced nowhere — it is the reserved step for a surface that
+  floats above a pane rather than sitting inside one, and nothing has needed it
+  yet. Either spend it deliberately or delete it; a token nobody reaches for is a
+  claim the system does not keep.
 
 1px dividers at 7% white carry structure everywhere else. A raised surface changes
 its shadow, not just its border; a surface that only changes its border is not
@@ -300,19 +360,35 @@ character stands in for an icon anywhere.
   pane spells the reasoning out in a sentence.
 - **Honesty flags** are amber pills: `prompts only` where the source deleted a
   transcript, `only in lore` where git will collect a commit lore has kept.
-- **Digest line** sets figures in the data token inline, each metric an atomic
-  nowrap unit so a wrap lands between metrics and never inside a phrase. It carries
-  two time figures on purpose — elapsed (wall clock, overlaps counted once) and
-  across-projects (the sum, which may exceed the range).
-- **Lane bars** tint by category, carry up to four commit ticks, and hide those
-  ticks below 1.4% of track width so the marker never eats the thing it annotates.
+- **Digest** runs two tiers, because a flat strip of six equal figures led with
+  none of them. The time tier carries elapsed in the `figure` token (19px mono) and
+  across-projects a step below it (15px), on purpose: elapsed is wall clock with
+  overlaps counted once, across-projects is the sum and may exceed the range. The
+  evidence split sits directly beneath across-projects and the census sits below
+  both, its values dropped to `text-dim` so supporting counts never read louder
+  than the figure they support. Every metric stays an atomic nowrap unit, so a
+  wrap lands between metrics and never inside a phrase. The digest does not render
+  below one block in range — `duration(0)` floors to `<1m`, and printing that over
+  an empty state claims work that did not happen.
+- **The evidence split** divides across-projects, never elapsed. Elapsed merges
+  overlapping blocks, so splitting it would total more than the whole;
+  across-projects is a plain sum, every block carries exactly one class, and the
+  parts therefore add up exactly and print with no caveat. A range holding one
+  class says `all from sessions` rather than restating a figure it just gave.
+- **Lane bars** carry evidence in the fill and nothing else. See below.
 - **Empty and partial states** name what they hold rather than rendering blank: a
   block with nothing itemised states its record count; a continued session states
   where it began and that its figures count once.
-- **Motion**: one authored moment per surface. Lane bars grow from their own start
-  along the axis, staggered down the lanes; the reader arrives with a 260ms settle
-  from an already-visible default. Both on `cubic-bezier(0.16, 1, 0.3, 1)`, both
-  disabled under `prefers-reduced-motion`.
+- **Motion**: one authored moment per surface. Lane bars are revealed from their
+  own start along the axis, staggered down the lanes; the reader arrives with a
+  260ms settle from an already-visible default. Both on
+  `cubic-bezier(0.16, 1, 0.3, 1)`, both disabled under `prefers-reduced-motion`.
+  The lane reveal animates `clip-path`, not `scaleX`: scaling squashed the end
+  marks of a saves-only bar into slivers and stretched the hatch pitch, distorting
+  precisely the two treatments that carry the most meaning. An entrance that
+  deforms its own content is not an entrance. Note that the four state
+  `transition`s in the build are **not** covered by any reduced-motion guard; only
+  the three keyframe animations are.
 - **Motion is chosen by purpose, and every kind is a token.** `--motion-state`
   (120ms ease-out) is the response to a pointer or a toggle. `--motion-live`
   (1.6s ease-in-out) is the one kind that repeats, and it is allowed exactly where
@@ -320,6 +396,48 @@ character stands in for an icon anywhere.
   a collector runs, in magenta because live state is magenta. A repeating
   animation anywhere else is a defect, and this one is disabled under
   `prefers-reduced-motion` like the rest.
+
+### Evidence class
+
+The system's other signature, and the reason a lane bar gives up its category
+hue. A block's start and end are the timestamps of its first and last record, so
+*what its width means* changes with what those records are. Drawn identically, a
+three-hour conversation and two file saves make the same claim and only one of
+them has earned it.
+
+Four treatments, one descending scale of how much of the span is actually known.
+One ink drives all four, which is what lets selection recolour a bar without
+flattening what it is:
+
+| Class | Treatment | The claim |
+|---|---|---|
+| `from sessions` | Solid fill, full height | A conversation brackets the whole span, so the whole span is drawn. |
+| `from commits` | 45° hatch over a dim bed | Exact at the commits, inferred between them by the idle-gap rule. |
+| `from saves` | Amber end caps and a connector | Two mtimes and nothing known between. The ends are marked because the ends are what the archive has. |
+| `from records only` | A broken neutral line, no caps | The span is real; nothing in it is describable, so it claims no ends. |
+
+Strongest evidence present wins, and a session counts whether or not its
+transcript survived — prompt timestamps are exact, so the span is evidenced even
+where the content is gone. That absence is the *attribution* axis, and
+`prompts only` already carries it.
+
+**The Ink Rule.** Selection takes the ink, never the shape. A selected saves-only
+block is still visibly a pair of end marks in magenta, not a solid claim. Any
+state that flattens a treatment into a rectangle has destroyed the only thing the
+treatment was there to say.
+
+**The Legible Mark Rule.** Every mark that carries a class clears 3:1 against
+`ground` on its own — solid 3.28, hatch strokes 4.22, amber caps 9.79, connector
+3.34, selected connector 3.15. A hatch *bed* is exempt because its strokes carry
+identity, but a connector is not: without it, two end marks are two unrelated
+dots. The category fills this replaced measured 1.60–2.25 and all failed.
+
+Below 14px of rendered width the treatments stop being treatments — a hatch reads
+as noise, a pair of end marks touch — so a narrow bar keeps its class colour and
+gives up its texture. The lane legend names only the classes the range actually
+holds, and does not render below two: a key teaching a code the view is not using
+is its own puzzle. The class also rides the bar's `title`, which is reused
+verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 
 ## Do's and Don'ts
 
@@ -330,13 +448,22 @@ character stands in for an icon anywhere.
 - Set data in the mono token with tabular numerals.
 - Say what a surface does hold when it cannot show what was expected.
 - Give a raised surface a shadow with offset and blur.
+- Let a mark that carries meaning clear 3:1 against its ground on its own.
+- Split a figure only where the parts add up. Elapsed does not; across-projects
+  does.
 
 **Don't**
 
-- Set type below 13px, or below weight 500.
+- Set interface type below 13px or below weight 500. Reading prose is the one
+  exception and sets at 400.
 - Use the accent as a glow, a gradient, or a decorative fill.
 - Extend vibrancy beyond the scope rail, or add blur for atmosphere.
 - Render a calendar grid or a contribution heatmap as a primary view.
 - Print a figure lore cannot support — no `0m` for a real block, no clock range
-  without dates across days, no total where the data only supports a floor.
+  without dates across days, no total where the data only supports a floor, no
+  digest over a range holding nothing.
 - Introduce a second accent, or let a category hue carry state.
+- Put a category hue back on a lane bar. The group heading above it and the rail
+  row that filtered to it already say it; the fill is spent on evidence now.
+- Borrow a word or a colour across the attribution and evidence axes.
+- Animate a bar with a transform that deforms the marks inside it.
