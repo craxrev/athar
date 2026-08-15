@@ -18,7 +18,7 @@
 		font-family: var(--mono);
 		/* Mono sits slightly smaller than the prose around it, but never under the
 		   floor: inside a 13.5px table cell, 0.92em alone computes to 12.42px. */
-		font-size: max(13px, 0.92em);
+		font-size: max(var(--fs-min), 0.92em);
 		padding: 1px 5px;
 		border-radius: 4px;
 		background: var(--surface-inset);

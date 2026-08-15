@@ -174,9 +174,14 @@
 		background: transparent;
 	}
 
+	/* The mono face runs slightly smaller than the prose around it, but never
+	   under the floor. Unguarded, 0.92em computed to 11.96px inside a 13px
+	   container and 12.42px inside a 13.5px one — and it landed on exactly the
+	   figures this system says are the point: times, durations, token counts,
+	   shas, line counts, paths. */
 	:global(.num) {
 		font-family: var(--mono);
 		font-variant-numeric: tabular-nums;
-		font-size: 0.92em;
+		font-size: max(var(--fs-min), 0.92em);
 	}
 </style>

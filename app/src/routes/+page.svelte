@@ -955,7 +955,8 @@
 	}
 	code {
 		font-family: var(--mono);
-		font-size: 0.92em;
+		/* Floored: inside .state p at 14px, a bare 0.92em computed to 12.88px. */
+		font-size: max(var(--fs-min), 0.92em);
 		padding: 1px 5px;
 		border-radius: 4px;
 		background: var(--surface-raised);
