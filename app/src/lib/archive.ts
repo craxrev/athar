@@ -230,7 +230,15 @@ export const archive = {
 	paths: () => call<Paths>('paths'),
 	collectorRun: () => call<string | null>('collector_run'),
 	projects: () => call<ProjectInfo[]>('projects'),
-	summary: (fromMs: number, toMs: number) => call<Summary>('summary', { fromMs, toMs }),
+	/** Narrowed the same way the timeline is, so the digest cannot describe a
+	 *  different set than the view under it. A text query stays client-side. */
+	summary: (fromMs: number, toMs: number, project?: string, category?: string) =>
+		call<Summary>('summary', {
+			fromMs,
+			toMs,
+			project: project ?? null,
+			category: category ?? null
+		}),
 	timeline: (fromMs: number, toMs: number, limit?: number, project?: string, category?: string) =>
 		call<BlockDetail[]>('timeline', {
 			fromMs,

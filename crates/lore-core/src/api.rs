@@ -266,48 +266,107 @@ pub fn projects(conn: &Connection, config: &Config) -> Result<Vec<ProjectInfo>> 
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-pub fn summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Summary> {
-    let base = crate::stats::range_summary(conn, from_ms, to_ms)?;
+/// The projects a filter admits, as ids, or `None` when nothing is narrowed.
+///
+/// Category is computed from the configured roots, so it cannot be expressed in
+/// SQL. Resolving both filters to an id set once means every figure in the digest
+/// is narrowed the same way — the alternative was a digest describing the whole
+/// range above a timeline showing a slice of it.
+fn scope_ids(
+    conn: &Connection,
+    config: &Config,
+    project_filter: Option<&str>,
+    category_filter: Option<&str>,
+) -> Result<Option<Vec<i64>>> {
+    if project_filter.is_none() && category_filter.is_none() {
+        return Ok(None);
+    }
+    let mut stmt = conn.prepare("SELECT id, path FROM projects")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (id, path) = row?;
+        if project_filter.is_some_and(|p| p != path) {
+            continue;
+        }
+        if category_filter.is_some_and(|c| c != category(config, &path)) {
+            continue;
+        }
+        out.push(id);
+    }
+    Ok(Some(out))
+}
+
+pub fn summary(
+    conn: &Connection,
+    config: &Config,
+    from_ms: i64,
+    to_ms: i64,
+    project_filter: Option<&str>,
+    category_filter: Option<&str>,
+) -> Result<Summary> {
+    let scope = scope_ids(conn, config, project_filter, category_filter)?;
+    let scope = scope.as_deref();
+    let base = crate::stats::range_summary(conn, from_ms, to_ms, scope)?;
+    let within = |column: &str| crate::stats::in_scope(column, scope);
 
     let (sessions, input_tokens, output_tokens): (i64, i64, i64) = conn.query_row(
-        "SELECT count(*), coalesce(sum(input_tokens),0), coalesce(sum(output_tokens),0)
-           FROM sessions WHERE started_ms < ?2 AND ended_ms >= ?1",
+        &format!(
+            "SELECT count(*), coalesce(sum(input_tokens),0), coalesce(sum(output_tokens),0)
+               FROM sessions WHERE started_ms < ?2 AND ended_ms >= ?1 {}",
+            within("project_id")
+        ),
         [from_ms, to_ms],
         |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
     )?;
 
     let commits: i64 = conn.query_row(
-        "SELECT count(*) FROM commits WHERE ts_ms >= ?1 AND ts_ms < ?2",
+        &format!(
+            "SELECT count(*) FROM commits WHERE ts_ms >= ?1 AND ts_ms < ?2 {}",
+            within("project_id")
+        ),
         [from_ms, to_ms],
         |r| r.get(0),
     )?;
 
     let file_changes: i64 = conn.query_row(
-        "SELECT count(*) FROM raw_records
-          WHERE kind = 'file_change' AND ts_ms >= ?1 AND ts_ms < ?2",
+        &format!(
+            "SELECT count(*) FROM raw_records
+              WHERE kind = 'file_change' AND ts_ms >= ?1 AND ts_ms < ?2 {}",
+            within("project_id")
+        ),
         [from_ms, to_ms],
         |r| r.get(0),
     )?;
 
-    // Files the AI wrote, against every file seen changing in the range. Both
-    // sides are counts of distinct paths, so a file edited repeatedly counts once.
-    let ai_files: i64 = conn.query_row(
-        "SELECT count(DISTINCT sf.path)
-           FROM session_files sf JOIN sessions s ON s.session_id = sf.session_id
-          WHERE sf.writes > 0 AND s.started_ms < ?2 AND s.ended_ms >= ?1",
+    // Files the AI wrote, against every distinct file seen changing in the range.
+    //
+    // The two sides are unioned rather than added. Added, a file that the
+    // assistant wrote *and* that the filesystem later recorded counted twice in
+    // the denominator — once on each side — so the printed share was not a share
+    // of distinct files at all, and drifted lower the more the two sources agreed.
+    let (ai_files, all_files): (i64, i64) = conn.query_row(
+        &format!(
+            "WITH ai AS (
+                 SELECT DISTINCT sf.path AS path
+                   FROM session_files sf JOIN sessions s ON s.session_id = sf.session_id
+                  WHERE sf.writes > 0 AND s.started_ms < ?2 AND s.ended_ms >= ?1 {}
+             ),
+             human AS (
+                 SELECT DISTINCT json_extract(json, '$.path') AS path
+                   FROM raw_records
+                  WHERE kind = 'file_change' AND ts_ms >= ?1 AND ts_ms < ?2 {}
+             )
+             SELECT (SELECT count(*) FROM ai),
+                    (SELECT count(*) FROM (SELECT path FROM ai UNION SELECT path FROM human))",
+            within("s.project_id"),
+            within("project_id")
+        ),
         [from_ms, to_ms],
-        |r| r.get(0),
+        |r| Ok((r.get(0)?, r.get(1)?)),
     )?;
-    let human_files: i64 = conn.query_row(
-        "SELECT count(DISTINCT json_extract(json,'$.path'))
-           FROM raw_records
-          WHERE kind = 'file_change' AND ts_ms >= ?1 AND ts_ms < ?2",
-        [from_ms, to_ms],
-        |r| r.get(0),
-    )?;
-    let total = ai_files + human_files;
-    let ai_share = if total > 0 {
-        Some((ai_files as f64) * 100.0 / (total as f64))
+    let ai_share = if all_files > 0 {
+        Some((ai_files as f64) * 100.0 / (all_files as f64))
     } else {
         None
     };

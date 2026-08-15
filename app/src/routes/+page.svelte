@@ -240,7 +240,9 @@
 		};
 	});
 
-	// Reloads whenever the range, the filters or the view change.
+	// The timeline. Range and view only — lanes and blocks load unfiltered so the
+	// rail can keep offering every category and project in range, including the one
+	// that would clear the current filter. Narrowing happens client-side below.
 	$effect(() => {
 		const from = fromMs;
 		const to = toMs;
@@ -249,11 +251,7 @@
 		void archiveVersion;
 		loading = true;
 
-		// Both queries run unfiltered. Filtering happens below, on what is already
-		// loaded, so the rail can keep offering every category and project in the
-		// range — including the one that would clear the current filter.
 		Promise.all([
-			archive.summary(from, to),
 			archive.lanes(from, to),
 			// Capped: the widest range holds thousands of blocks, and rendering
 			// them all is neither useful nor fast.
@@ -261,8 +259,7 @@
 				? archive.timeline(from, to, STREAM_LIMIT)
 				: Promise.resolve<BlockDetail[]>([])
 		])
-			.then(([s, l, b]) => {
-				summary = s;
+			.then(([l, b]) => {
 				lanes = l;
 				blocks = b;
 				error = null;
@@ -277,6 +274,25 @@
 				blocks = [];
 			})
 			.finally(() => (loading = false));
+	});
+
+	// The digest, on its own beat. It is a claim about what is on screen, so unlike
+	// the two queries above it follows the rail's filters — and it is the only one
+	// that has to refetch when they change, which is why it is a separate effect.
+	$effect(() => {
+		const from = fromMs;
+		const to = toMs;
+		const forProject = project;
+		const forCategory = category;
+		void archiveVersion;
+
+		archive
+			.summary(from, to, forProject ?? undefined, forCategory ?? undefined)
+			.then((s) => (summary = s))
+			.catch((e: Error) => {
+				summary = null;
+				error = e.message ?? String(e);
+			});
 	});
 
 	// The detail pane needs the selected block's contents whichever view chose it.
@@ -752,11 +768,10 @@
 						</p>
 					{/if}
 
-					{#if activeFilters.length}
+					{#if query}
 						<p class="scopes">
-							Covering the whole range — the timeline below is narrowed to {activeFilters
-								.map((f) => f.label)
-								.join(', ')}.
+							Narrowed to {project ?? category ?? 'this range'}, but not to “{query}” — a
+							text filter runs over what is loaded, so these figures do not follow it.
 						</p>
 					{/if}
 

@@ -297,7 +297,7 @@ fn day_view(date: Option<&str>) -> Result<()> {
 
     let conn = db::open_default()?;
     let config = Config::load()?;
-    let sum = stats::range_summary(&conn, from, to)?;
+    let sum = stats::range_summary(&conn, from, to, None)?;
 
     println!(
         "{}   {} elapsed · {} across projects · {} blocks · {} projects",
@@ -428,7 +428,7 @@ fn check(session: Option<&str>) -> Result<()> {
     println!("app read path:");
     step!("status", api::status(&conn, &config));
     step!("projects", api::projects(&conn, &config));
-    step!("summary", api::summary(&conn, week, now));
+    step!("summary", api::summary(&conn, &config, week, now, None, None));
     let lanes = step!("lanes", api::lanes(&conn, &config, week, now, None));
     let blocks = step!("timeline", api::timeline(&conn, &config, week, now, None, None, None));
     println!("        {} lanes, {} blocks", lanes.len(), blocks.len());

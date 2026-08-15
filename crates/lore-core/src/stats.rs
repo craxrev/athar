@@ -167,6 +167,22 @@ pub struct CommitRow {
 /// end at the far past rather than stop before yesterday. It applies here rather
 /// than at the caller: every block kept costs three further queries, so trimming
 /// afterwards would pay the whole price anyway.
+/// A `project_id IN (…)` fragment, or nothing when the filter is absent. The ids
+/// come from our own table and are integers, so interpolation carries no injection
+/// surface; rusqlite cannot bind a list without the `rarray` feature.
+pub fn in_scope(column: &str, scope: Option<&[i64]>) -> String {
+    match scope {
+        None => String::new(),
+        // An empty set is a real answer: a filter that admits no project should
+        // report zero, not everything.
+        Some(ids) if ids.is_empty() => format!("AND {column} IS NULL AND 1 = 0"),
+        Some(ids) => {
+            let list: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
+            format!("AND {column} IN ({})", list.join(","))
+        }
+    }
+}
+
 pub fn blocks_between(
     conn: &Connection,
     from_ms: i64,
@@ -304,13 +320,23 @@ pub struct RangeSummary {
     pub by_evidence: EvidenceMs,
 }
 
-pub fn range_summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<RangeSummary> {
-    let mut stmt = conn.prepare(
+/// `scope` is a pre-resolved list of project ids, or `None` for everything.
+/// Category is derived from the configured roots rather than stored, so it cannot
+/// be a `WHERE` clause — resolving both filters to concrete ids once is what keeps
+/// every figure in the digest on the same footing as the timeline beneath it.
+pub fn range_summary(
+    conn: &Connection,
+    from_ms: i64,
+    to_ms: i64,
+    scope: Option<&[i64]>,
+) -> Result<RangeSummary> {
+    let mut stmt = conn.prepare(&format!(
         "SELECT started_ms, ended_ms, project_id, sessions, commits, file_changes
            FROM blocks
-          WHERE started_ms < ?2 AND ended_ms >= ?1
+          WHERE started_ms < ?2 AND ended_ms >= ?1 {}
           ORDER BY started_ms",
-    )?;
+        in_scope("project_id", scope)
+    ))?;
     let rows = stmt.query_map([from_ms, to_ms], |r| {
         Ok((
             r.get::<_, i64>(0)?,

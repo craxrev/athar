@@ -72,8 +72,23 @@ fn projects(archive: State<Archive>) -> Reply<Vec<api::ProjectInfo>> {
 }
 
 #[tauri::command]
-fn summary(archive: State<Archive>, from_ms: i64, to_ms: i64) -> Reply<api::Summary> {
-    with_conn(&archive, |c, _| api::summary(c, from_ms, to_ms))
+fn summary(
+    archive: State<Archive>,
+    from_ms: i64,
+    to_ms: i64,
+    project: Option<String>,
+    category: Option<String>,
+) -> Reply<api::Summary> {
+    with_conn(&archive, |c, cfg| {
+        api::summary(
+            c,
+            cfg,
+            from_ms,
+            to_ms,
+            project.as_deref(),
+            category.as_deref(),
+        )
+    })
 }
 
 #[tauri::command]

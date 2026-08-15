@@ -932,6 +932,34 @@ mod tests {
             );
         }
 
+        /// Point subsequent records at a different project.
+        fn project(&mut self, path: &str) {
+            self.project = db::project_id(&self.conn, path).unwrap();
+        }
+
+        /// A filesystem save, as the file collector records one.
+        fn file_change(&mut self, ts: i64, path: &str) {
+            self.line += 1;
+            self.conn
+                .execute(
+                    "INSERT INTO raw_records
+                         (origin_id, ext_id, ts_ms, kind, project_id, json,
+                          bytes_original, truncated)
+                     VALUES (?1, ?2, ?3, 'file_change', ?4, ?5, 0, 0)",
+                    (
+                        self.origin,
+                        format!("{path}@{ts}"),
+                        ts,
+                        self.project,
+                        json!({
+                            "path": path, "mtime_ms": ts, "size": 10, "state": "dirty"
+                        })
+                        .to_string(),
+                    ),
+                )
+                .unwrap();
+        }
+
         fn commit(&mut self, ts: i64, sha: &str, message: &str, files: &[&str]) {
             let files: Vec<Value> = files
                 .iter()
@@ -1183,7 +1211,7 @@ mod tests {
 
         let from = base - MIN;
         let to = base + 300 * MIN;
-        let s = crate::api::summary(&f.conn, from, to).unwrap();
+        let s = crate::api::summary(&f.conn, &config, from, to, None, None).unwrap();
         let e = &s.by_evidence;
 
         assert_eq!(
@@ -1201,6 +1229,76 @@ mod tests {
         assert_eq!(crate::api::evidence_of(0, 2, 9), "commits");
         assert_eq!(crate::api::evidence_of(0, 0, 1), "saves");
         assert_eq!(crate::api::evidence_of(0, 0, 0), "bare");
+    }
+
+    /// The digest is narrowed the same way the timeline is. Unfiltered, it printed
+    /// a confident total for every project while the view below showed one.
+    #[test]
+    fn the_summary_narrows_to_the_filtered_project() {
+        let mut f = Fixture::new("/w/alpha");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "alpha work");
+        f.prompt(base + 3 * MIN, "s1", "more");
+        // A second project, an idle gap away, so the two never share a block.
+        f.project("/w/beta");
+        f.prompt(base + 90 * MIN, "s2", "beta work");
+        f.prompt(base + 93 * MIN, "s2", "more beta");
+
+        let config = test_config();
+        rebuild(&mut f.conn, &config).unwrap();
+        let (from, to) = (base - MIN, base + 300 * MIN);
+
+        let all = crate::api::summary(&f.conn, &config, from, to, None, None).unwrap();
+        let alpha =
+            crate::api::summary(&f.conn, &config, from, to, Some("/w/alpha"), None).unwrap();
+        let beta = crate::api::summary(&f.conn, &config, from, to, Some("/w/beta"), None).unwrap();
+
+        assert_eq!(all.sessions, 2, "both projects are in range unfiltered");
+        assert_eq!(alpha.sessions, 1, "the filter has to reach the census too");
+        assert_eq!(beta.sessions, 1);
+        assert_eq!(alpha.projects, 1);
+        assert_eq!(
+            alpha.project_ms + beta.project_ms,
+            all.project_ms,
+            "the parts of a partition must still sum to the whole"
+        );
+        assert_eq!(
+            alpha.by_evidence.sessions + beta.by_evidence.sessions,
+            all.by_evidence.sessions,
+            "the evidence split narrows with everything else"
+        );
+
+        // A filter admitting no project reports zero, not everything.
+        let none =
+            crate::api::summary(&f.conn, &config, from, to, Some("/w/nope"), None).unwrap();
+        assert_eq!(none.blocks, 0);
+        assert_eq!(none.sessions, 0);
+        assert_eq!(none.project_ms, 0);
+    }
+
+    /// The defect: a file the assistant wrote *and* the filesystem later recorded
+    /// counted twice in the denominator, once on each side, so the printed share
+    /// fell as the two sources agreed more.
+    #[test]
+    fn ai_share_counts_each_file_once() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "hi");
+        f.tool(base + MIN, "s1", "Write", json!({ "file_path": "/w/proj/a.rs" }));
+        // The same file, seen again as a filesystem change: one file, two sources.
+        f.file_change(base + 2 * MIN, "/w/proj/a.rs");
+
+        let config = test_config();
+        rebuild(&mut f.conn, &config).unwrap();
+        let s = crate::api::summary(&f.conn, &config, base - MIN, base + 60 * MIN, None, None)
+            .unwrap();
+
+        assert_eq!(
+            s.ai_share,
+            Some(100.0),
+            "one distinct file, written by the assistant — added rather than unioned \
+             this reported 50%"
+        );
     }
 
     #[test]
