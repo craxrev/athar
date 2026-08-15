@@ -216,7 +216,7 @@
 	}
 	.mark i {
 		height: 3px;
-		border-radius: 2px;
+		border-radius: var(--radius-mark);
 		background: var(--accent);
 	}
 	.mark i:nth-child(2) {
@@ -304,7 +304,7 @@
 		width: 9px;
 		height: 9px;
 		flex: none;
-		border-radius: 3px;
+		border-radius: var(--radius-swatch);
 		background: var(--text-faint);
 	}
 	.swatch.all {
@@ -345,7 +345,7 @@
 		width: 7px;
 		height: 7px;
 		flex: none;
-		border-radius: 50%;
+		border-radius: var(--radius-circle);
 		background: var(--add);
 	}
 	.dot.stale {

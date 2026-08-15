@@ -923,7 +923,7 @@
 	}
 	.shell.rail-closed .toolbar {
 		/* Traffic lights sit here when the rail is closed. */
-		padding-left: 82px;
+		padding-left: var(--traffic-inset-wide);
 	}
 
 	.ghost {
@@ -1186,7 +1186,7 @@
 		min-height: 26px;
 		padding: 4px 9px;
 		border: 1px solid var(--line-strong);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--surface-raised);
 		color: var(--text-dim);
 		font-size: var(--fs-meta);

@@ -20,7 +20,7 @@
 		   floor: inside a 13.5px table cell, 0.92em alone computes to 12.42px. */
 		font-size: max(var(--fs-min), 0.92em);
 		padding: 1px 5px;
-		border-radius: 4px;
+		border-radius: var(--radius-bar);
 		background: var(--surface-inset);
 		color: var(--text);
 	}

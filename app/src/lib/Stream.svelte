@@ -400,7 +400,7 @@
 		font-size: var(--fs-meta);
 		font-weight: 560;
 		padding: 2px 7px;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		color: var(--text-dim);
 		background: rgba(255, 255, 255, 0.06);
 	}
@@ -543,7 +543,7 @@
 		font-size: var(--fs-meta);
 		font-weight: 540;
 		padding: 2px 8px;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 	}
 	.flag.amber {
 		color: var(--amber);

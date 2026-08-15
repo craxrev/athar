@@ -104,7 +104,7 @@
 		top: 4px;
 		width: 9px;
 		height: 9px;
-		border-radius: 50%;
+		border-radius: var(--radius-circle);
 		background: var(--text-dim);
 		box-shadow: 0 0 0 3px var(--surface);
 	}

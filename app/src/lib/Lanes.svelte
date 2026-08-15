@@ -321,7 +321,7 @@
 		width: 26px;
 		height: 12px;
 		flex: none;
-		border-radius: 3px;
+		border-radius: var(--radius-swatch);
 	}
 
 	.body {
@@ -356,7 +356,7 @@
 	.swatch {
 		width: 9px;
 		height: 9px;
-		border-radius: 3px;
+		border-radius: var(--radius-swatch);
 		background: var(--text-faint);
 	}
 	.swatch[data-category='work'] {
@@ -469,7 +469,7 @@
 		top: 0;
 		bottom: 0;
 		width: 3px;
-		border-radius: 2px;
+		border-radius: var(--radius-mark);
 		background: var(--ink);
 	}
 	.mark[data-evidence='saves']::before {
@@ -495,7 +495,7 @@
 		height: 23px;
 		min-width: 3px;
 		transform: translateY(-50%);
-		border-radius: 4px;
+		border-radius: var(--radius-bar);
 		display: flex;
 		align-items: center;
 		justify-content: flex-end;
@@ -549,7 +549,7 @@
 	.commits i {
 		width: 3px;
 		height: 12px;
-		border-radius: 2px;
+		border-radius: var(--radius-mark);
 		background: rgba(255, 255, 255, 0.82);
 	}
 

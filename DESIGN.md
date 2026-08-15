@@ -305,11 +305,19 @@ heading than below it. Lane rows are 40px with 23px bars; the lane gutter is
 rather than to project names.
 
 The spacing scale in the frontmatter is a **stated target, not an implemented
-one.** No spacing custom properties exist yet, and roughly four fifths of the
-build's padding and gap values sit off those six steps — `10px`, `8px`, `6px` and
-`12px` are the four most-used values in the app and none is on the scale. Treat
-the scale as binding for new work and reach for `/impeccable extract` before
-claiming the build honours it.
+one**, and deliberately has no tokens. The build uses fourteen distinct values
+with no dominant ramp — `10px`, `8px`, `6px`, `9px` and `12px` lead, and none of
+them is on the declared six steps. A variable per value would be a dictionary,
+not a system, so spacing stays literal until someone decides to move the build
+onto a scale rather than describe one it does not follow. Treat the six steps as
+binding for new work and as aspiration for old.
+
+Radius went the other way, because it *was* a real system with missing parts: all
+seven documented steps are now tokens (`--radius`, `--radius-sm`, `--radius-bar`,
+`--radius-swatch`, `--radius-mark`, `--radius-pill`, `--radius-circle`) and no
+`border-radius` literal remains in the build. Two structural constants are named
+for the same reason: `--traffic-inset` and `--traffic-inset-wide` are where macOS
+puts its window controls, measured for two bar heights, and they move together.
 
 Reading measure is capped at 78ch in the conversation reader, centred, regardless
 of window width.

@@ -327,7 +327,7 @@
 		align-items: center;
 		gap: 5px;
 		padding: 5px 10px 5px 6px;
-		margin-left: 62px;
+		margin-left: var(--traffic-inset);
 		border-radius: var(--radius-sm);
 		color: var(--text-dim);
 		font-size: 14px;
@@ -434,7 +434,7 @@
 		width: 9px;
 		height: 9px;
 		flex: none;
-		border-radius: 3px;
+		border-radius: var(--radius-swatch);
 		background: var(--text-faint);
 	}
 	.swatch[data-category='work'] {
@@ -568,7 +568,7 @@
 	}
 	.chip {
 		padding: 3px 9px;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--surface-raised);
 		font-family: var(--mono);
 		font-size: var(--fs-min);

@@ -59,8 +59,21 @@
 		--cat-freelance-fill: rgba(242, 169, 59, 0.14);
 		--cat-freelance-tint: #f6c987;
 
-		--radius: 9px;
-		--radius-sm: 6px;
+		/* Seven steps, each with a job. Only the first two existed as tokens, so the
+		   other five were literals repeated across components — a documented scale
+		   nobody could actually reference. */
+		--radius: 9px; /* panes, block cards, control groups */
+		--radius-sm: 6px; /* controls, inner cards */
+		--radius-bar: 4px; /* lane bars */
+		--radius-swatch: 3px; /* category swatches: square-ish, so they read as keys */
+		--radius-mark: 2px; /* commit ticks and the wordmark strokes */
+		--radius-pill: 999px; /* chips, badges, scrollbars */
+		--radius-circle: 50%; /* the status dot, the moment marks */
+
+		/* macOS puts its window controls here. The same fact, measured for two
+		   different bar heights; if Apple moves them, both move together. */
+		--traffic-inset: 62px;
+		--traffic-inset-wide: 82px;
 
 		/* Motion by purpose, not by feel.
 		   `state` is the response to a pointer or a toggle. `live` is the one kind
@@ -170,7 +183,7 @@
 		background: rgba(255, 255, 255, 0.12);
 		border: 3px solid transparent;
 		background-clip: content-box;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 	}
 	:global(::-webkit-scrollbar-thumb:hover) {
 		background: rgba(255, 255, 255, 0.22);
