@@ -71,8 +71,12 @@
 				if (t > toMs) break;
 				out.push({ at: left(t), label: `${String(h).padStart(2, '0')}:00`, major: h % 6 === 0 });
 			}
-		} else if (scope === 'week' || scope === 'month') {
-			const step = scope === 'week' ? 1 : 7;
+			// A brand-new archive can hold a single day, and "all time" over it drew one
+			// lone label with nothing to measure against. A short span reads as days
+			// whatever the scope is called.
+		} else if (scope === 'week' || scope === 'month' || toMs - fromMs <= 62 * 86_400_000) {
+			const days = (toMs - fromMs) / 86_400_000;
+			const step = days <= 9 ? 1 : days <= 40 ? 7 : 14;
 			const cursor = new Date(fromMs);
 			while (cursor.getTime() <= toMs) {
 				const d = new Date(cursor);
@@ -86,15 +90,35 @@
 				cursor.setDate(cursor.getDate() + step);
 			}
 		} else {
+			// The step follows the span rather than assuming years. Fixed at twelve
+			// months, an archive spanning less than two calendar years drew exactly
+			// one tick at position zero — the scope built for the long view had no
+			// usable axis on the only data that exists yet.
+			const months = Math.max(
+				1,
+				Math.round((toMs - fromMs) / (30.44 * 86_400_000))
+			);
+			const step = [1, 2, 3, 6, 12, 24, 60].find((n) => months / n <= 10) ?? 120;
 			const cursor = new Date(fromMs);
-			cursor.setMonth(0, 1);
+			// Snap to the start of a period so labels land on round dates.
+			cursor.setDate(1);
+			cursor.setHours(0, 0, 0, 0);
+			if (step >= 12) cursor.setMonth(0);
+			else cursor.setMonth(Math.floor(cursor.getMonth() / step) * step);
 			while (cursor.getTime() <= toMs) {
+				const y = cursor.getFullYear();
 				out.push({
 					at: left(cursor.getTime()),
-					label: String(cursor.getFullYear()),
-					major: true
+					label:
+						step >= 12
+							? String(y)
+							: cursor.getMonth() === 0
+								? String(y)
+								: cursor.toLocaleDateString(undefined, { month: 'short' }),
+					// January carries the year and anchors the eye; the rest are minor.
+					major: step >= 12 || cursor.getMonth() === 0
 				});
-				cursor.setMonth(cursor.getMonth() + 12);
+				cursor.setMonth(cursor.getMonth() + step);
 			}
 		}
 		// Keep only labels that clear their neighbour by a readable gap. Below the

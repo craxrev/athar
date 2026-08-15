@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Detail from '$lib/Detail.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import Lanes from '$lib/Lanes.svelte';
@@ -35,6 +36,47 @@
 	let query = $state('');
 	let railOpen = $state(true);
 	let detailOpen = $state(true);
+
+	/** Below this the three panes cannot all be useful at once: at 1120px the outer
+	 *  two leave the timeline about 500px, and at the window's own 880px minimum
+	 *  they leave 264px, which is not a timeline.
+	 *
+	 *  This used to be a media query hiding `aside.detail` while `detailOpen` stayed
+	 *  true — so selecting a block lit a bar and showed nothing, and ⇧⌘B did nothing
+	 *  visible, for every width the window is allowed to be between 880 and 1120.
+	 *  Rendering now follows state, and state follows the measurement, so the two
+	 *  cannot disagree. The outer panes simply become mutually exclusive: detail is
+	 *  the answer to a selection, the rail is how you ask the next question, and
+	 *  both stay one keystroke away. */
+	const TIGHT = 1120;
+	let tight = $state(false);
+	$effect(() => {
+		const mq = window.matchMedia(`(max-width: ${TIGHT}px)`);
+		tight = mq.matches;
+		const onChange = (e: MediaQueryListEvent) => (tight = e.matches);
+		mq.addEventListener('change', onChange);
+		return () => mq.removeEventListener('change', onChange);
+	});
+
+	// Only on the way in, and only when both are open. Reads of the pane state are
+	// untracked so this settles once per crossing rather than fighting the toggles.
+	$effect(() => {
+		if (!tight) return;
+		untrack(() => {
+			if (!railOpen || !detailOpen) return;
+			if (selectedBlock !== null) railOpen = false;
+			else detailOpen = false;
+		});
+	});
+
+	function toggleRail() {
+		railOpen = !railOpen;
+		if (tight && railOpen) detailOpen = false;
+	}
+	function toggleDetail() {
+		detailOpen = !detailOpen;
+		if (tight && detailOpen) railOpen = false;
+	}
 
 	let status = $state<CollectorStatus | null>(null);
 	let summary = $state<Summary | null>(null);
@@ -248,6 +290,7 @@
 	async function select(blockId: number) {
 		selectedBlock = blockId;
 		detailOpen = true;
+		if (tight) railOpen = false;
 		detailError = null;
 
 		// Stream loads its blocks in full, so a selection made there is already
@@ -476,8 +519,8 @@
 		// off that surface this would silently rearrange the view you return to.
 		if (event.metaKey && event.key.toLowerCase() === 'b' && !covered) {
 			event.preventDefault();
-			if (event.shiftKey) detailOpen = !detailOpen;
-			else railOpen = !railOpen;
+			if (event.shiftKey) toggleDetail();
+			else toggleRail();
 			return;
 		}
 
@@ -574,7 +617,7 @@
 			<div class="toolbar" data-tauri-drag-region>
 				<button
 					class="ghost"
-					onclick={() => (railOpen = !railOpen)}
+					onclick={toggleRail}
 					title="Toggle scope rail (⌘B)"
 					aria-label="Toggle scope rail"
 				>
@@ -617,7 +660,7 @@
 
 				<button
 					class="ghost"
-					onclick={() => (detailOpen = !detailOpen)}
+					onclick={toggleDetail}
 					title="Toggle detail (⇧⌘B)"
 					aria-label="Toggle detail"
 				>
@@ -778,26 +821,9 @@
 		overflow: hidden;
 	}
 
-	/* Below these widths a pane costs more than it gives: at 900px the three-pane
-	   layout left the timeline about 280px, which is not a timeline. A pane taken
-	   out here leaves no reserved space and nothing showing through. */
 	@media (prefers-reduced-motion: reduce) {
 		.views button {
 			transition: none;
-		}
-	}
-
-	@media (max-width: 1120px) {
-		.shell:not(.reading) :global(aside.detail) {
-			display: none;
-		}
-	}
-	@media (max-width: 880px) {
-		.shell:not(.reading) :global(nav.rail) {
-			display: none;
-		}
-		.toolbar {
-			padding-left: 82px;
 		}
 	}
 
