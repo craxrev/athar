@@ -35,10 +35,13 @@
 		onProject: (p: string | null) => void;
 	} = $props();
 
+	/** The unit, not the instance. These read as "Today" / "This week" only while
+	 *  the range sits on the present; the range bar above the timeline names which
+	 *  day or week is actually on screen, and these stay true at any offset. */
 	const scopes = [
-		{ id: 'day', label: 'Today' },
-		{ id: 'week', label: 'This week' },
-		{ id: 'month', label: 'This month' },
+		{ id: 'day', label: 'By day' },
+		{ id: 'week', label: 'By week' },
+		{ id: 'month', label: 'By month' },
 		{ id: 'all', label: 'All time' }
 	] as const;
 

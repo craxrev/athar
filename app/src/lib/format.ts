@@ -97,6 +97,35 @@ export const startOfWeek = (ms: number): number => {
 	return d.getTime();
 };
 
+/** Calendar arithmetic, not millisecond arithmetic: adding 7 * 86_400_000 across a
+ *  daylight-saving boundary lands an hour off, and a month is not a fixed length
+ *  at all. Both go through Date so the steps stay on real boundaries. */
+export const addDays = (ms: number, n: number): number => {
+	const d = new Date(ms);
+	d.setDate(d.getDate() + n);
+	return d.getTime();
+};
+
+export const addMonths = (ms: number, n: number): number => {
+	const d = new Date(ms);
+	d.setMonth(d.getMonth() + n);
+	return d.getTime();
+};
+
+const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+const dayShortFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' });
+
+/** What range is actually on screen, said plainly. Four presets anchored to `now`
+ *  never needed this; a range you can step does. */
+export function rangeLabel(scope: 'day' | 'week' | 'month' | 'all', fromMs: number, toMs: number): string {
+	if (scope === 'all') return 'Everything archived';
+	if (scope === 'month') return monthFmt.format(new Date(fromMs));
+	if (scope === 'day') return fullDay(fromMs);
+	// A week: name both ends, and carry the month only where it changes.
+	const last = new Date(toMs - 1);
+	return `${dayShortFmt.format(new Date(fromMs))} – ${day(last.getTime())}`;
+}
+
 export const startOfMonth = (ms: number): number => {
 	const d = new Date(startOfDay(ms));
 	d.setDate(1);

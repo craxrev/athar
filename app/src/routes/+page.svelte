@@ -17,8 +17,11 @@
 		type Summary
 	} from '$lib/archive';
 	import {
+		addDays,
+		addMonths,
 		compactDuration,
 		duration,
+		rangeLabel,
 		shortPath,
 		startOfDay,
 		startOfMonth,
@@ -39,6 +42,13 @@
 	 *  itself when the range changes would make the app unpredictable. */
 	let view = $state<View>((localStorage.getItem('lore.view') as View) ?? 'lanes');
 	let scope = $state<Scope>((localStorage.getItem('lore.scope') as Scope) ?? 'week');
+	/** How many periods back from the present the range sits. Zero is now.
+	 *
+	 *  Without this the range derived purely from `Date.now()`, so there was no way
+	 *  to reach a specific past day at all — against a product whose first job is
+	 *  reconstructing what happened on one. Ruling out the calendar grid removed the
+	 *  grid, not the need to navigate. */
+	let offset = $state(0);
 	let category = $state<string | null>(null);
 	let project = $state<string | null>(null);
 	let query = $state('');
@@ -117,22 +127,41 @@
 	 *  before the previous had finished and the view never settled. Numbers are
 	 *  compared by value, and the end is quantised to the end of today so a
 	 *  recomputation does not shift it by milliseconds. */
-	let fromMs = $derived.by(() => {
+	let range = $derived.by(() => {
 		const now = Date.now();
 		switch (scope) {
-			case 'day':
-				return startOfDay(now);
-			case 'week':
-				return startOfWeek(now);
-			case 'month':
-				return startOfMonth(now);
+			case 'day': {
+				const from = addDays(startOfDay(now), offset);
+				return { from, to: addDays(from, 1) };
+			}
+			case 'week': {
+				const from = addDays(startOfWeek(now), offset * 7);
+				return { from, to: addDays(from, 7) };
+			}
+			case 'month': {
+				const from = addMonths(startOfMonth(now), offset);
+				return { from, to: addMonths(from, 1) };
+			}
 			default:
-				return status?.earliest_ms ?? now - 365 * 86_400_000;
+				// All time has no periods to step through; it is already everything.
+				return {
+					from: status?.earliest_ms ?? now - 365 * 86_400_000,
+					to: startOfDay(now) + 86_400_000
+				};
 		}
 	});
-	// Always the end of today: every scope ends at now, and quantising to the day
-	// keeps a recomputation from shifting the range by milliseconds.
-	let toMs = $derived(startOfDay(Date.now()) + 86_400_000);
+	let fromMs = $derived(range.from);
+	let toMs = $derived(range.to);
+	let atPresent = $derived(offset === 0);
+	let steppable = $derived(scope !== 'all');
+
+	function stepRange(by: number) {
+		if (!steppable) return;
+		// Never past the current period: there is no record of the future, and an
+		// empty range that cannot contain anything is not a state worth reaching.
+		offset = Math.min(0, offset + by);
+		clearSelection();
+	}
 
 	$effect(() => {
 		const onError = (e: ErrorEvent) => (crash = `${e.message} — ${e.filename}:${e.lineno}`);
@@ -601,7 +630,18 @@
 		if (scopeKeys[event.key]) {
 			event.preventDefault();
 			scope = scopeKeys[event.key];
+			offset = 0;
 			clearSelection();
+			return;
+		}
+		if (event.key === 'ArrowLeft') {
+			event.preventDefault();
+			stepRange(-1);
+			return;
+		}
+		if (event.key === 'ArrowRight') {
+			event.preventDefault();
+			stepRange(1);
 			return;
 		}
 		switch (event.key.toLowerCase()) {
@@ -652,6 +692,7 @@
 			{intervalMins}
 			onScope={(s) => {
 				scope = s;
+				offset = 0;
 				clearSelection();
 			}}
 			onCategory={(c) => (category = c)}
@@ -741,7 +782,41 @@
 				</button>
 			</div>
 
-			{#if summary && summary.blocks > 0}
+			<div class="context">
+				<div class="rangebar">
+					<button
+					class="stepper back"
+					onclick={() => stepRange(-1)}
+					disabled={!steppable}
+					title="Previous {scope} (←)"
+					aria-label="Previous {scope}"
+					>
+					<Icon name="chevron" size={16} />
+					</button>
+					<span class="range" aria-live="polite">{rangeLabel(scope, fromMs, toMs)}</span>
+					<button
+					class="stepper"
+					onclick={() => stepRange(1)}
+					disabled={!steppable || atPresent}
+					title="Next {scope} (→)"
+					aria-label="Next {scope}"
+					>
+					<Icon name="chevron" size={16} />
+					</button>
+					{#if !atPresent}
+						<button
+							class="now"
+							onclick={() => {
+								offset = 0;
+								clearSelection();
+							}}
+						>
+							Back to now
+						</button>
+					{/if}
+				</div>
+
+				{#if summary && summary.blocks > 0}
 				<!-- Insight lives beside the range it describes, not on its own screen.
 				     Two tiers, because the strip carried six peers and led with none:
 				     time answers "where did it go", the census answers "how much of
@@ -791,6 +866,7 @@
 					</div>
 				</div>
 			{/if}
+			</div>
 
 			<div class="stage">
 				{#if crash}
@@ -1062,12 +1138,66 @@
 		color: var(--text);
 	}
 
+	/* Navigation and context in one line, above the figures and independent of
+	   them: a range holding nothing still has to say which range it is, and still
+	   has to let you leave. */
+	.context {
+		flex: none;
+		border-bottom: 1px solid var(--line);
+	}
+	.rangebar {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		padding: 8px 18px 0;
+	}
+	.stepper {
+		display: grid;
+		place-items: center;
+		width: 24px;
+		height: 24px;
+		border-radius: var(--radius-sm);
+		color: var(--text-faint);
+	}
+	.stepper.back :global(svg) {
+		transform: rotate(180deg);
+	}
+	.stepper:hover:not(:disabled) {
+		background: var(--surface-hover);
+		color: var(--text);
+	}
+	.stepper:disabled {
+		opacity: 0.35;
+		cursor: default;
+	}
+	.rangebar:only-child {
+		padding-bottom: 8px;
+	}
+	.range {
+		font-size: 14px;
+		font-weight: 560;
+		color: var(--text-dim);
+	}
+	/* Only present when there is somewhere to come back from. */
+	.now {
+		margin-left: 4px;
+		padding: 3px 9px;
+		border-radius: var(--radius-pill);
+		background: var(--accent-soft);
+		box-shadow: inset 0 0 0 1px var(--accent-edge);
+		color: var(--text);
+		font-size: var(--fs-meta);
+		font-weight: 540;
+	}
+	.now:hover {
+		background: var(--surface-hover);
+	}
+
 	.digest {
 		display: flex;
 		flex-direction: column;
 		flex: none;
-		padding: 11px 18px 12px;
-		border-bottom: 1px solid var(--line);
+		padding: 8px 18px 12px;
 		font-size: 13.5px;
 		font-weight: 500;
 		color: var(--text-faint);
