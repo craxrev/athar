@@ -98,6 +98,16 @@ fn timeline(
     })
 }
 
+/// One block by id.
+///
+/// Lanes holds bars, not blocks, so selecting a bar used to re-run the entire
+/// range query to find a single row — and on the widest range that is the whole
+/// block table, fetched per click.
+#[tauri::command]
+fn block(archive: State<Archive>, id: i64) -> Reply<Option<api::BlockDetail>> {
+    with_conn(&archive, |c, cfg| api::block(c, cfg, id))
+}
+
 #[tauri::command]
 fn lanes(
     archive: State<Archive>,
@@ -253,6 +263,7 @@ pub fn run() {
             projects,
             summary,
             timeline,
+            block,
             lanes,
             session,
             commit_files,

@@ -13,7 +13,7 @@
 	}: {
 		blocks: BlockDetail[];
 		selected: number | null;
-		onSelect: (blockId: number, projectPath: string) => void;
+		onSelect: (blockId: number) => void;
 		onOpenSession: (id: string) => void;
 	} = $props();
 
@@ -126,7 +126,7 @@
 
 			{#each d.blocks as block (block.id)}
 				<article class:on={selected === block.id}>
-					<button class="head" onclick={() => onSelect(block.id, block.project_path)}>
+					<button class="head" onclick={() => onSelect(block.id)}>
 						<span class="num when">{clock(block.started_ms)}</span>
 						<span class="project">{block.project}</span>
 						<span class="swatch" data-category={block.category}>{block.category}</span>

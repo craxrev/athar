@@ -6,14 +6,31 @@
 
 	let {
 		block,
+		loading = false,
+		error = null,
 		onOpenSession
-	}: { block: BlockDetail | null; onOpenSession: (id: string) => void } = $props();
+	}: {
+		block: BlockDetail | null;
+		/** A selection is being read. The pane must say so rather than keep
+		 *  describing the block that was selected before it. */
+		loading?: boolean;
+		error?: string | null;
+		onOpenSession: (id: string) => void;
+	} = $props();
 </script>
 
 <aside class="detail">
 	<div class="drag" data-tauri-drag-region></div>
 
-	{#if !block}
+	{#if loading}
+		<div class="idle">
+			<p>Reading this block…</p>
+		</div>
+	{:else if error}
+		<div class="idle">
+			<p class="fault">{error}</p>
+		</div>
+	{:else if !block}
 		<div class="idle">
 			<p>Select a block to see what happened in it.</p>
 		</div>
@@ -144,6 +161,14 @@
 		color: var(--text-faint);
 		font-size: 14px;
 		text-align: center;
+	}
+	/* A pane that could not read its block says why, in the same voice the
+	   window's own fault panel uses. */
+	.fault {
+		margin: 0;
+		max-width: 34ch;
+		line-height: 1.55;
+		color: var(--del);
 	}
 
 	header {

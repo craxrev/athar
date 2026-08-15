@@ -147,6 +147,34 @@ pub fn blocks_between(
     Ok(out)
 }
 
+/// One block, by id.
+///
+/// The Lanes view carries bars rather than blocks, so selecting one had nothing
+/// in hand and re-ran the whole range query to find a single row — the full
+/// block table, on the widest range, for one click. `None` is a real answer: a
+/// rebuild renumbers derived rows, so a selection can outlive the block it names.
+pub fn block(conn: &Connection, id: i64) -> Result<Option<BlockRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT b.id, p.path, b.started_ms, b.ended_ms, b.sessions, b.commits,
+                b.file_changes, b.records
+           FROM blocks b JOIN projects p ON p.id = b.project_id
+          WHERE b.id = ?1",
+    )?;
+    let mut rows = stmt.query_map([id], |r| {
+        Ok(BlockRow {
+            id: r.get(0)?,
+            project: r.get(1)?,
+            started_ms: r.get(2)?,
+            ended_ms: r.get(3)?,
+            sessions: r.get(4)?,
+            commits: r.get(5)?,
+            file_changes: r.get(6)?,
+            records: r.get(7)?,
+        })
+    })?;
+    Ok(rows.next().transpose()?)
+}
+
 pub fn sessions_in_block(conn: &Connection, block_id: i64) -> Result<Vec<SessionRow>> {
     let mut stmt = conn.prepare(
         "SELECT session_id, title, started_ms, ended_ms, prompts, tool_calls,

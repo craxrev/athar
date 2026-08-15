@@ -15,7 +15,7 @@
 		toMs: number;
 		scope: 'day' | 'week' | 'month' | 'all';
 		selected: number | null;
-		onSelect: (blockId: number, projectPath: string) => void;
+		onSelect: (blockId: number) => void;
 	} = $props();
 
 	/** Measured, because label collision is a pixel problem: the same 6% of track
@@ -163,7 +163,7 @@
 									style="left: {left(b.started_ms)}%; width: {width(b)}%"
 									title={barTitle(lane, b)}
 									aria-label={barTitle(lane, b)}
-									onclick={() => onSelect(b.block_id, lane.project_path)}
+									onclick={() => onSelect(b.block_id)}
 								>
 									{#if b.commits > 0 && width(b) >= 1.4}
 										<span class="commits" aria-hidden="true">

@@ -311,6 +311,38 @@ pub fn summary(conn: &Connection, from_ms: i64, to_ms: i64) -> Result<Summary> {
     })
 }
 
+/// One block with everything that fell inside it.
+///
+/// Shared by the range query and the single-block one so the two can never
+/// drift: a block selected from Lanes and the same block read from Stream are
+/// the same object, assembled once.
+fn detail_of(
+    conn: &Connection,
+    config: &Config,
+    block: crate::stats::BlockRow,
+) -> Result<BlockDetail> {
+    Ok(BlockDetail {
+        id: block.id,
+        records: block.records,
+        project: leaf(&block.project),
+        category: category(config, &block.project),
+        started_ms: block.started_ms,
+        ended_ms: block.ended_ms,
+        sessions: sessions_in_block(conn, block.id)?,
+        commits: commits_in_block(conn, block.id)?,
+        file_changes: file_changes_in_block(conn, block.id)?,
+        project_path: block.project,
+    })
+}
+
+/// A single block, for a selection made in a view that does not carry one.
+pub fn block(conn: &Connection, config: &Config, id: i64) -> Result<Option<BlockDetail>> {
+    match crate::stats::block(conn, id)? {
+        Some(row) => Ok(Some(detail_of(conn, config, row)?)),
+        None => Ok(None),
+    }
+}
+
 /// The Stream view: blocks in range, each with everything that fell inside it.
 pub fn timeline(
     conn: &Connection,
@@ -328,23 +360,11 @@ pub fn timeline(
         if project_filter.is_some_and(|p| p != block.project) {
             continue;
         }
-        let cat = category(config, &block.project);
-        if category_filter.is_some_and(|c| c != cat) {
+        if category_filter.is_some_and(|c| c != category(config, &block.project)) {
             continue;
         }
 
-        out.push(BlockDetail {
-            id: block.id,
-            records: block.records,
-            project: leaf(&block.project),
-            category: cat,
-            started_ms: block.started_ms,
-            ended_ms: block.ended_ms,
-            sessions: sessions_in_block(conn, block.id)?,
-            commits: commits_in_block(conn, block.id)?,
-            file_changes: file_changes_in_block(conn, block.id)?,
-            project_path: block.project,
-        });
+        out.push(detail_of(conn, config, block)?);
     }
     Ok(out)
 }

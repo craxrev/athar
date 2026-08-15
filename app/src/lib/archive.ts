@@ -222,6 +222,9 @@ export const archive = {
 			category: category ?? null,
 			limit: limit ?? null
 		}),
+	/** One block. Lanes carries bars rather than blocks, so a selection there has
+	 *  nothing in hand; asking for the one row beats re-running the range. */
+	block: (id: number) => call<BlockDetail | null>('block', { id }),
 	lanes: (fromMs: number, toMs: number, category?: string) =>
 		call<Lane[]>('lanes', { fromMs, toMs, category: category ?? null }),
 	session: (id: string) => call<SessionDetail | null>('session', { id }),

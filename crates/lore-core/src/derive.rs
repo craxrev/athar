@@ -1124,6 +1124,46 @@ mod tests {
         assert_eq!(writes, 1);
     }
 
+    /// The defect: Lanes carries bars, not blocks, so selecting one re-ran the
+    /// whole range query to find a single row and rendered whatever it found.
+    /// Reading one block has to answer exactly what the range answers for it,
+    /// or the pane and the timeline would describe the same block differently.
+    #[test]
+    fn one_block_reads_the_same_as_the_range_does() {
+        let mut f = Fixture::new("/w/proj");
+        let base = 1_780_000_000_000;
+        f.prompt(base, "s1", "hi");
+        f.tool(base + MIN, "s1", "Write", json!({ "file_path": "/w/proj/a.rs" }));
+        f.commit(base + 2 * MIN, "ccc333", "feat: a", &["a.rs"]);
+        // A second block, an idle gap later, so a wrong id cannot pass by being
+        // the only row in the table.
+        f.prompt(base + 90 * MIN, "s2", "again");
+
+        let config = test_config();
+        rebuild(&mut f.conn, &config).unwrap();
+
+        let range =
+            crate::api::timeline(&f.conn, &config, base - MIN, base + 200 * MIN, None, None, None)
+                .unwrap();
+        assert_eq!(range.len(), 2, "the idle gap should have split the work");
+
+        for want in &range {
+            let one = crate::api::block(&f.conn, &config, want.id)
+                .unwrap()
+                .expect("a block the range returned must be readable on its own");
+            assert_eq!(
+                serde_json::to_value(&one).unwrap(),
+                serde_json::to_value(want).unwrap(),
+                "block {} differs between the single read and the range",
+                want.id
+            );
+        }
+
+        // A selection can outlive the block it names, and `None` is the answer
+        // the pane needs in order to say so rather than show the last one.
+        assert!(crate::api::block(&f.conn, &config, 9_999).unwrap().is_none());
+    }
+
     #[test]
     fn rebuilding_twice_produces_the_same_result() {
         let mut f = Fixture::new("/w/proj");

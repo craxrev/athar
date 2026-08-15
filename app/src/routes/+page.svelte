@@ -223,21 +223,63 @@
 
 	// The detail pane needs the selected block's contents whichever view chose it.
 	let selectedDetail = $state<BlockDetail | null>(null);
-	async function select(blockId: number, projectPath: string) {
+	/** Set while a selection is being read, so the pane says so rather than going
+	 *  on showing the block that was selected before it. */
+	let detailLoading = $state(false);
+	/** Scoped to the pane on purpose: one selection failing to read is not a
+	 *  reason to replace the whole timeline with an error screen. */
+	let detailError = $state<string | null>(null);
+	/** Identifies the newest selection.
+	 *
+	 *  Three bars clicked in two seconds start three reads, and without this the
+	 *  last one to *answer* wins rather than the last one asked for — the pane
+	 *  settles on a block the pointer already moved off. A stale answer is
+	 *  dropped rather than raced. */
+	let selectRequest = 0;
+
+	function clearSelection() {
+		selectRequest += 1;
+		selectedBlock = null;
+		selectedDetail = null;
+		detailLoading = false;
+		detailError = null;
+	}
+
+	async function select(blockId: number) {
 		selectedBlock = blockId;
 		detailOpen = true;
+		detailError = null;
+
+		// Stream loads its blocks in full, so a selection made there is already
+		// in hand and never flickers through a loading state.
 		const known = blocks.find((b) => b.id === blockId);
 		if (known) {
+			selectRequest += 1;
 			selectedDetail = known;
+			detailLoading = false;
 			return;
 		}
+
+		// Cleared *before* the await, not after it. A pane still describing the
+		// previous block beside a freshly highlighted bar is a confident wrong
+		// answer, which is the one thing this window must never render — and in
+		// Lanes, where no block is ever held locally, it was every selection.
+		const ticket = ++selectRequest;
+		selectedDetail = null;
+		detailLoading = true;
 		try {
-			const found = await archive.timeline(fromMs, toMs);
-			selectedDetail = found.find((b) => b.id === blockId) ?? null;
+			const found = await archive.block(blockId);
+			if (ticket !== selectRequest) return;
+			selectedDetail = found;
+			// A rebuild renumbers derived rows, so a selection can outlive the
+			// block it names. Saying so beats an empty pane.
+			detailError = found ? null : 'That block is no longer in the archive — a rebuild has replaced it. Select another.';
 		} catch (e) {
-			error = (e as Error).message;
+			if (ticket !== selectRequest) return;
+			detailError = (e as Error).message;
+		} finally {
+			if (ticket === selectRequest) detailLoading = false;
 		}
-		void projectPath;
 	}
 
 	async function openSession(id: string) {
@@ -315,55 +357,84 @@
 	/** Every block on screen in view order, so the keyboard can walk them. */
 	let walkable = $derived.by(() =>
 		view === 'lanes'
-			? filteredLanes.flatMap((l) => l.bars.map((b) => ({ id: b.block_id, path: l.project_path })))
-			: filteredBlocks.map((b) => ({ id: b.id, path: b.project_path }))
+			? filteredLanes.flatMap((l) => l.bars.map((b) => b.block_id))
+			: filteredBlocks.map((b) => b.id)
 	);
 
 	function step(delta: number) {
 		if (walkable.length === 0) return;
-		const at = walkable.findIndex((w) => w.id === selectedBlock);
+		const at = selectedBlock === null ? -1 : walkable.indexOf(selectedBlock);
 		const next = at === -1 ? (delta > 0 ? 0 : walkable.length - 1) : at + delta;
 		const target = walkable[Math.max(0, Math.min(next, walkable.length - 1))];
-		if (target) void select(target.id, target.path);
+		if (target !== undefined) void select(target);
 	}
 
 	/** Single-key shortcuts, no modifier: this is a tool for someone whose hands
 	 *  are already on the keyboard, and reaching for the mouse to change range is
-	 *  the friction the brief rules out. */
+	 *  the friction the brief rules out.
+	 *
+	 *  Two things scope them, and both were missing.
+	 *
+	 *  A field owns its own keys, decided by what the focused element *is* rather
+	 *  than by which one it is. The filter input unmounts while settings is open,
+	 *  so an identity test went false at exactly the moment settings' own fields
+	 *  held focus: typing `30` into the scan interval set the range to This month
+	 *  and left a `0` behind, and the arrow keys that increment a number input
+	 *  walked the timeline instead.
+	 *
+	 *  And the timeline's keys belong to the timeline. The reader and settings
+	 *  replace it rather than covering it, so switching a view or walking a
+	 *  selection under them acts on something nobody can see, and is noticed only
+	 *  on the way back. */
 	function onKey(event: KeyboardEvent) {
-		const typing = document.activeElement === filterField;
+		const focused = document.activeElement as HTMLElement | null;
+		const typing =
+			focused instanceof HTMLInputElement ||
+			focused instanceof HTMLTextAreaElement ||
+			focused?.isContentEditable === true;
+		const covered = settingsOpen || !!reader;
 
 		if (event.key === 'Escape') {
-			if (settingsOpen) settingsOpen = false;
+			// A field takes the first Escape: leaving what you were typing should
+			// not also leave the surface you were typing on.
+			if (typing) focused?.blur();
+			else if (settingsOpen) settingsOpen = false;
 			else if (reader) reader = null;
-			else if (typing) filterField?.blur();
 			else if (query) query = '';
 			return;
 		}
-		if (event.key === '/' && !typing) {
-			event.preventDefault();
-			filterField?.focus();
-			return;
-		}
-		if (event.metaKey && event.key.toLowerCase() === 'b') {
-			event.preventDefault();
-			if (event.shiftKey) detailOpen = !detailOpen;
-			else railOpen = !railOpen;
-			return;
-		}
+
+		// Settings is reachable from wherever you are, as its standard binding is.
 		if (event.metaKey && event.key === ',') {
 			event.preventDefault();
 			settingsOpen = !settingsOpen;
 			return;
 		}
-		if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+		// The panes it toggles are not rendered under the reader or settings, so
+		// off that surface this would silently rearrange the view you return to.
+		if (event.metaKey && event.key.toLowerCase() === 'b' && !covered) {
+			event.preventDefault();
+			if (event.shiftKey) detailOpen = !detailOpen;
+			else railOpen = !railOpen;
+			return;
+		}
+
+		// Everything below is the timeline's, and only the timeline's. Bailing
+		// before any preventDefault is the point: a swallowed key is worse than
+		// an ignored one, because the character never reaches the field either.
+		if (covered || typing || event.metaKey || event.ctrlKey || event.altKey) return;
+
+		if (event.key === '/') {
+			event.preventDefault();
+			filterField?.focus();
+			return;
+		}
 
 		const scopeKeys: Record<string, Scope> = { '1': 'day', '2': 'week', '3': 'month', '4': 'all' };
 		if (scopeKeys[event.key]) {
 			event.preventDefault();
 			scope = scopeKeys[event.key];
-			selectedBlock = null;
-			selectedDetail = null;
+			clearSelection();
 			return;
 		}
 		switch (event.key.toLowerCase()) {
@@ -411,8 +482,7 @@
 			{intervalMins}
 			onScope={(s) => {
 				scope = s;
-				selectedBlock = null;
-				selectedDetail = null;
+				clearSelection();
 			}}
 			onCategory={(c) => (category = c)}
 			onProject={(p) => (project = p)}
@@ -566,7 +636,12 @@
 		</div>
 
 		{#if detailOpen}
-			<Detail block={selectedDetail} onOpenSession={openSession} />
+			<Detail
+				block={selectedDetail}
+				loading={detailLoading}
+				error={detailError}
+				onOpenSession={openSession}
+			/>
 		{/if}
 	{/if}
 </main>
