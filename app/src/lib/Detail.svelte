@@ -4,6 +4,19 @@
 	import type { BlockDetail } from './archive';
 	import { clock, duration, fullDay, shortPath, tokens } from './format';
 
+	/** What the bar's shape asserted, said in words. The lane legend only renders
+	 *  when a range holds more than one class, so the moment a user meets an
+	 *  unfamiliar treatment cold is the moment with no key on screen — this pane
+	 *  is the one surface with room to teach it. */
+	const EVIDENCE_SENTENCE: Record<string, string> = {
+		sessions: 'Drawn from sessions: a conversation runs the length of this span.',
+		commits:
+			'Drawn from commits: their times are exact, and the work between them is inferred from the idle-gap rule.',
+		saves:
+			'Drawn from saves: file timestamps at each end, with nothing recorded in between. The count is a floor.',
+		bare: 'Drawn from records only: the span is real, but nothing in it is itemised.'
+	};
+
 	let {
 		block,
 		loading = false,
@@ -43,6 +56,9 @@
 					{fullDay(block.started_ms)}
 					<span class="num">{clock(block.started_ms)}–{clock(block.ended_ms)}</span>
 					<span class="num strong">{duration(block.ended_ms - block.started_ms)}</span>
+				</p>
+				<p class="evidence" data-evidence={block.evidence}>
+					{EVIDENCE_SENTENCE[block.evidence] ?? EVIDENCE_SENTENCE.bare}
 				</p>
 			</header>
 
@@ -181,6 +197,9 @@
 		font-size: 21px;
 		font-weight: 660;
 		letter-spacing: -0.02em;
+		/* The pane is 372px and overflow:hidden; without this a long project name
+		   was clipped with no way to recover it. */
+		overflow-wrap: anywhere;
 	}
 
 	.where {
@@ -204,6 +223,18 @@
 	.when .strong {
 		color: var(--text);
 		font-weight: 600;
+	}
+
+	/* Amber only where the coverage is genuinely a floor; the other three classes
+	   state their footing without raising an alarm about it. */
+	.evidence {
+		margin: 9px 0 0;
+		font-size: var(--fs-meta);
+		line-height: 1.5;
+		color: var(--text-faint);
+	}
+	.evidence[data-evidence='saves'] {
+		color: var(--amber);
 	}
 
 	section {

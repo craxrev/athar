@@ -111,6 +111,7 @@ export interface BlockDetail {
 	sessions: SessionSummary[];
 	commits: CommitSummary[];
 	file_changes: FileChangeSummary[];
+	evidence: Evidence;
 }
 
 /** What kind of record backs a block's span. Stamped by the archive, not derived

@@ -267,7 +267,15 @@
 				blocks = b;
 				error = null;
 			})
-			.catch((e: Error) => (error = e.message ?? String(e)))
+			.catch((e: Error) => {
+				// The figures go with the failure. A digest still printing a confident
+				// total above "the archive could not be read" is the most corrosive
+				// state this window can render.
+				error = e.message ?? String(e);
+				summary = null;
+				lanes = [];
+				blocks = [];
+			})
 			.finally(() => (loading = false));
 	});
 
@@ -446,7 +454,10 @@
 		if (error) return `The archive could not be read: ${error}`;
 		if (statusError) return `Collector status is unavailable: ${statusError}`;
 		if (loading) return 'Reading the archive';
-		if (isEmpty) return query ? `Nothing matches ${query}` : 'Nothing recorded in this range';
+		if (isEmpty)
+			return activeFilters.length
+				? `Nothing matches these filters: ${activeFilters.map((f) => f.label).join(', ')}`
+				: 'Nothing recorded in this range';
 		const n = view === 'lanes' ? filteredLanes.length : filteredBlocks.length;
 		return view === 'lanes'
 			? `${n} project${n === 1 ? '' : 's'} in this range`
@@ -742,6 +753,14 @@
 						</p>
 					{/if}
 
+					{#if activeFilters.length}
+						<p class="scopes">
+							Covering the whole range — the timeline below is narrowed to {activeFilters
+								.map((f) => f.label)
+								.join(', ')}.
+						</p>
+					{/if}
+
 					<div class="census">
 						<span><b>{summary.sessions}</b> sessions</span>
 						<span><b>{summary.commits}</b> commits</span>
@@ -797,27 +816,30 @@
 					</div>
 				{:else if isEmpty}
 					<div class="state">
-						{#if status && status.records === 0}
-							<!-- First run. This used to instruct `lore scan` in a terminal, for a
-							     binary that ships inside the app and is never installed anywhere —
-							     while a scan it did not mention was already running. -->
-							<h2>{collector.busy ? 'Reading your history' : 'Nothing archived yet'}</h2>
-							{#if collector.busy}
-								<p>
-									Going through Claude Code sessions, git repositories and file
-									timestamps. The first run has the most to catch up on.
-								</p>
-								<p class="counted"><b class="num">{status.records}</b> records kept so far</p>
-							{:else}
-								<p>
-									lore reads Claude Code sessions, git history and file saves from disk,
-									and keeps them after those sources delete their own. Nothing has been
-									read yet.
-								</p>
-								<button class="act strong" onclick={() => collector.run('scan')}>
-									Read my history
-								</button>
-							{/if}
+						{#if collector.busy}
+							<!-- Gated on the collector, not on the record count. Gated on
+							     `records === 0` this branch vanished the instant the first record
+							     landed — the counter died exactly as it would first have moved,
+							     and handed a running scan the words "lore may not have been
+							     running". -->
+							<h2>Reading your history</h2>
+							<p>
+								Going through Claude Code sessions, git repositories and file
+								timestamps. The first run has the most to catch up on.
+							</p>
+							<p class="counted">
+								<b class="num">{status?.records ?? 0}</b> records kept so far
+							</p>
+						{:else if status && status.records === 0}
+							<h2>Nothing archived yet</h2>
+							<p>
+								lore reads Claude Code sessions, git history and file saves from disk,
+								and keeps them after those sources delete their own. Nothing has been
+								read yet.
+							</p>
+							<button class="act strong" onclick={() => collector.run('scan')}>
+								Read my history
+							</button>
 						{:else if activeFilters.length}
 							<h2>Nothing matches these filters</h2>
 							<p>The archive holds this range. What is on screen is narrowed to:</p>
@@ -839,7 +861,11 @@
 						{/if}
 					</div>
 				{:else if view === 'lanes'}
-					{#key `${scope}-${category}-${query}`}
+					<!-- Remount on range and grouping, never on text. `query` is bound per
+				     keystroke, so having it here rebuilt the subtree and replayed the
+				     620ms staggered entrance on every character typed — while
+				     `project`, which genuinely regroups the lanes, was missing. -->
+				{#key `${scope}-${category}-${project}`}
 						<Lanes
 							lanes={filteredLanes}
 							{fromMs}
@@ -1088,6 +1114,13 @@
 	   support, which is the flat strip this replaced. */
 	.census b {
 		color: var(--text-dim);
+	}
+	/* Every figure carries how it was established, and that includes what it
+	   covers. These describe the range, not the filtered view under them. */
+	.scopes {
+		margin: 6px 0 0;
+		color: var(--amber);
+		white-space: normal;
 	}
 	/* The one figure here the archive infers rather than counts. The broken ring
 	   is the same mark the commit tiers use, on the same axis — attribution —

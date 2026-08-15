@@ -41,7 +41,7 @@
 
 	<div class="scroll">
 		<header>
-			<h1>{s.title}</h1>
+			<h2 class="title">{s.title}</h2>
 			<p class="facts">
 				<span>{fullDay(s.started_ms)}</span>
 				<span class="num">{clockRange(s.started_ms, s.ended_ms)}</span>
@@ -238,7 +238,7 @@
 		padding: 28px 0 8px;
 	}
 
-	h1 {
+	.title {
 		margin: 0;
 		font-size: 30px;
 		font-weight: 680;
@@ -415,9 +415,13 @@
 		font-size: var(--fs-min);
 	}
 
+	/* The one reading surface, and the only place the 500 floor lifts: 500 across a
+	   two-hundred-message transcript reads heavier than a long sitting wants.
+	   Covers the markdown rendered inside it. */
 	.text {
 		overflow-wrap: anywhere;
 		font-size: 15px;
+		font-weight: 400;
 		line-height: 1.62;
 		color: var(--text);
 	}

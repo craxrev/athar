@@ -120,6 +120,10 @@ pub struct BlockDetail {
     pub sessions: Vec<SessionSummary>,
     pub commits: Vec<CommitSummary>,
     pub file_changes: Vec<FileChangeSummary>,
+    /// The same stamp the lane bar carries, so the pane can say in a sentence
+    /// what the bar said in a shape. Without it the evidence code was learnable
+    /// only by hovering a bar.
+    pub evidence: &'static str,
 }
 
 /// Re-exported so the one rule keeps one name. It lives in `stats` because the
@@ -343,6 +347,7 @@ fn detail_of(
         sessions: sessions_in_block(conn, block.id)?,
         commits: commits_in_block(conn, block.id)?,
         file_changes: file_changes_in_block(conn, block.id)?,
+        evidence: evidence_of(block.sessions, block.commits, block.file_changes),
         project_path: block.project,
     })
 }

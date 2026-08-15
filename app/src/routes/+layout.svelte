@@ -119,6 +119,12 @@
 		color: var(--text);
 		font-family: var(--sans);
 		font-size: 15px;
+		/* The interface floor, set once at the root. Without it every rule that
+		   named a size but not a weight fell to 400 — which is the exact pairing
+		   the brand constraint rules out, and it had quietly become the default for
+		   the densest metadata in the app. Reading prose opts back down to 400
+		   where it belongs, in the reader. */
+		font-weight: 500;
 		line-height: 1.5;
 		-webkit-font-smoothing: antialiased;
 		overflow: hidden;

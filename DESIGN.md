@@ -290,10 +290,17 @@ by keyboard (`⌘B`, `⇧⌘B`) and automatically by width. Reach for a grid onl
 pane ever needs to be resizable — the widths are owned by the panes today, which
 is why a hidden pane leaves no reserved track behind.
 
-| Breakpoint | Behaviour |
+| Threshold | Behaviour |
 |---|---|
-| ≤ 1120px | Detail pane folds away — below this it left the timeline too narrow to read |
-| ≤ 880px | Scope rail folds away; toolbar pads left for the traffic lights |
+| ≤ 1120px | The outer panes become **mutually exclusive**: rail or detail, never both. Detail is the answer to a selection, the rail is how you ask the next question, and both stay one keystroke away |
+| any width, rail closed | Toolbar pads left by `--traffic-inset-wide` to clear the window controls |
+
+There is one threshold, not two, and it is **observed state rather than a media
+query**. A CSS rule hiding a pane while its `open` flag stayed true meant that
+between 880 and 1120px — a band that includes the window's own configured minimum
+— selecting a block lit a bar and showed nothing, and the toggle did nothing
+visible. Rendering follows state and state follows `matchMedia`, so the two cannot
+disagree. Nothing about pane visibility belongs in a stylesheet.
 
 The window uses an overlaid titlebar with hidden title; every pane reserves a
 `--titlebar` (30px) drag strip at its top, and the reader's bar indents 62px to
@@ -395,9 +402,9 @@ character stands in for an icon anywhere.
   The lane reveal animates `clip-path`, not `scaleX`: scaling squashed the end
   marks of a saves-only bar into slivers and stretched the hatch pitch, distorting
   precisely the two treatments that carry the most meaning. An entrance that
-  deforms its own content is not an entrance. Note that the four state
-  `transition`s in the build are **not** covered by any reduced-motion guard; only
-  the three keyframe animations are.
+  deforms its own content is not an entrance. Every animation *and* every state
+  transition is covered by a `prefers-reduced-motion` guard, per component rather
+  than by one global kill — a blanket reset would take the state feedback with it.
 - **Motion is chosen by purpose, and every kind is a token.** `--motion-state`
   (120ms ease-out) is the response to a pointer or a toggle. `--motion-live`
   (1.6s ease-in-out) is the one kind that repeats, and it is allowed exactly where

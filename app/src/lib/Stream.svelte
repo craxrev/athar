@@ -394,6 +394,10 @@
 	}
 
 	.project {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		font-size: 15.5px;
 		font-weight: 620;
 		letter-spacing: -0.01em;
