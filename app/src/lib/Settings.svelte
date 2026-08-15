@@ -78,9 +78,15 @@
 		collector.needsScan = true;
 		void save();
 	}
+
+	/** This surface replaced the timeline, so whatever had focus is gone. Taking
+	 *  it here means a screen reader announces the region just entered rather
+	 *  than falling silently to the document body. */
+	let surface = $state<HTMLElement | null>(null);
+	$effect(() => surface?.focus({ preventScroll: true }));
 </script>
 
-<section class="settings">
+<section class="settings" bind:this={surface} tabindex="-1">
 	<div class="bar" data-tauri-drag-region>
 		<button class="back" onclick={onClose}>
 			<Icon name="back" size={18} />
@@ -94,7 +100,7 @@
 
 	<div class="scroll">
 		{#if error}
-			<p class="banner bad"><Icon name="warn" size={16} /><span>{error}</span></p>
+			<p class="banner bad" role="alert"><Icon name="warn" size={16} /><span>{error}</span></p>
 		{/if}
 
 		{#if config}
@@ -123,9 +129,9 @@
 									collector.needsRebuild = true;
 									void save();
 								}}
-								aria-label="Category"
+								aria-label="Category for {root.path}"
 							/>
-							<button class="remove" onclick={() => removeRoot(root.path)} aria-label="Remove root">
+							<button class="remove" onclick={() => removeRoot(root.path)} aria-label="Remove root {root.path}">
 								<Icon name="close" size={14} />
 							</button>
 						</li>
@@ -141,6 +147,7 @@
 					<input
 						type="number"
 						min="1"
+						aria-label="Scan every, in minutes"
 						bind:value={config.scan_interval_mins}
 						onchange={() => void save()}
 					/>
@@ -157,6 +164,7 @@
 					<input
 						type="number"
 						min="1"
+						aria-label="A pause ends a block after, in minutes"
 						bind:value={config.idle_gap_mins}
 						onchange={() => {
 							collector.needsRebuild = true;
@@ -175,6 +183,7 @@
 					<input
 						type="number"
 						min="1"
+						aria-label="First scan looks back, in days"
 						bind:value={config.file_lookback_days}
 						onchange={() => void save()}
 					/>
@@ -200,7 +209,7 @@
 							<span class="mono">{identity}</span>
 							<button
 								class="remove"
-								aria-label="Remove identity"
+								aria-label="Remove identity {identity}"
 								onclick={() => {
 									config!.identities = config!.identities.filter((i) => i !== identity);
 									collector.needsScan = true;
@@ -215,6 +224,7 @@
 				<div class="addrow">
 					<input
 						bind:value={identityDraft}
+						aria-label="Add a git identity"
 						placeholder="you@example.com"
 						onkeydown={(e) => e.key === 'Enter' && addIdentity()}
 					/>
@@ -241,7 +251,7 @@
 					sessions and links from records already archived — it reads nothing and can
 					lose nothing.
 				</p>
-				<div class="actions">
+				<div class="actions" role="status">
 					<button
 						class="act strong"
 						disabled={!!collector.busy}
@@ -290,6 +300,10 @@
 </section>
 
 <style>
+	.settings:focus {
+		outline: none;
+	}
+
 	.settings {
 		display: flex;
 		flex-direction: column;
@@ -456,8 +470,10 @@
 		font-size: 14px;
 		padding: 5px 9px;
 	}
+	/* The border shift is an addition to the ring, never a replacement: on its own
+	   it measured 1.77:1 against the field, well under the 3:1 a focus indicator
+	   owes. `:focus-visible` for the ring so a pointer click does not draw one. */
 	input:focus {
-		outline: none;
 		border-color: var(--accent-edge);
 	}
 	.cat {

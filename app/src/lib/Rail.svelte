@@ -79,7 +79,12 @@
 			<h2>Category</h2>
 			<ul>
 				<li>
-					<button class="row" class:on={category === null} onclick={() => onCategory(null)}>
+					<button
+							class="row"
+							class:on={category === null}
+							aria-current={category === null ? 'true' : undefined}
+							onclick={() => onCategory(null)}
+						>
 						<span class="swatch all" aria-hidden="true"></span>
 						<span class="label">Everything</span>
 					</button>
@@ -89,6 +94,7 @@
 						<button
 							class="row"
 							class:on={category === c.name}
+							aria-current={category === c.name ? 'true' : undefined}
 							onclick={() => onCategory(category === c.name ? null : c.name)}
 						>
 							<span class="swatch" data-category={c.name} aria-hidden="true"></span>
@@ -112,6 +118,7 @@
 						<button
 							class="row"
 							class:on={project === p.path}
+							aria-current={project === p.path ? 'true' : undefined}
 							onclick={() => onProject(project === p.path ? null : p.path)}
 							title={p.path}
 						>
@@ -125,7 +132,7 @@
 		{/if}
 	</section>
 
-	<footer>
+	<footer role="status" aria-live="polite">
 		<span
 			class="dot"
 			class:stale={lastScanMs === null}
@@ -333,6 +340,9 @@
 	@media (prefers-reduced-motion: reduce) {
 		.dot.busy {
 			animation: none;
+		}
+		.row {
+			transition: none;
 		}
 	}
 

@@ -13,12 +13,18 @@
 	const span = $derived(
 		s.started_ms !== null && s.ended_ms !== null ? s.ended_ms - s.started_ms : null
 	);
+
+	/** This surface replaced the timeline, so whatever had focus is gone. Taking
+	 *  it here means a screen reader announces the region just entered rather
+	 *  than falling silently to the document body. */
+	let surface = $state<HTMLElement | null>(null);
+	$effect(() => surface?.focus({ preventScroll: true }));
 </script>
 
 <!-- Reading takes over the window rather than opening a modal: a 200-message
      conversation needs the measure, and a modal would block everything else for
      a task that needs neither interruption nor protected focus. -->
-<section class="reader">
+<section class="reader" bind:this={surface} tabindex="-1">
 	<div class="bar" data-tauri-drag-region>
 		<button class="back" onclick={onClose}>
 			<Icon name="back" size={18} />
@@ -138,6 +144,10 @@
 </section>
 
 <style>
+	.reader:focus {
+		outline: none;
+	}
+
 	.reader {
 		display: flex;
 		flex-direction: column;

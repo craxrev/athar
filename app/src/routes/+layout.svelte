@@ -152,6 +152,12 @@
 		border-radius: var(--radius-sm);
 	}
 
+	@media (prefers-reduced-motion: reduce) {
+		:global(.act) {
+			transition: none;
+		}
+	}
+
 	:global(::selection) {
 		background: var(--accent-soft);
 	}

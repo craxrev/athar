@@ -282,8 +282,23 @@
 		}
 	}
 
+	/** Where focus was before a surface took over, so closing returns it instead of
+	 *  dropping the user at the top of the document. */
+	let focusBeforeSurface: HTMLElement | null = null;
+	function rememberFocus() {
+		focusBeforeSurface = document.activeElement as HTMLElement | null;
+	}
+	function restoreFocus() {
+		const target = focusBeforeSurface;
+		focusBeforeSurface = null;
+		// Deferred: the surface is still mounted this tick, and focusing an element
+		// that is about to be replaced puts it straight back on the body.
+		queueMicrotask(() => target?.focus?.({ preventScroll: true }));
+	}
+
 	async function openSession(id: string) {
 		try {
+			rememberFocus();
 			reader = await archive.session(id);
 		} catch (e) {
 			error = (e as Error).message;
@@ -369,6 +384,23 @@
 		return EVIDENCE_SPLIT.map((e) => ({ ...e, ms: by[e.id] })).filter((p) => p.ms > 0);
 	});
 
+	/** What a screen reader is told about the stage, in one place.
+	 *
+	 *  Nothing here announced anything before: not a load finishing, not a failure,
+	 *  and not the view reloading under the reader when a background scan wrote to
+	 *  the archive. Polite rather than assertive — none of it interrupts a task,
+	 *  and a scan can land at any moment. */
+	let announcement = $derived.by(() => {
+		if (crash) return `The window failed: ${crash}`;
+		if (error) return `The archive could not be read: ${error}`;
+		if (loading) return 'Reading the archive';
+		if (isEmpty) return query ? `Nothing matches ${query}` : 'Nothing recorded in this range';
+		const n = view === 'lanes' ? filteredLanes.length : filteredBlocks.length;
+		return view === 'lanes'
+			? `${n} project${n === 1 ? '' : 's'} in this range`
+			: `${n} block${n === 1 ? '' : 's'} in this range`;
+	});
+
 	let isEmpty = $derived(
 		!loading && !error && (view === 'lanes' ? filteredLanes.length === 0 : filteredBlocks.length === 0)
 	);
@@ -417,8 +449,13 @@
 			// A field takes the first Escape: leaving what you were typing should
 			// not also leave the surface you were typing on.
 			if (typing) focused?.blur();
-			else if (settingsOpen) settingsOpen = false;
-			else if (reader) reader = null;
+			else if (settingsOpen) {
+				settingsOpen = false;
+				restoreFocus();
+			} else if (reader) {
+				reader = null;
+				restoreFocus();
+			}
 			else if (query) query = '';
 			return;
 		}
@@ -426,7 +463,13 @@
 		// Settings is reachable from wherever you are, as its standard binding is.
 		if (event.metaKey && event.key === ',') {
 			event.preventDefault();
-			settingsOpen = !settingsOpen;
+			if (settingsOpen) {
+				settingsOpen = false;
+				restoreFocus();
+			} else {
+				rememberFocus();
+				settingsOpen = true;
+			}
 			return;
 		}
 		// The panes it toggles are not rendered under the reader or settings, so
@@ -489,6 +532,9 @@
 	class:rail-closed={!railOpen}
 	class:reading={!!reader}
 >
+	<h1 class="offscreen">lore — archive of your work</h1>
+	<p class="offscreen" role="status" aria-live="polite">{announcement}</p>
+
 	{#if !reader && !settingsOpen && railOpen}
 		<Rail
 			{scope}
@@ -509,9 +555,20 @@
 	{/if}
 
 	{#if settingsOpen}
-		<Settings onClose={() => (settingsOpen = false)} />
+		<Settings
+					onClose={() => {
+						settingsOpen = false;
+						restoreFocus();
+					}}
+				/>
 	{:else if reader}
-		<Reader detail={reader} onClose={() => (reader = null)} />
+		<Reader
+					detail={reader}
+					onClose={() => {
+						reader = null;
+						restoreFocus();
+					}}
+				/>
 	{:else}
 		<div class="centre">
 			<div class="toolbar" data-tauri-drag-region>
@@ -525,10 +582,18 @@
 				</button>
 
 				<div class="views" role="group" aria-label="View">
-					<button class:on={view === 'lanes'} onclick={() => (view = 'lanes')}>
+					<button
+							class:on={view === 'lanes'}
+							aria-pressed={view === 'lanes'}
+							onclick={() => (view = 'lanes')}
+						>
 						<Icon name="lanes" size={17} /> Lanes
 					</button>
-					<button class:on={view === 'stream'} onclick={() => (view = 'stream')}>
+					<button
+							class:on={view === 'stream'}
+							aria-pressed={view === 'stream'}
+							onclick={() => (view = 'stream')}
+						>
 						<Icon name="stream" size={17} /> Stream
 					</button>
 				</div>
@@ -539,6 +604,7 @@
 						bind:this={filterField}
 						bind:value={query}
 						type="text"
+						aria-label="Filter projects, sessions and commits"
 						placeholder="Filter projects, sessions, commits…"
 						spellcheck="false"
 					/>
@@ -559,7 +625,10 @@
 				</button>
 				<button
 					class="ghost"
-					onclick={() => (settingsOpen = true)}
+					onclick={() => {
+						rememberFocus();
+						settingsOpen = true;
+					}}
 					title="Settings (⌘,)"
 					aria-label="Settings"
 				>
@@ -688,6 +757,20 @@
 </main>
 
 <style>
+	/* Present to assistive technology, absent to the eye. Not display:none, which
+	   would take it out of the accessibility tree along with everything else. */
+	.offscreen {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
+	}
+
 	.shell {
 		display: flex;
 		height: 100vh;
@@ -698,6 +781,12 @@
 	/* Below these widths a pane costs more than it gives: at 900px the three-pane
 	   layout left the timeline about 280px, which is not a timeline. A pane taken
 	   out here leaves no reserved space and nothing showing through. */
+	@media (prefers-reduced-motion: reduce) {
+		.views button {
+			transition: none;
+		}
+	}
+
 	@media (max-width: 1120px) {
 		.shell:not(.reading) :global(aside.detail) {
 			display: none;
@@ -794,12 +883,17 @@
 		border-color: var(--accent-edge);
 		color: var(--text-dim);
 	}
+	/* Drawn on the field so it frames the whole control — icon, input and clear
+	   button — rather than a borderless box inside it. */
+	.filter:has(input:focus-visible) {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
 	.filter input {
 		flex: 1;
 		min-width: 0;
 		border: none;
 		background: none;
-		outline: none;
 		color: var(--text);
 		font: inherit;
 		font-size: 14px;
@@ -810,6 +904,10 @@
 	.clear {
 		display: grid;
 		place-items: center;
+		width: 24px;
+		height: 24px;
+		flex: none;
+		border-radius: var(--radius-sm);
 		color: var(--text-faint);
 	}
 	.clear:hover {

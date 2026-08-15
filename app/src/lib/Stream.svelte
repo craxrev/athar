@@ -306,6 +306,16 @@
 </div>
 
 <style>
+	/* The article around these buttons is overflow:hidden for its radius, which
+	   clipped an outset focus ring on the left, right and top edges. Drawn inset
+	   instead, so the primary selection targets in this view keep a visible ring. */
+	.head:focus-visible,
+	.item:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: -2px;
+		border-radius: var(--radius-sm);
+	}
+
 	.stream {
 		flex: 1;
 		min-height: 0;
@@ -597,5 +607,11 @@
 		font-size: 13px;
 		line-height: 1.45;
 		color: var(--text-faint);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.chev.disclose {
+			transition: none;
+		}
 	}
 </style>

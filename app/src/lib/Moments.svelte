@@ -19,8 +19,11 @@
 <ol class="moments">
 	{#each shown as moment (moment.at)}
 		{#if moment.gapFromPrevious >= GAP_MS}
-			<li class="gap" aria-hidden="true">
-				<span class="rule"></span>
+			<!-- Not aria-hidden: an idle stretch is part of the record. It says the
+			     work stopped, which is exactly the kind of gap this product exists to
+			     keep. Only the drawn rule beside it is decorative. -->
+			<li class="gap">
+				<span class="rule" aria-hidden="true"></span>
 				<span class="elapsed">{duration(moment.gapFromPrevious)} later</span>
 			</li>
 		{/if}
