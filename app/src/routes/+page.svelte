@@ -876,11 +876,13 @@
 				     the day — which is why the split hangs off the second one. -->
 				<div class="digest">
 					<div class="time">
-						<span class="lead" title="Wall clock: overlapping blocks counted once">
+						<span class="lead">
 							<b class="big">{duration(summary.elapsed_ms)}</b> elapsed
+							<span class="gloss">wall clock, overlaps counted once</span>
 						</span>
-						<span title="Sum of every project's blocks; can exceed the range">
+						<span>
 							<b class="mid">{compactDuration(summary.project_ms)}</b> across projects
+							<span class="gloss">summed per project, so it can exceed the range</span>
 						</span>
 					</div>
 
