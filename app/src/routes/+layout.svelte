@@ -90,6 +90,10 @@
 		/* Elevation carries an offset and a soft blur. A raised surface that only
 		   changes its border is not raised. */
 		--lift-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.28);
+		/* The third depth device, and the only one that covers rather than lifts.
+		   A dim, not a blur: the window already spends its one blur on the rail's
+		   vibrancy, and atmosphere is not what a sheet needs. */
+		--scrim: rgba(0, 0, 0, 0.45);
 
 		/* The type floor. Nothing in the interface sets smaller than --fs-min,
 		   because "no small typography" is a binding constraint, and small type in

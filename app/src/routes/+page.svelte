@@ -1106,7 +1106,7 @@
 		display: grid;
 		place-items: center;
 		padding: 40px;
-		background: rgba(0, 0, 0, 0.45);
+		background: var(--scrim);
 		cursor: default;
 	}
 	.sheet {

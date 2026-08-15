@@ -23,6 +23,7 @@ colors:
   git-del-soft: "rgba(230, 92, 99, 0.14)"
   accent-tint: "#ea439a"
   wash: "rgba(255, 255, 255, 0.022)"
+  scrim: "rgba(0, 0, 0, 0.45)"
   category-work: "#4c8dff"
   category-work-tint: "#9dc0ff"
   category-research: "#e93d97"
@@ -381,6 +382,12 @@ icons. An accelerator nobody can find is not an accelerator.
   the timeline rather than hovering over it — so it was deleted rather than left
   standing as a claim the system does not keep. Add a second step when something
   genuinely needs one, not in advance.
+
+A third device exists for exactly one job: `scrim`, the dim behind the shortcut
+sheet. It **covers** rather than lifts, and it is a dim rather than a blur — the
+window spends its one blur on the rail's vibrancy, and a sheet needs separation,
+not atmosphere. Nothing else in the product covers the window, so nothing else
+uses it.
 
 1px dividers at 7% white carry structure everywhere else. A raised surface changes
 its shadow, not just its border; a surface that only changes its border is not

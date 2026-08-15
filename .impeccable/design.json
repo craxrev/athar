@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-15T00:00:00Z",
+  "generatedAt": "2026-08-15T12:00:00Z",
   "title": "Design System: lore",
   "extensions": {
     "colorMeta": {
@@ -174,14 +174,14 @@
         "displayName": "Deletion Red",
         "canonical": "#e65c63",
         "tonalRamp": [
-          "oklch(15.0% 0.1073 20.9)",
-          "oklch(26.4% 0.1277 20.9)",
-          "oklch(37.9% 0.1481 20.9)",
-          "oklch(49.3% 0.1685 20.9)",
-          "oklch(60.7% 0.1685 20.9)",
-          "oklch(72.1% 0.1481 20.9)",
-          "oklch(83.6% 0.1277 20.9)",
-          "oklch(95.0% 0.1073 20.9)"
+          "oklch(15.0% 0.1029 20.2)",
+          "oklch(26.4% 0.1225 20.2)",
+          "oklch(37.9% 0.1422 20.2)",
+          "oklch(49.3% 0.1618 20.2)",
+          "oklch(60.7% 0.1618 20.2)",
+          "oklch(72.1% 0.1422 20.2)",
+          "oklch(83.6% 0.1225 20.2)",
+          "oklch(95.0% 0.1029 20.2)"
         ]
       },
       "category-work": {
@@ -243,16 +243,49 @@
           "oklch(83.6% 0.105 73.0)",
           "oklch(95.0% 0.0882 73.0)"
         ]
+      },
+      "accent-tint": {
+        "role": "primary",
+        "displayName": "Accent Tint",
+        "canonical": "#ea439a",
+        "tonalRamp": [
+          "oklch(15.0% 0.1298 353.0)",
+          "oklch(26.4% 0.1545 353.0)",
+          "oklch(37.9% 0.1792 353.0)",
+          "oklch(49.3% 0.2040 353.0)",
+          "oklch(60.7% 0.2040 353.0)",
+          "oklch(72.1% 0.1792 353.0)",
+          "oklch(83.6% 0.1545 353.0)",
+          "oklch(95.0% 0.1298 353.0)"
+        ],
+        "note": "Accent text on an accent fill. The solid accent measures 4.48:1 there."
+      },
+      "scrim": {
+        "role": "neutral",
+        "displayName": "Sheet Scrim",
+        "canonical": "rgba(0, 0, 0, 0.45)",
+        "note": "The third depth device: covers rather than lifts, and dims rather than blurs."
+      },
+      "wash": {
+        "role": "neutral",
+        "displayName": "Vibrancy Wash",
+        "canonical": "rgba(255, 255, 255, 0.022)",
+        "note": "What the rail paints of its own over the window material; also the lane row hover."
+      },
+      "git-del-soft": {
+        "role": "tertiary",
+        "displayName": "Deletion Fill",
+        "canonical": "rgba(230, 92, 99, 0.14)"
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The reader\u2019s session title, and nothing else."
+        "purpose": "The reader’s session title, and nothing else."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "The detail pane\u2019s block heading."
+        "purpose": "The detail pane’s block heading."
       },
       "wordmark": {
         "displayName": "Wordmark",
@@ -284,7 +317,7 @@
       },
       "figure": {
         "displayName": "Figure",
-        "purpose": "The digest\u2019s lead figure. Mono at display scale \u2014 the one number the Insight job leads with."
+        "purpose": "The digest lead. Mono at display scale — the one number the Insight job leads with."
       }
     },
     "shadows": [
@@ -292,11 +325,6 @@
         "name": "lift-1",
         "value": "0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28)",
         "purpose": "Detail cards, the selected block, the selected lane bar. The only elevation in use."
-      },
-      {
-        "name": "lift-2",
-        "value": "0 2px 4px rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.36)",
-        "purpose": "Reserved for a surface floating above a pane. Currently referenced nowhere \u2014 spend it deliberately or delete it."
       }
     ],
     "motion": [
@@ -313,12 +341,17 @@
       {
         "name": "entrance",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "Both authored entrances \u2014 the 620ms staggered lane reveal and the reader\u2019s 260ms settle."
+        "purpose": "Both authored entrances — the 620ms staggered lane reveal and the reader’s 260ms settle."
       },
       {
         "name": "lane-reveal",
-        "value": "clip-path inset(0 100% 0 0) \u2192 inset(0 0 0 0), 620ms",
+        "value": "clip-path inset(0 100% 0 0) → inset(0 0 0 0), 620ms",
         "purpose": "Reveals rather than scales: scaleX deformed the end marks and hatch pitch of the evidence treatments."
+      },
+      {
+        "name": "pip",
+        "value": "1.6s ease-in-out, opacity 1 → 0.35",
+        "purpose": "The scan indicator in the range bar, shown only when the rail that normally carries one is folded. Reduced-motion guarded."
       }
     ],
     "breakpoints": [
@@ -338,7 +371,7 @@
   },
   "components": [
     {
-      "name": "Lane Bar \u2014 from sessions",
+      "name": "Lane Bar — from sessions",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "A block whose span a conversation brackets. Solid, because the whole span is evidenced.",
@@ -346,7 +379,7 @@
       "css": ".ds-lane { position: relative; height: 40px; background: var(--ground, #0b0c0f); } .ds-bar { position: absolute; top: 50%; left: 8%; width: 60%; height: 23px; transform: translateY(-50%); border-radius: 4px; --ink: rgba(255,255,255,0.36); --ink-bed: rgba(255,255,255,0.11); cursor: pointer; } .ds-bar-sessions { background: var(--ink); } .ds-bar-sessions:hover { --ink: rgba(255,255,255,0.54); }"
     },
     {
-      "name": "Lane Bar \u2014 from commits",
+      "name": "Lane Bar — from commits",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "Exact at the commits, inferred between them. The hatch claims no positions.",
@@ -354,7 +387,7 @@
       "css": ".ds-bar-commits { background-color: var(--ink-bed); background-image: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 6px); } .ds-bar-commits:hover { --ink: rgba(255,255,255,0.54); --ink-bed: rgba(255,255,255,0.2); }"
     },
     {
-      "name": "Lane Bar \u2014 from saves",
+      "name": "Lane Bar — from saves",
       "kind": "custom",
       "refersTo": "lane-bar-saves",
       "description": "Two mtimes and nothing known between. The ends are marked because the ends are what the archive has.",
@@ -362,7 +395,7 @@
       "css": ".ds-bar-saves { --ink: var(--amber, #f2a93b); --ink-link: color-mix(in srgb, var(--amber, #f2a93b) 52%, transparent); background-image: linear-gradient(var(--ink-link), var(--ink-link)); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; } .ds-bar-saves::before, .ds-bar-saves::after { content: ''; position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--ink); } .ds-bar-saves::before { left: 0; } .ds-bar-saves::after { right: 0; }"
     },
     {
-      "name": "Lane Bar \u2014 from records only",
+      "name": "Lane Bar — from records only",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "Records the timeline cannot itemise. The span is real; nothing in it is describable, so it claims no ends.",
@@ -370,7 +403,7 @@
       "css": ".ds-bar-bare { background-image: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 7px); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; }"
     },
     {
-      "name": "Lane Bar \u2014 selected",
+      "name": "Lane Bar — selected",
       "kind": "custom",
       "refersTo": "lane-bar-selected",
       "description": "Selection takes the ink, never the shape. A selected saves-only block is still a pair of end marks.",
@@ -381,7 +414,7 @@
       "name": "Rail Row",
       "kind": "nav",
       "refersTo": "rail-row",
-      "description": "Scope, category and project rows in the vibrancy rail. Selection is a flat accent fill with a legible edge \u2014 never a glow.",
+      "description": "Scope, category and project rows in the vibrancy rail. Selection is a flat accent fill with a legible edge — never a glow.",
       "html": "<nav class=\"ds-rail\"><button class=\"ds-rail-row\">This week</button><button class=\"ds-rail-row ds-rail-row-on\">This month</button></nav>",
       "css": ".ds-rail { background: rgba(255,255,255,0.022); padding: 8px; display: flex; flex-direction: column; gap: 2px; } .ds-rail-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: none; border-radius: 6px; background: none; color: var(--text-dim, #a2a8b6); font: 520 14.5px/1.35 -apple-system, system-ui, sans-serif; text-align: left; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-rail-row:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rail-row:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; } .ds-rail-row-on { background: rgba(233,61,151,0.16); color: var(--text, #edeef2); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); }"
     },
@@ -398,7 +431,7 @@
       "kind": "input",
       "refersTo": "filter-field",
       "description": "The toolbar filter. Focus shifts the border to the accent edge.",
-      "html": "<label class=\"ds-filter\"><input class=\"ds-filter-input\" type=\"text\" placeholder=\"Filter projects, sessions, commits\u2026\" aria-label=\"Filter\"></label>",
+      "html": "<label class=\"ds-filter\"><input class=\"ds-filter-input\" type=\"text\" placeholder=\"Filter projects, sessions, commits…\" aria-label=\"Filter\"></label>",
       "css": ".ds-filter { display: flex; align-items: center; gap: 8px; width: 320px; padding: 0 10px; height: 30px; border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; background: var(--surface, #12141a); } .ds-filter:focus-within { border-color: rgba(233,61,151,0.42); } .ds-filter-input { flex: 1; min-width: 0; border: none; background: none; color: var(--text, #edeef2); font: 500 14px/1.4 -apple-system, system-ui, sans-serif; } .ds-filter-input::placeholder { color: var(--text-faint, #878e9d); } .ds-filter-input:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; }"
     },
     {
@@ -413,7 +446,7 @@
       "name": "Confidence Label",
       "kind": "custom",
       "refersTo": "confidence-label",
-      "description": "The system\u2019s signature on the attribution axis. A closed ring for a witnessed claim, the same ring broken for an inferred one.",
+      "description": "The system’s signature on the attribution axis. A closed ring for a witnessed claim, the same ring broken for an inferred one.",
       "html": "<span class=\"ds-tier ds-tier-certain\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"10\" cy=\"10\" r=\"6.5\"/></svg>witnessed</span> <span class=\"ds-tier ds-tier-inferred\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M14.5 6.2A6.5 6.5 0 1 1 5.5 13.8\"/></svg>inferred</span>",
       "css": ".ds-tier { display: inline-flex; align-items: center; gap: 5px; font: 500 13.5px/1.45 -apple-system, system-ui, sans-serif; } .ds-tier-certain { color: var(--add, #56c98a); } .ds-tier-inferred { color: var(--amber, #f2a93b); }"
     },
@@ -424,61 +457,85 @@
       "description": "Two tiers over the timeline. The evidence split divides across-projects, never elapsed, because only the sum adds up.",
       "html": "<div class=\"ds-digest\"> <div class=\"ds-digest-time\"><span class=\"ds-lead\"><b class=\"ds-big\">2h 41m</b> elapsed</span><span><b class=\"ds-mid\">6h 10m</b> across projects</span></div> <p class=\"ds-split\"><span><b>4h 02m</b> from sessions</span><span><b>1h 30m</b> from commits</span><span><b>38m</b> from saves</span></p> <div class=\"ds-census\"><span><b>18</b> sessions</span><span><b>7</b> commits</span><span><b>412k</b> tokens</span></div> </div>",
       "css": ".ds-digest { display: flex; flex-direction: column; padding: 11px 18px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); background: var(--ground, #0b0c0f); font: 500 13.5px/1.45 -apple-system, system-ui, sans-serif; color: var(--text-faint, #878e9d); } .ds-digest span { white-space: nowrap; } .ds-digest b { color: var(--text, #edeef2); font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-variant-numeric: tabular-nums; font-weight: 620; font-size: 13.5px; } .ds-digest-time { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 18px; } .ds-lead { font-size: 14px; color: var(--text-dim, #a2a8b6); } .ds-big { font-size: 19px; font-weight: 640; letter-spacing: -0.01em; } .ds-mid { font-size: 15px; } .ds-split { display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 3px 0 0; } .ds-split b { font-weight: 560; } .ds-census { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 9px; } .ds-census b { color: var(--text-dim, #a2a8b6); }"
+    },
+    {
+      "name": "Range Bar",
+      "kind": "custom",
+      "refersTo": "rangebar",
+      "description": "Navigation and context above the timeline. Rendered independently of the digest, so a range holding nothing still says which range it is.",
+      "html": "<div class=\"ds-rangebar\"><button class=\"ds-step ds-step-back\" aria-label=\"Previous week\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7.5 4.5 13 10l-5.5 5.5\"/></svg></button><span class=\"ds-range\">Mon 11 – Sun 17 Aug</span><button class=\"ds-step\" disabled aria-label=\"Next week\"><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M7.5 4.5 13 10l-5.5 5.5\"/></svg></button><button class=\"ds-now\">Back to now</button></div>",
+      "css": ".ds-rangebar{display:flex;align-items:center;gap:6px;padding:8px 18px;background:var(--ground,#0b0c0f);font:500 13.5px/1.45 -apple-system,system-ui,sans-serif}.ds-step{display:grid;place-items:center;width:24px;height:24px;border:none;border-radius:6px;background:none;color:var(--text-faint,#878e9d);cursor:pointer}.ds-step-back svg{transform:rotate(180deg)}.ds-step:hover:not(:disabled){background:var(--surface-hover,#1f2330);color:var(--text,#edeef2)}.ds-step:disabled{opacity:.35;cursor:default}.ds-step:focus-visible{outline:2px solid var(--accent,#e93d97);outline-offset:2px}.ds-range{font-size:14px;font-weight:560;color:var(--text-dim,#a2a8b6)}.ds-now{margin-left:4px;padding:3px 9px;border:none;border-radius:999px;background:rgba(233,61,151,.16);box-shadow:inset 0 0 0 1px rgba(233,61,151,.42);color:var(--text,#edeef2);font:540 13.5px/1.45 -apple-system,system-ui,sans-serif;cursor:pointer}"
+    },
+    {
+      "name": "Shortcut Sheet",
+      "kind": "custom",
+      "refersTo": "sheet",
+      "description": "? from any surface. A sheet, not a modal: it protects no task, so it dismisses on any click. Its contents derive from the same list the key handler reads.",
+      "html": "<div class=\"ds-sheet\"><h2>Keyboard</h2><section><h3>Range</h3><dl><dt><kbd class=\"ds-kbd\">1 2 3 4</kbd></dt><dd>Day, week, month, all time</dd><dt><kbd class=\"ds-kbd\">←  →</kbd></dt><dd>Step back and forward a period</dd></dl></section></div>",
+      "css": ".ds-sheet{max-width:620px;padding:22px 26px 18px;border:1px solid var(--line-strong,rgba(255,255,255,.14));border-radius:9px;background:var(--surface,#12141a);box-shadow:0 1px 2px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.28);font:500 13.5px/1.45 -apple-system,system-ui,sans-serif;color:var(--text-faint,#878e9d)}.ds-sheet h2{margin:0 0 16px;font-size:19px;font-weight:640;letter-spacing:-.015em;color:var(--text,#edeef2)}.ds-sheet h3{margin:0 0 7px;font-size:13.5px;font-weight:640}.ds-sheet dl{display:grid;grid-template-columns:auto 1fr;align-items:baseline;gap:6px 11px;margin:0}.ds-sheet dd{margin:0;color:var(--text-dim,#a2a8b6)}.ds-kbd{display:inline-block;padding:2px 7px;border:1px solid var(--line-strong,rgba(255,255,255,.14));border-radius:6px;background:var(--surface-raised,#191c24);color:var(--text,#edeef2);font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:13px;font-weight:560;white-space:nowrap}"
     }
   ],
   "narrative": {
-    "northStar": "The instrument panel that shows its own confidence \u2014 dense, dark, one accent, and never a figure it cannot support.",
-    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on \u2014 the digest and the lane bars \u2014 said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit \u2014 this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
+    "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
+    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on — the digest and the lane bars — said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit — this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
     "keyCharacteristics": [
       "Dark only, by decision rather than default",
       "One accent, magenta, because git owns red and green and amber is reserved for uncertainty",
       "Real macOS window vibrancy on the scope rail only; dense content on solid ground",
       "Every span states what kind of record backs it",
-      "Two separate axes \u2014 attribution and evidence \u2014 that never share a vocabulary",
+      "Two separate axes — attribution and evidence — that never share a vocabulary",
       "A 13px type floor and a 500 weight floor for interface text; reading prose alone sets at 400",
       "Time as lanes of real projects on a real axis, never a calendar grid or a contribution heatmap"
     ],
     "rules": [
       {
         "name": "The Two Axes Rule",
-        "section": "colors",
-        "body": "Attribution asks who made a change and speaks in ring icons and the green/amber pair. Evidence asks what kind of record backs a span and speaks in the fill of a lane bar and the split under the digest. A colour or a word borrowed across the two collapses both. Amber is the one deliberate overlap: it means uncertainty on either axis."
+        "body": "Two different questions run through this interface and must never share a vocabulary. **Attribution** asks who made a change — `witnessed`, `files match`, `inferred`, `unattributed` — and speaks in the ring icons and the green/amber pair. **Evidence** asks what kind of record backs a span of time — `from sessions`, `from commits`, `from saves`, `from records only` — and speaks in the fill of a lane bar and the split under the digest. A colour or a word borrowed across the two collapses both. Amber is the one deliberate overlap: it means uncertainty on either axis, which is why it carries `saves` as well as `inferred`.",
+        "section": "components"
       },
       {
         "name": "The Two Floors Rule",
-        "section": "typography",
-        "body": "Interface text never goes below weight 500 \u2014 labels, controls, rail rows, metadata, figures. Reading prose sets at 400, and only in the conversation reader and the markdown it renders. A 400 weight anywhere outside a reading surface is a defect."
+        "body": "Weight has two floors, not one, and the difference is what the text is for. **Interface text never goes below 500** — labels, controls, rail rows, metadata, figures; that range runs 500–680 and is where the \"no skinny typography\" commitment bites. **Reading prose sets at 400**, and only in the conversation reader and the markdown it renders, at 15px on a 1.62 line-height across a 78ch measure. The brand constraint was aimed at hairline micro-labels, not at body copy, where 500 across a two-hundred-message transcript reads heavier than a long sitting wants. A 400 weight anywhere outside a reading surface is a defect.",
+        "section": "components"
+      },
+      {
+        "name": "The Unit and the Instance Rule",
+        "body": "The rail selects the *unit* — by day, by week, by month, all time — and the range bar selects *which one*. That split is why the rail's labels are no longer \"Today\" and \"This week\": those were true only while the range sat on the present, and a range you can step makes them lies four fifths of the time. Changing the unit returns to the present, because \"three back\" means something different per unit and silently reinterpreting it is how a range stops being trustworthy.",
+        "section": "components"
       },
       {
         "name": "The Ink Rule",
-        "section": "components",
-        "body": "Selection takes the ink, never the shape. A selected saves-only block is still visibly a pair of end marks in magenta, not a solid claim. Any state that flattens a treatment into a rectangle has destroyed the only thing the treatment was there to say."
+        "body": "Selection takes the ink, never the shape. A selected saves-only block is still visibly a pair of end marks in magenta, not a solid claim. Any state that flattens a treatment into a rectangle has destroyed the only thing the treatment was there to say.",
+        "section": "components"
       },
       {
         "name": "The Legible Mark Rule",
-        "section": "components",
-        "body": "Every mark that carries a class clears 3:1 against ground on its own. A hatch bed is exempt because its strokes carry identity; a connector is not, because without it two end marks are two unrelated dots."
+        "body": "Every mark that carries a class clears 3:1 against `ground` on its own — solid 3.28, hatch strokes 4.22, amber caps 9.79, connector 3.34, selected connector 3.15. A hatch *bed* is exempt because its strokes carry identity, but a connector is not: without it, two end marks are two unrelated dots. The category fills this replaced measured 1.60–2.25 and all failed.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Do show how a claim was established, next to the claim.",
-      "Do keep magenta for selection and live state; keep amber for uncertainty.",
-      "Do set data in the mono token with tabular numerals.",
-      "Do say what a surface does hold when it cannot show what was expected.",
-      "Do give a raised surface a shadow with offset and blur.",
-      "Do let a mark that carries meaning clear 3:1 against its ground on its own.",
-      "Do split a figure only where the parts add up. Elapsed does not; across-projects does."
+      "Show how a claim was established, next to the claim.",
+      "Keep magenta for selection and live state; keep amber for uncertainty.",
+      "Set data in the mono token with tabular numerals.",
+      "Say what a surface does hold when it cannot show what was expected.",
+      "Cap a view by relevance, not by chance, and state the remainder in the same",
+      "Give a raised surface a shadow with offset and blur.",
+      "Let a mark that carries meaning clear 3:1 against its ground on its own.",
+      "Split a figure only where the parts add up. Elapsed does not; across-projects"
     ],
     "donts": [
-      "Don\u2019t set interface type below 13px or below weight 500. Reading prose is the one exception and sets at 400.",
-      "Don\u2019t use the accent as a glow, a gradient, or a decorative fill.",
-      "Don\u2019t extend vibrancy beyond the scope rail, or add blur for atmosphere.",
-      "Don\u2019t render a calendar grid or a contribution heatmap as a primary view.",
-      "Don\u2019t print a figure lore cannot support \u2014 no 0m for a real block, no clock range without dates across days, no total where the data only supports a floor, no digest over a range holding nothing.",
-      "Don\u2019t introduce a second accent, or let a category hue carry state.",
-      "Don\u2019t put a category hue back on a lane bar. The group heading above it and the rail row that filtered to it already say it; the fill is spent on evidence now.",
-      "Don\u2019t borrow a word or a colour across the attribution and evidence axes.",
-      "Don\u2019t animate a bar with a transform that deforms the marks inside it."
+      "Set interface type below 13px or below weight 500. Reading prose is the one",
+      "Use the accent as a glow, a gradient, or a decorative fill.",
+      "Extend vibrancy beyond the scope rail, or add blur for atmosphere.",
+      "Render a calendar grid or a contribution heatmap as a primary view.",
+      "Print a figure lore cannot support — no `0m` for a real block, no clock range",
+      "Introduce a second accent, or let a category hue carry state.",
+      "Put a category hue back on a lane bar. The group heading above it and the rail",
+      "Borrow a word or a colour across the attribution and evidence axes.",
+      "Leave a figure unlabelled about what it covers. The digest is narrowed by the",
+      "Ship an uncapped view. Lanes was the one view users were told was safe for a",
+      "Animate a bar with a transform that deforms the marks inside it."
     ]
   }
 }
