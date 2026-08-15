@@ -53,6 +53,16 @@
 	 *  the texture, which is the part that was never going to survive anyway. */
 	const narrow = (b: Bar) => (width(b) / 100) * trackWidth < 14;
 
+	/** Lanes, capped by activity.
+	 *
+	 *  Stream caps at 300 blocks and states it. This had no cap at all: every lane
+	 *  and every bar in range, each bar a button with its own gradient. Busiest
+	 *  first, because a lane you spent four hours in matters more than one holding
+	 *  a single save — and the remainder is stated rather than dropped. */
+	const LANE_LIMIT = 120;
+	let shown = $derived(lanes.length <= LANE_LIMIT ? lanes : lanes.slice(0, LANE_LIMIT));
+	let hiddenLanes = $derived(lanes.length - shown.length);
+
 	/** Only the classes this range actually holds — but always at least one.
 	 *
 	 *  Suppressing the key below two classes got this backwards: a day evidenced
@@ -60,7 +70,7 @@
 	 *  cold, and it was precisely when no key was drawn. */
 	let present = $derived.by(() => {
 		const seen = new Set<string>();
-		for (const lane of lanes) for (const bar of lane.bars) seen.add(bar.evidence);
+		for (const lane of shown) for (const bar of lane.bars) seen.add(bar.evidence);
 		return EVIDENCE.filter((e) => seen.has(e.id));
 	});
 
@@ -141,7 +151,7 @@
 	 *  order stays stable when the range changes. */
 	let groups = $derived.by(() => {
 		const out: { category: string; lanes: Lane[]; ms: number }[] = [];
-		for (const lane of lanes) {
+		for (const lane of shown) {
 			let group = out.find((g) => g.category === lane.category);
 			if (!group) {
 				group = { category: lane.category, lanes: [], ms: 0 };
@@ -201,6 +211,14 @@
 				{/each}
 			</ul>
 		</div>
+	{/if}
+
+	{#if hiddenLanes > 0}
+		<p class="truncated">
+			Showing the <b class="num">{shown.length}</b> busiest projects of
+			<b class="num">{lanes.length}</b> in this range. Filter by category or project to
+			reach the rest — the archive holds all of them.
+		</p>
 	{/if}
 
 	<div class="body">
@@ -327,6 +345,22 @@
 		height: 12px;
 		flex: none;
 		border-radius: var(--radius-swatch);
+	}
+
+	/* Same voice as the Stream's cap: name what is held back, and where it went. */
+	.truncated {
+		flex: none;
+		margin: 0;
+		padding: 9px 20px;
+		border-bottom: 1px solid var(--line);
+		background: var(--amber-soft);
+		color: var(--amber);
+		font-size: var(--fs-min);
+		line-height: 1.45;
+	}
+	.truncated b {
+		font-family: var(--mono);
+		font-weight: 620;
 	}
 
 	.body {

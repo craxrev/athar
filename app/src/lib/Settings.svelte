@@ -62,8 +62,15 @@
 		await save();
 	}
 
+	/** Which root is awaiting confirmation, if any. Removing one re-categorises
+	 *  every project beneath it on the next rebuild, and it was a 24px icon button
+	 *  beside a path that saved immediately. Nothing archived is lost, which is why
+	 *  this is a confirm rather than an undo — but it is not nothing. */
+	let confirming = $state<string | null>(null);
+
 	async function removeRoot(path: string) {
 		if (!config) return;
+		confirming = null;
 		config.roots = config.roots.filter((r) => r.path !== path);
 		collector.needsRebuild = true;
 		await save();
@@ -131,9 +138,18 @@
 								}}
 								aria-label="Category for {root.path}"
 							/>
-							<button class="remove" onclick={() => removeRoot(root.path)} aria-label="Remove root {root.path}">
-								<Icon name="close" size={14} />
-							</button>
+							{#if confirming === root.path}
+								<button class="act danger" onclick={() => removeRoot(root.path)}>Remove</button>
+								<button class="act" onclick={() => (confirming = null)}>Keep</button>
+							{:else}
+								<button
+									class="remove"
+									onclick={() => (confirming = root.path)}
+									aria-label="Remove root {root.path}"
+								>
+									<Icon name="close" size={14} />
+								</button>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -147,6 +163,7 @@
 					<input
 						type="number"
 						min="1"
+						max="1440"
 						aria-label="Scan every, in minutes"
 						bind:value={config.scan_interval_mins}
 						onchange={() => void save()}
@@ -164,6 +181,7 @@
 					<input
 						type="number"
 						min="1"
+						max="480"
 						aria-label="A pause ends a block after, in minutes"
 						bind:value={config.idle_gap_mins}
 						onchange={() => {
@@ -183,6 +201,7 @@
 					<input
 						type="number"
 						min="1"
+						max="3650"
 						aria-label="First scan looks back, in days"
 						bind:value={config.file_lookback_days}
 						onchange={() => void save()}
@@ -486,6 +505,14 @@
 	.cat {
 		width: 122px;
 		flex: none;
+	}
+
+	.danger {
+		border-color: var(--del);
+		color: var(--del);
+	}
+	.danger:hover:not(:disabled) {
+		background: color-mix(in srgb, var(--del) 14%, transparent);
 	}
 
 	.remove {

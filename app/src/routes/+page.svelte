@@ -870,6 +870,12 @@
 					>
 					<Icon name="chevron" size={16} />
 					</button>
+					{#if collector.busy && !railOpen}
+						<span class="working">
+							<span class="pip" aria-hidden="true"></span>
+							{collector.busy === 'rebuild' ? 'Rebuilding' : 'Scanning'}
+						</span>
+					{/if}
 					{#if !atPresent}
 						<button
 							class="now"
@@ -1342,6 +1348,38 @@
 		font-weight: 560;
 		color: var(--text-dim);
 	}
+	/* Shown only where the rail cannot: a scan is otherwise invisible whenever the
+	   rail is folded, which below 1120px it folds by itself. */
+	.working {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		margin-left: auto;
+		font-size: var(--fs-meta);
+		font-weight: 540;
+		color: var(--text-dim);
+	}
+	.pip {
+		width: 7px;
+		height: 7px;
+		border-radius: var(--radius-circle);
+		background: var(--accent);
+		animation: pip var(--motion-live) infinite alternate;
+	}
+	@keyframes pip {
+		from {
+			opacity: 1;
+		}
+		to {
+			opacity: 0.35;
+		}
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.pip {
+			animation: none;
+		}
+	}
+
 	/* Only present when there is somewhere to come back from. */
 	.now {
 		margin-left: 4px;
