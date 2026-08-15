@@ -49,7 +49,11 @@
 		</div>
 	{:else}
 		<div class="scroll">
-			<header>
+			<!-- Polite live region: walking the timeline with j/k changes this pane and
+			     nothing else, so without it a keyboard user moved the selection five
+			     times and was told nothing at all. Project, when, how long, and what
+			     the span is evidenced by — the whole answer, once. -->
+			<header aria-live="polite">
 				<h2>{block.project}</h2>
 				<p class="where" title={block.project_path}>{shortPath(block.project_path, 3)}</p>
 				<p class="when">

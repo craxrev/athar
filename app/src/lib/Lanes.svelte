@@ -227,7 +227,9 @@
 									class="bar mark"
 									class:on={selected === b.block_id}
 									class:narrow={narrow(b)}
+									aria-pressed={selected === b.block_id}
 									data-evidence={b.evidence}
+									data-block={b.block_id}
 									style="left: {left(b.started_ms)}%; width: {width(b)}%"
 									title={barTitle(lane, b)}
 									aria-label={barTitle(lane, b)}

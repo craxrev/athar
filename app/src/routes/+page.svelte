@@ -551,7 +551,23 @@
 		const at = selectedBlock === null ? -1 : walkable.indexOf(selectedBlock);
 		const next = at === -1 ? (delta > 0 ? 0 : walkable.length - 1) : at + delta;
 		const target = walkable[Math.max(0, Math.min(next, walkable.length - 1))];
-		if (target !== undefined) void select(target);
+		if (target === undefined) return;
+		void select(target);
+		reveal(target);
+	}
+
+	/** Bring a keyboard-chosen block into view.
+	 *
+	 *  Walking with j/k moved the selection and the detail pane but never the
+	 *  viewport, so past the fold the highlight went somewhere the user could not
+	 *  see and the pane described a block off screen. Deferred a frame because the
+	 *  element may not have rendered yet when the range or view just changed. */
+	function reveal(blockId: number) {
+		requestAnimationFrame(() => {
+			document
+				.querySelector(`[data-block="${blockId}"]`)
+				?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+		});
 	}
 
 	/** Every binding, grouped, in one place. The sheet renders this list, so a

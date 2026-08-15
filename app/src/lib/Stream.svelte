@@ -143,7 +143,12 @@
 
 			{#each d.blocks as block (block.id)}
 				<article class:on={selected === block.id}>
-					<button class="head" onclick={() => onSelect(block.id)}>
+					<button
+						class="head"
+						aria-pressed={selected === block.id}
+						data-block={block.id}
+						onclick={() => onSelect(block.id)}
+					>
 						<span class="num when">{clock(block.started_ms)}</span>
 						<span class="project">{block.project}</span>
 						<span class="swatch" data-category={block.category}>{block.category}</span>
