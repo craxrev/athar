@@ -102,6 +102,10 @@ export interface BlockDetail {
 	file_changes: FileChangeSummary[];
 }
 
+/** What kind of record backs a block's span. Stamped by the archive, not derived
+ *  here, so the timeline and the digest cannot classify a block differently. */
+export type Evidence = 'sessions' | 'commits' | 'saves' | 'bare';
+
 export interface Bar {
 	block_id: number;
 	started_ms: number;
@@ -109,6 +113,7 @@ export interface Bar {
 	sessions: number;
 	commits: number;
 	file_changes: number;
+	evidence: Evidence;
 }
 
 export interface Lane {

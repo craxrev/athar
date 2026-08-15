@@ -120,6 +120,32 @@ pub struct BlockDetail {
     pub file_changes: Vec<FileChangeSummary>,
 }
 
+/// What kind of record backs a block's span, strongest present first.
+///
+/// A block's start and end are the timestamps of its first and last record, so
+/// *what its width means* changes with what those records are: a session
+/// brackets continuous work, commits are exact points with the idle-gap rule
+/// filling between them, and a file save is a point whose coverage is a floor.
+/// Drawn identically, a three-hour conversation and two file saves make the same
+/// claim, and only one of them has earned it.
+///
+/// A session counts whether or not its transcript survived. Prompt timestamps
+/// are exact, so the span is evidenced even where the content is gone — that
+/// absence is a different axis, and `prompts only` already carries it.
+pub fn evidence_of(sessions: i64, commits: i64, file_changes: i64) -> &'static str {
+    if sessions > 0 {
+        "sessions"
+    } else if commits > 0 {
+        "commits"
+    } else if file_changes > 0 {
+        "saves"
+    } else {
+        // Records the timeline does not itemise — harness state, prompt history.
+        // Real, and not a claim about any of the three above.
+        "bare"
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Bar {
     pub block_id: i64,
@@ -128,6 +154,9 @@ pub struct Bar {
     pub sessions: i64,
     pub commits: i64,
     pub file_changes: i64,
+    /// Stamped here rather than derived where it is drawn, so the timeline and
+    /// the digest can never classify the same block differently.
+    pub evidence: &'static str,
 }
 
 #[derive(Debug, Serialize)]
@@ -384,15 +413,18 @@ pub fn lanes(
           ORDER BY p.path, b.started_ms",
     )?;
     let rows = stmt.query_map([from_ms, to_ms], |r| {
+        let (sessions, commits, file_changes): (i64, i64, i64) =
+            (r.get(4)?, r.get(5)?, r.get(6)?);
         Ok((
             r.get::<_, String>(0)?,
             Bar {
                 block_id: r.get(1)?,
                 started_ms: r.get(2)?,
                 ended_ms: r.get(3)?,
-                sessions: r.get(4)?,
-                commits: r.get(5)?,
-                file_changes: r.get(6)?,
+                sessions,
+                commits,
+                file_changes,
+                evidence: evidence_of(sessions, commits, file_changes),
             },
         ))
     })?;
