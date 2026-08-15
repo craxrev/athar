@@ -53,8 +53,11 @@
 	 *  the texture, which is the part that was never going to survive anyway. */
 	const narrow = (b: Bar) => (width(b) / 100) * trackWidth < 14;
 
-	/** Only the classes this range actually holds. A key that teaches a code the
-	 *  view is not using is a puzzle, not a legend. */
+	/** Only the classes this range actually holds — but always at least one.
+	 *
+	 *  Suppressing the key below two classes got this backwards: a day evidenced
+	 *  only by file saves is precisely when someone meets an unfamiliar treatment
+	 *  cold, and it was precisely when no key was drawn. */
 	let present = $derived.by(() => {
 		const seen = new Set<string>();
 		for (const lane of lanes) for (const bar of lane.bars) seen.add(bar.evidence);
@@ -186,7 +189,7 @@
 		</div>
 	</div>
 
-	{#if present.length > 1}
+	{#if present.length}
 		<div class="key">
 			<div class="gutter"></div>
 			<ul>

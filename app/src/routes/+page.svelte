@@ -554,6 +554,47 @@
 		if (target !== undefined) void select(target);
 	}
 
+	/** Every binding, grouped, in one place. The sheet renders this list, so a
+	 *  shortcut that exists but is not listed here is a bug in one direction and a
+	 *  shortcut listed but not bound is a bug in the other. Eleven of these were
+	 *  reachable and three were hinted, in tooltips, on icons. */
+	const SHORTCUTS: { group: string; keys: [string, string][] }[] = [
+		{
+			group: 'Range',
+			keys: [
+				['1 2 3 4', 'Day, week, month, all time'],
+				['←  →', 'Step back and forward a period']
+			]
+		},
+		{
+			group: 'View',
+			keys: [
+				['L', 'Lanes'],
+				['S', 'Stream'],
+				['⌘B', 'Scope rail'],
+				['⇧⌘B', 'Detail pane']
+			]
+		},
+		{
+			group: 'Moving',
+			keys: [
+				['J  ↓', 'Next block'],
+				['K  ↑', 'Previous block'],
+				['⏎', 'Open the selected block’s session'],
+				['/', 'Filter']
+			]
+		},
+		{
+			group: 'Elsewhere',
+			keys: [
+				['⌘,', 'Settings'],
+				['?', 'This list'],
+				['esc', 'Leave a field, then a surface, then a filter']
+			]
+		}
+	];
+	let shortcutsOpen = $state(false);
+
 	/** Single-key shortcuts, no modifier: this is a tool for someone whose hands
 	 *  are already on the keyboard, and reaching for the mouse to change range is
 	 *  the friction the brief rules out.
@@ -582,7 +623,8 @@
 		if (event.key === 'Escape') {
 			// A field takes the first Escape: leaving what you were typing should
 			// not also leave the surface you were typing on.
-			if (typing) focused?.blur();
+			if (shortcutsOpen) shortcutsOpen = false;
+			else if (typing) focused?.blur();
 			else if (settingsOpen) {
 				settingsOpen = false;
 				restoreFocus();
@@ -593,6 +635,15 @@
 			else if (query) query = '';
 			return;
 		}
+
+		// Reachable from every surface, because not knowing the keys is the state it
+		// exists to fix. Matched on the character, since `?` is a shifted key.
+		if (event.key === '?' && !typing) {
+			event.preventDefault();
+			shortcutsOpen = !shortcutsOpen;
+			return;
+		}
+		if (shortcutsOpen) return;
 
 		// Settings is reachable from wherever you are, as its standard binding is.
 		if (event.metaKey && event.key === ',') {
@@ -992,9 +1043,104 @@
 			/>
 		{/if}
 	{/if}
+	{#if shortcutsOpen}
+		<!-- A sheet rather than a modal: it protects no task and interrupts none, so
+		     it dismisses on any click and needs no confirmation. -->
+		<div
+			class="sheetwrap"
+			role="button"
+			tabindex="-1"
+			aria-label="Close shortcuts"
+			onclick={() => (shortcutsOpen = false)}
+			onkeydown={(e) => e.key === 'Enter' && (shortcutsOpen = false)}
+		>
+			<div class="sheet" role="dialog" aria-modal="false" aria-label="Keyboard shortcuts">
+				<h2>Keyboard</h2>
+				<div class="groups">
+					{#each SHORTCUTS as g (g.group)}
+						<section>
+							<h3>{g.group}</h3>
+							<dl>
+								{#each g.keys as [key, what] (key)}
+									<dt><kbd>{key}</kbd></dt>
+									<dd>{what}</dd>
+								{/each}
+							</dl>
+						</section>
+					{/each}
+				</div>
+				<p class="dismiss">Press <kbd>?</kbd> or <kbd>esc</kbd> to close.</p>
+			</div>
+		</div>
+	{/if}
 </main>
 
 <style>
+	.sheetwrap {
+		position: fixed;
+		inset: 0;
+		display: grid;
+		place-items: center;
+		padding: 40px;
+		background: rgba(0, 0, 0, 0.45);
+		cursor: default;
+	}
+	.sheet {
+		max-width: 620px;
+		max-height: 100%;
+		overflow-y: auto;
+		padding: 22px 26px 18px;
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius);
+		background: var(--surface);
+		box-shadow: var(--lift-1);
+	}
+	.sheet h2 {
+		margin: 0 0 16px;
+		font-size: 19px;
+		font-weight: 640;
+		letter-spacing: -0.015em;
+	}
+	.groups {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		gap: 18px 26px;
+	}
+	.sheet h3 {
+		margin: 0 0 7px;
+		font-size: var(--fs-meta);
+		font-weight: 640;
+		color: var(--text-faint);
+	}
+	.sheet dl {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		align-items: baseline;
+		gap: 6px 11px;
+		margin: 0;
+	}
+	.sheet dd {
+		margin: 0;
+		font-size: var(--fs-meta);
+		color: var(--text-dim);
+	}
+	kbd {
+		display: inline-block;
+		padding: 2px 7px;
+		border: 1px solid var(--line-strong);
+		border-radius: var(--radius-sm);
+		background: var(--surface-raised);
+		color: var(--text);
+		font-family: var(--mono);
+		font-size: var(--fs-min);
+		font-weight: 560;
+		white-space: nowrap;
+	}
+	.dismiss {
+		margin: 18px 0 0;
+		font-size: var(--fs-meta);
+		color: var(--text-faint);
+	}
 	/* Present to assistive technology, absent to the eye. Not display:none, which
 	   would take it out of the accessibility tree along with everything else. */
 	.offscreen {
@@ -1219,8 +1365,8 @@
 	.time {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 2px 18px;
+		align-items: flex-start;
+		gap: 4px 22px;
 	}
 	.time .lead {
 		font-size: 14px;
@@ -1233,6 +1379,16 @@
 	}
 	.digest b.mid {
 		font-size: 15px;
+	}
+	/* The distinction the whole digest is built around, and it lived only in a
+	   hover title — unreachable by keyboard and unread by anyone who did not
+	   already suspect there was something to read. */
+	.gloss {
+		display: block;
+		font-size: var(--fs-min);
+		font-weight: 500;
+		color: var(--text-faint);
+		white-space: normal;
 	}
 
 	/* Bound to the figure above it by proximity: three of these sum to
