@@ -1137,21 +1137,18 @@
 	{#if shortcutsOpen}
 		<!-- A sheet rather than a modal: it protects no task and interrupts none, so
 		     it dismisses on any click and needs no confirmation. -->
-		<div
-			class="sheetwrap"
-			role="button"
-			tabindex="-1"
-			aria-label="Close shortcuts"
-			onclick={() => {
-				shortcutsOpen = false;
-				restoreFocus();
-			}}
-			onkeydown={(e) => {
-				if (e.key !== 'Enter') return;
-				shortcutsOpen = false;
-				restoreFocus();
-			}}
-		>
+		<!-- The scrim dismisses on click. It carried role="button" and tabindex="-1",
+		     which is a handler no keyboard can reach wrapping the dialog it was meant
+		     to dismiss; Escape is the keyboard route and always was. -->
+		<div class="sheetwrap">
+			<button
+				class="scrim"
+				aria-label="Close shortcuts"
+				onclick={() => {
+					shortcutsOpen = false;
+					restoreFocus();
+				}}
+			></button>
 			<div
 				class="sheet"
 				role="dialog"
@@ -1187,10 +1184,18 @@
 		display: grid;
 		place-items: center;
 		padding: 40px;
+	}
+	/* A real button rather than a div with a click handler: the dismiss affordance
+	   is reachable by keyboard as well as pointer, and carries its own name. */
+	.scrim {
+		position: absolute;
+		inset: 0;
+		border: none;
 		background: var(--scrim);
 		cursor: default;
 	}
 	.sheet {
+		position: relative;
 		max-width: 620px;
 		max-height: 100%;
 		overflow-y: auto;
@@ -1267,12 +1272,6 @@
 		overflow: hidden;
 	}
 
-	@media (prefers-reduced-motion: reduce) {
-		.views button {
-			transition: none;
-		}
-	}
-
 	.centre {
 		display: flex;
 		flex-direction: column;
@@ -1335,6 +1334,14 @@
 	}
 	.views button.on :global(svg) {
 		color: var(--accent);
+	}
+	/* Below the rule it overrides, not above it. `@media` adds no specificity, so
+	   an identical selector earlier in the file loses on source order — this guard
+	   was written and then silently did nothing. */
+	@media (prefers-reduced-motion: reduce) {
+		.views button {
+			transition: none;
+		}
 	}
 
 	.filter {

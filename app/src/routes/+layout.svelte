@@ -18,6 +18,9 @@
 		--surface-raised: #191c24;
 		--surface-hover: #1f2330;
 		--wash: rgba(255, 255, 255, 0.022);
+		/* A chip's ground: lighter than a divider, darker than a surface step. Was
+		   hand-copied into two components before it had a name. */
+		--fill-subtle: rgba(255, 255, 255, 0.06);
 		--line: rgba(255, 255, 255, 0.07);
 		--line-strong: rgba(255, 255, 255, 0.14);
 

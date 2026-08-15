@@ -97,7 +97,12 @@
 	$effect(() => surface?.focus({ preventScroll: true }));
 </script>
 
-<section class="settings" bind:this={surface} tabindex="-1">
+<section
+	class="settings"
+	bind:this={surface}
+	tabindex="-1"
+	aria-label="Settings"
+>
 	<div class="bar" data-tauri-drag-region>
 		<button class="back" onclick={onClose}>
 			<Icon name="back" size={18} />
@@ -283,7 +288,7 @@
 					sessions and links from records already archived — it reads nothing and can
 					lose nothing.
 				</p>
-				<div class="actions" role="status">
+				<div class="actions">
 					<button
 						class="act strong"
 						disabled={!!collector.busy}
@@ -302,14 +307,19 @@
 					     archive needing work are both true at once, and the else-chain
 					     meant a grouping change could never be confirmed — it sets
 					     needsRebuild, which always won. -->
-					{#if saved}
-						<span class="ok">Saved</span>
-					{/if}
-					{#if collector.needsScan}
-						<span class="pending">A root or identity changed — scan to read it.</span>
-					{:else if collector.needsRebuild}
-						<span class="pending">A grouping setting changed — rebuild to apply it.</span>
-					{/if}
+					<!-- The region covers the status text only. Wrapping the buttons meant
+					     their own labels ("Scan now" → "Scanning…") were announced as
+					     status, twice over. -->
+					<span role="status">
+						{#if saved}
+							<span class="ok">Saved</span>
+						{/if}
+						{#if collector.needsScan}
+							<span class="pending">A root or identity changed — scan to read it.</span>
+						{:else if collector.needsRebuild}
+							<span class="pending">A grouping setting changed — rebuild to apply it.</span>
+						{/if}
+					</span>
 				</div>
 				{#if collector.error}
 					<p class="banner bad" role="alert">

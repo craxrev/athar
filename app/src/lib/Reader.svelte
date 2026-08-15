@@ -24,7 +24,12 @@
 <!-- Reading takes over the window rather than opening a modal: a 200-message
      conversation needs the measure, and a modal would block everything else for
      a task that needs neither interruption nor protected focus. -->
-<section class="reader" bind:this={surface} tabindex="-1">
+<section
+	class="reader"
+	bind:this={surface}
+	tabindex="-1"
+	aria-label="Conversation reader"
+>
 	<div class="bar" data-tauri-drag-region>
 		<button class="back" onclick={onClose}>
 			<Icon name="back" size={18} />
@@ -373,7 +378,7 @@
 		font-weight: 580;
 		padding: 1px 6px;
 		border-radius: var(--radius-pill);
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--fill-subtle);
 		color: var(--text-faint);
 	}
 	.badge.wrote {

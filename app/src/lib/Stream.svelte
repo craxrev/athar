@@ -201,7 +201,8 @@
 								class="item commit"
 								class:open={!!expanded[entry.commit.sha]}
 								onclick={() => toggleFiles(entry.commit.sha)}
-								aria-expanded={!!expanded[entry.commit.sha]}
+								aria-expanded={Array.isArray(expanded[entry.commit.sha])}
+								aria-controls="files-{entry.commit.sha}"
 							>
 								<span class="num at">{clock(entry.at)}</span>
 								<Icon name="commit" size={17} />
@@ -247,7 +248,7 @@
 
 							{#if expanded[entry.commit.sha]}
 								{@const files = expanded[entry.commit.sha]}
-								<div class="touched">
+								<div class="touched" id="files-{entry.commit.sha}">
 									{#if files === 'loading'}
 										<p class="note">Reading the archive…</p>
 									{:else if files === 'error'}
@@ -282,6 +283,7 @@
 								class:open={openMoments[entry.key]}
 								onclick={() => (openMoments[entry.key] = !openMoments[entry.key])}
 								aria-expanded={!!openMoments[entry.key]}
+								aria-controls="moment-{entry.moment.at}"
 							>
 								<span class="num at">{clock(entry.at)}</span>
 								<Icon name="file" size={17} />
@@ -300,7 +302,7 @@
 							</button>
 
 							{#if openMoments[entry.key]}
-								<div class="touched">
+								<div class="touched" id="moment-{entry.moment.at}">
 									<p class="inhead">Saved, not committed</p>
 									<ul>
 										{#each entry.moment.files as f, i (i)}
@@ -414,7 +416,7 @@
 		padding: 2px 7px;
 		border-radius: var(--radius-pill);
 		color: var(--text-dim);
-		background: rgba(255, 255, 255, 0.06);
+		background: var(--fill-subtle);
 	}
 	.swatch[data-category='work'] {
 		color: var(--cat-work-tint);

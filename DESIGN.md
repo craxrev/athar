@@ -23,6 +23,7 @@ colors:
   git-del-soft: "rgba(230, 92, 99, 0.14)"
   accent-tint: "#ea439a"
   wash: "rgba(255, 255, 255, 0.022)"
+  fill-subtle: "rgba(255, 255, 255, 0.06)"
   scrim: "rgba(0, 0, 0, 0.45)"
   category-work: "#4c8dff"
   category-work-tint: "#9dc0ff"
