@@ -172,7 +172,7 @@
       "git-del": {
         "role": "tertiary",
         "displayName": "Deletion Red",
-        "canonical": "#e5555c",
+        "canonical": "#e65c63",
         "tonalRamp": [
           "oklch(15.0% 0.1073 20.9)",
           "oklch(26.4% 0.1277 20.9)",
@@ -248,11 +248,11 @@
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "The reader’s session title, and nothing else."
+        "purpose": "The reader\u2019s session title, and nothing else."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "The detail pane’s block heading."
+        "purpose": "The detail pane\u2019s block heading."
       },
       "wordmark": {
         "displayName": "Wordmark",
@@ -284,7 +284,7 @@
       },
       "figure": {
         "displayName": "Figure",
-        "purpose": "The digest’s lead figure. Mono at display scale — the one number the Insight job leads with."
+        "purpose": "The digest\u2019s lead figure. Mono at display scale \u2014 the one number the Insight job leads with."
       }
     },
     "shadows": [
@@ -296,7 +296,7 @@
       {
         "name": "lift-2",
         "value": "0 2px 4px rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.36)",
-        "purpose": "Reserved for a surface floating above a pane. Currently referenced nowhere — spend it deliberately or delete it."
+        "purpose": "Reserved for a surface floating above a pane. Currently referenced nowhere \u2014 spend it deliberately or delete it."
       }
     ],
     "motion": [
@@ -313,11 +313,11 @@
       {
         "name": "entrance",
         "value": "cubic-bezier(0.16, 1, 0.3, 1)",
-        "purpose": "Both authored entrances — the 620ms staggered lane reveal and the reader’s 260ms settle."
+        "purpose": "Both authored entrances \u2014 the 620ms staggered lane reveal and the reader\u2019s 260ms settle."
       },
       {
         "name": "lane-reveal",
-        "value": "clip-path inset(0 100% 0 0) → inset(0 0 0 0), 620ms",
+        "value": "clip-path inset(0 100% 0 0) \u2192 inset(0 0 0 0), 620ms",
         "purpose": "Reveals rather than scales: scaleX deformed the end marks and hatch pitch of the evidence treatments."
       }
     ],
@@ -338,7 +338,7 @@
   },
   "components": [
     {
-      "name": "Lane Bar — from sessions",
+      "name": "Lane Bar \u2014 from sessions",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "A block whose span a conversation brackets. Solid, because the whole span is evidenced.",
@@ -346,7 +346,7 @@
       "css": ".ds-lane { position: relative; height: 40px; background: var(--ground, #0b0c0f); } .ds-bar { position: absolute; top: 50%; left: 8%; width: 60%; height: 23px; transform: translateY(-50%); border-radius: 4px; --ink: rgba(255,255,255,0.36); --ink-bed: rgba(255,255,255,0.11); cursor: pointer; } .ds-bar-sessions { background: var(--ink); } .ds-bar-sessions:hover { --ink: rgba(255,255,255,0.54); }"
     },
     {
-      "name": "Lane Bar — from commits",
+      "name": "Lane Bar \u2014 from commits",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "Exact at the commits, inferred between them. The hatch claims no positions.",
@@ -354,7 +354,7 @@
       "css": ".ds-bar-commits { background-color: var(--ink-bed); background-image: repeating-linear-gradient(45deg, var(--ink) 0 2px, transparent 2px 6px); } .ds-bar-commits:hover { --ink: rgba(255,255,255,0.54); --ink-bed: rgba(255,255,255,0.2); }"
     },
     {
-      "name": "Lane Bar — from saves",
+      "name": "Lane Bar \u2014 from saves",
       "kind": "custom",
       "refersTo": "lane-bar-saves",
       "description": "Two mtimes and nothing known between. The ends are marked because the ends are what the archive has.",
@@ -362,7 +362,7 @@
       "css": ".ds-bar-saves { --ink: var(--amber, #f2a93b); --ink-link: color-mix(in srgb, var(--amber, #f2a93b) 52%, transparent); background-image: linear-gradient(var(--ink-link), var(--ink-link)); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; } .ds-bar-saves::before, .ds-bar-saves::after { content: ''; position: absolute; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: var(--ink); } .ds-bar-saves::before { left: 0; } .ds-bar-saves::after { right: 0; }"
     },
     {
-      "name": "Lane Bar — from records only",
+      "name": "Lane Bar \u2014 from records only",
       "kind": "custom",
       "refersTo": "lane-bar",
       "description": "Records the timeline cannot itemise. The span is real; nothing in it is describable, so it claims no ends.",
@@ -370,7 +370,7 @@
       "css": ".ds-bar-bare { background-image: repeating-linear-gradient(90deg, var(--ink) 0 3px, transparent 3px 7px); background-repeat: no-repeat; background-position: center; background-size: 100% 3px; }"
     },
     {
-      "name": "Lane Bar — selected",
+      "name": "Lane Bar \u2014 selected",
       "kind": "custom",
       "refersTo": "lane-bar-selected",
       "description": "Selection takes the ink, never the shape. A selected saves-only block is still a pair of end marks.",
@@ -381,7 +381,7 @@
       "name": "Rail Row",
       "kind": "nav",
       "refersTo": "rail-row",
-      "description": "Scope, category and project rows in the vibrancy rail. Selection is a flat accent fill with a legible edge — never a glow.",
+      "description": "Scope, category and project rows in the vibrancy rail. Selection is a flat accent fill with a legible edge \u2014 never a glow.",
       "html": "<nav class=\"ds-rail\"><button class=\"ds-rail-row\">This week</button><button class=\"ds-rail-row ds-rail-row-on\">This month</button></nav>",
       "css": ".ds-rail { background: rgba(255,255,255,0.022); padding: 8px; display: flex; flex-direction: column; gap: 2px; } .ds-rail-row { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border: none; border-radius: 6px; background: none; color: var(--text-dim, #a2a8b6); font: 520 14.5px/1.35 -apple-system, system-ui, sans-serif; text-align: left; cursor: pointer; transition: background 120ms ease-out, color 120ms ease-out; } .ds-rail-row:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rail-row:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; } .ds-rail-row-on { background: rgba(233,61,151,0.16); color: var(--text, #edeef2); box-shadow: inset 0 0 0 1px rgba(233,61,151,0.42); }"
     },
@@ -398,7 +398,7 @@
       "kind": "input",
       "refersTo": "filter-field",
       "description": "The toolbar filter. Focus shifts the border to the accent edge.",
-      "html": "<label class=\"ds-filter\"><input class=\"ds-filter-input\" type=\"text\" placeholder=\"Filter projects, sessions, commits…\" aria-label=\"Filter\"></label>",
+      "html": "<label class=\"ds-filter\"><input class=\"ds-filter-input\" type=\"text\" placeholder=\"Filter projects, sessions, commits\u2026\" aria-label=\"Filter\"></label>",
       "css": ".ds-filter { display: flex; align-items: center; gap: 8px; width: 320px; padding: 0 10px; height: 30px; border: 1px solid rgba(255,255,255,0.07); border-radius: 6px; background: var(--surface, #12141a); } .ds-filter:focus-within { border-color: rgba(233,61,151,0.42); } .ds-filter-input { flex: 1; min-width: 0; border: none; background: none; color: var(--text, #edeef2); font: 500 14px/1.4 -apple-system, system-ui, sans-serif; } .ds-filter-input::placeholder { color: var(--text-faint, #878e9d); } .ds-filter-input:focus-visible { outline: 2px solid var(--accent, #e93d97); outline-offset: 2px; }"
     },
     {
@@ -413,7 +413,7 @@
       "name": "Confidence Label",
       "kind": "custom",
       "refersTo": "confidence-label",
-      "description": "The system’s signature on the attribution axis. A closed ring for a witnessed claim, the same ring broken for an inferred one.",
+      "description": "The system\u2019s signature on the attribution axis. A closed ring for a witnessed claim, the same ring broken for an inferred one.",
       "html": "<span class=\"ds-tier ds-tier-certain\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"10\" cy=\"10\" r=\"6.5\"/></svg>witnessed</span> <span class=\"ds-tier ds-tier-inferred\"><svg viewBox=\"0 0 20 20\" width=\"13\" height=\"13\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M14.5 6.2A6.5 6.5 0 1 1 5.5 13.8\"/></svg>inferred</span>",
       "css": ".ds-tier { display: inline-flex; align-items: center; gap: 5px; font: 500 13.5px/1.45 -apple-system, system-ui, sans-serif; } .ds-tier-certain { color: var(--add, #56c98a); } .ds-tier-inferred { color: var(--amber, #f2a93b); }"
     },
@@ -427,14 +427,14 @@
     }
   ],
   "narrative": {
-    "northStar": "The instrument panel that shows its own confidence — dense, dark, one accent, and never a figure it cannot support.",
-    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on — the digest and the lane bars — said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit — this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
+    "northStar": "The instrument panel that shows its own confidence \u2014 dense, dark, one accent, and never a figure it cannot support.",
+    "overview": "lore reads what other systems leave behind and keeps it after they delete it. The interface exists to make an uneven record legible without smoothing it, so the governing idea is not an aesthetic but a discipline: every figure on screen carries how it was established. The discipline has to hold at the top as well as at the leaf. It is easy to grade a single commit and then present a week as one confident number; for a while this build did exactly that, annotating every detail while the two surfaces a person actually lands on \u2014 the digest and the lane bars \u2014 said nothing about their own footing. Both now carry it: the bars in their fill, the digest in a split that adds up. The system is dark only, and by decision rather than by category habit \u2014 this is read at a desk, on the machine that produced the work, usually late. Its restraint is the restraint of an instrument panel: one accent, no ornament, dense information set at sizes that stay comfortable for a long look.",
     "keyCharacteristics": [
       "Dark only, by decision rather than default",
       "One accent, magenta, because git owns red and green and amber is reserved for uncertainty",
       "Real macOS window vibrancy on the scope rail only; dense content on solid ground",
       "Every span states what kind of record backs it",
-      "Two separate axes — attribution and evidence — that never share a vocabulary",
+      "Two separate axes \u2014 attribution and evidence \u2014 that never share a vocabulary",
       "A 13px type floor and a 500 weight floor for interface text; reading prose alone sets at 400",
       "Time as lanes of real projects on a real axis, never a calendar grid or a contribution heatmap"
     ],
@@ -447,7 +447,7 @@
       {
         "name": "The Two Floors Rule",
         "section": "typography",
-        "body": "Interface text never goes below weight 500 — labels, controls, rail rows, metadata, figures. Reading prose sets at 400, and only in the conversation reader and the markdown it renders. A 400 weight anywhere outside a reading surface is a defect."
+        "body": "Interface text never goes below weight 500 \u2014 labels, controls, rail rows, metadata, figures. Reading prose sets at 400, and only in the conversation reader and the markdown it renders. A 400 weight anywhere outside a reading surface is a defect."
       },
       {
         "name": "The Ink Rule",
@@ -470,15 +470,15 @@
       "Do split a figure only where the parts add up. Elapsed does not; across-projects does."
     ],
     "donts": [
-      "Don’t set interface type below 13px or below weight 500. Reading prose is the one exception and sets at 400.",
-      "Don’t use the accent as a glow, a gradient, or a decorative fill.",
-      "Don’t extend vibrancy beyond the scope rail, or add blur for atmosphere.",
-      "Don’t render a calendar grid or a contribution heatmap as a primary view.",
-      "Don’t print a figure lore cannot support — no 0m for a real block, no clock range without dates across days, no total where the data only supports a floor, no digest over a range holding nothing.",
-      "Don’t introduce a second accent, or let a category hue carry state.",
-      "Don’t put a category hue back on a lane bar. The group heading above it and the rail row that filtered to it already say it; the fill is spent on evidence now.",
-      "Don’t borrow a word or a colour across the attribution and evidence axes.",
-      "Don’t animate a bar with a transform that deforms the marks inside it."
+      "Don\u2019t set interface type below 13px or below weight 500. Reading prose is the one exception and sets at 400.",
+      "Don\u2019t use the accent as a glow, a gradient, or a decorative fill.",
+      "Don\u2019t extend vibrancy beyond the scope rail, or add blur for atmosphere.",
+      "Don\u2019t render a calendar grid or a contribution heatmap as a primary view.",
+      "Don\u2019t print a figure lore cannot support \u2014 no 0m for a real block, no clock range without dates across days, no total where the data only supports a floor, no digest over a range holding nothing.",
+      "Don\u2019t introduce a second accent, or let a category hue carry state.",
+      "Don\u2019t put a category hue back on a lane bar. The group heading above it and the rail row that filtered to it already say it; the fill is spent on evidence now.",
+      "Don\u2019t borrow a word or a colour across the attribution and evidence axes.",
+      "Don\u2019t animate a bar with a transform that deforms the marks inside it."
     ]
   }
 }

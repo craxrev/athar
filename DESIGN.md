@@ -19,7 +19,10 @@ colors:
   uncertain-amber: "#f2a93b"
   uncertain-amber-soft: "rgba(242, 169, 59, 0.14)"
   git-add: "#56c98a"
-  git-del: "#e5555c"
+  git-del: "#e65c63"
+  git-del-soft: "rgba(230, 92, 99, 0.14)"
+  accent-tint: "#ea439a"
+  wash: "rgba(255, 255, 255, 0.022)"
   category-work: "#4c8dff"
   category-work-tint: "#9dc0ff"
   category-research: "#e93d97"
@@ -211,6 +214,12 @@ already spoken for by meaning:
 | Uncertainty | `uncertain-amber` | Inferred attribution, coverage gaps, unreachable commits, coarse timestamps |
 | Insertions | `git-add` | Added lines, and the "witnessed" confidence tier |
 | Deletions | `git-del` | Removed lines, failed tool calls |
+
+Each reserved hue carries a lightened **tint** for text sitting on its own fill,
+the same three-form rule the category hues follow: `accent-tint` exists because
+the solid accent on `accent-soft` measures 4.48:1 and misses the 4.5 floor by
+0.02. `git-del` was lifted 4% for the same reason — as text on `surface-hover`,
+a state a hovered Stream row genuinely reaches, the original measured 4.31:1.
 
 Magenta is the accent **because** red, green and amber were unavailable: git owns
 red and green semantically wherever a diff figure appears, and amber had to stay
