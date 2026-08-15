@@ -12,6 +12,7 @@
 		lastScanMs,
 		intervalMins,
 		running,
+		error,
 		onScope,
 		onCategory,
 		onProject
@@ -23,6 +24,9 @@
 		categories: { name: string; ms: number }[];
 		lastScanMs: number | null;
 		intervalMins: number;
+		/** A collector failed. It can fail with nobody watching, and this footer is
+		 *  the only place in a trayless app where that is visible. */
+		error: string | null;
 		/** Set while a collector is working, whether this window started it or the
 		 *  schedule did. The footer is the only place a background scan is visible. */
 		running: string | null;
@@ -37,6 +41,20 @@
 		{ id: 'month', label: 'This month' },
 		{ id: 'all', label: 'All time' }
 	] as const;
+
+	/** How long a source keeps its own history before deleting it.
+	 *
+	 *  This is the single number the product depends on: lore has to run at least
+	 *  once inside this window or that stretch is gone for good, from every source
+	 *  at once. The footer used to report a timestamp in green — an archive five
+	 *  days from permanent loss looked exactly like one scanned this morning. */
+	const RETENTION_DAYS = 30;
+	let daysSince = $derived(
+		lastScanMs === null ? null : Math.floor((clock.now - lastScanMs) / 86_400_000)
+	);
+	let daysLeft = $derived(daysSince === null ? null : RETENTION_DAYS - daysSince);
+	let alarm = $derived(daysLeft !== null && daysLeft <= 7);
+	let lapsed = $derived(daysLeft !== null && daysLeft <= 0);
 
 	// The rail answers "what am I looking at". Long project lists stay readable by
 	// showing the ones with recent activity first, which the query already orders.
@@ -135,21 +153,32 @@
 	<footer role="status" aria-live="polite">
 		<span
 			class="dot"
-			class:stale={lastScanMs === null}
+			class:stale={lastScanMs === null || alarm}
+			class:lapsed
 			class:busy={!!running}
 			aria-hidden="true"
 		></span>
-		<span>
+		<span class="state">
 			{#if running === 'rebuild'}
 				Rebuilding…
 			{:else if running}
 				Scanning…
+			{:else if error}
+				<span class="bad">The last scan failed</span>
+				<span class="faint">· {error}</span>
 			{:else if lastScanMs === null}
 				Never scanned
+				<span class="faint">· nothing is being kept yet</span>
+			{:else if lapsed}
+				<span class="bad">Not scanned in {daysSince} days</span>
+				<span class="faint">· anything the sources have since deleted is gone</span>
+			{:else if alarm}
+				<span class="warn">{daysLeft} day{daysLeft === 1 ? '' : 's'} of source history left</span>
+				<span class="faint">· scanned {relative(lastScanMs, clock.now)}</span>
 			{:else}
 				Scanned {relative(lastScanMs, clock.now)}
+				<span class="faint">· every {intervalMins}m</span>
 			{/if}
-			<span class="faint">· every {intervalMins}m</span>
 		</span>
 	</footer>
 </nav>
@@ -322,6 +351,9 @@
 	.dot.stale {
 		background: var(--amber);
 	}
+	.dot.lapsed {
+		background: var(--del);
+	}
 	/* The only repeating motion in the app, and the only place it is warranted:
 	   something is happening right now, outside this window, and will stop on its
 	   own. Magenta because live state is magenta. */
@@ -348,5 +380,19 @@
 
 	.faint {
 		color: var(--text-faint);
+	}
+	/* The two states worth interrupting a glance for. Amber is this system's word
+	   for uncertainty and a closing window; red is for a loss already taken. */
+	.warn {
+		color: var(--amber);
+		font-weight: 560;
+	}
+	.bad {
+		color: var(--del);
+		font-weight: 560;
+	}
+	.state {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 </style>

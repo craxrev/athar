@@ -16,7 +16,15 @@
 		type SessionDetail,
 		type Summary
 	} from '$lib/archive';
-	import { compactDuration, duration, startOfDay, startOfMonth, startOfWeek, tokens } from '$lib/format';
+	import {
+		compactDuration,
+		duration,
+		shortPath,
+		startOfDay,
+		startOfMonth,
+		startOfWeek,
+		tokens
+	} from '$lib/format';
 
 	/** How many blocks the Stream renders at once. Beyond this the view says what
 	 *  it is not showing rather than trying to draw a year. */
@@ -444,6 +452,32 @@
 			: `${n} block${n === 1 ? '' : 's'} in this range`;
 	});
 
+	/** Every narrowing currently applied, each with the control that lifts it.
+	 *
+	 *  The empty state used to branch on the query alone, so filtering to a project
+	 *  and pressing 1 for Today produced "lore may not have been running" — the
+	 *  archive blamed for a filter, with the cause off screen if the rail was
+	 *  closed. */
+	let activeFilters = $derived.by(() => {
+		const out: { label: string; clear: () => void }[] = [];
+		if (category) out.push({ label: `category ${category}`, clear: () => (category = null) });
+		if (project)
+			out.push({ label: shortPath(project, 2), clear: () => (project = null) });
+		if (query) out.push({ label: `“${query}”`, clear: () => (query = '') });
+		return out;
+	});
+
+	/** What a filter in this view can actually reach. Saying "no match" without
+	 *  this was a claim the data does not support. */
+	let searchReach = $derived.by(() => {
+		if (!query) return null;
+		if (view === 'lanes')
+			return 'In Lanes a filter matches project and category names. Switch to Stream to search sessions, commits and file paths.';
+		if (blocks.length >= STREAM_LIMIT)
+			return `Only the ${blocks.length} most recent blocks in this range were searched.`;
+		return null;
+	});
+
 	let isEmpty = $derived(
 		!loading && !error && (view === 'lanes' ? filteredLanes.length === 0 : filteredBlocks.length === 0)
 	);
@@ -587,6 +621,7 @@
 			{categories}
 			lastScanMs={status?.last_scan_ms ?? null}
 			running={collector.busy}
+			error={collector.error}
 			{intervalMins}
 			onScope={(s) => {
 				scope = s;
@@ -738,7 +773,21 @@
 					<div class="state">
 						<h2>The archive could not be read</h2>
 						<p class="mono">{error}</p>
-						<p>Run <code>lore scan</code> in a terminal, then reopen this window.</p>
+						<p>
+							The collector ships inside this app, so nothing needs installing — a scan
+							builds the archive if it is missing, and repairs the read if it is not.
+						</p>
+						<div class="acts">
+							<button
+								class="act strong"
+								disabled={!!collector.busy}
+								onclick={() => collector.run('scan')}
+							>
+								{collector.busy === 'scan' ? 'Scanning…' : 'Scan now'}
+							</button>
+							<button class="act" onclick={retry}>Try reading again</button>
+						</div>
+						{#if collector.error}<p class="mono">{collector.error}</p>{/if}
 					</div>
 				{:else if loading && !summary}
 					<div class="state">
@@ -747,12 +796,41 @@
 					</div>
 				{:else if isEmpty}
 					<div class="state">
-						<h2>Nothing recorded in this range</h2>
-						{#if query}
-							<p>No project, session or commit matches “{query}”.</p>
-						{:else if status && status.records === 0}
-							<p>The archive is empty. Run <code>lore scan</code> to read your history.</p>
+						{#if status && status.records === 0}
+							<!-- First run. This used to instruct `lore scan` in a terminal, for a
+							     binary that ships inside the app and is never installed anywhere —
+							     while a scan it did not mention was already running. -->
+							<h2>{collector.busy ? 'Reading your history' : 'Nothing archived yet'}</h2>
+							{#if collector.busy}
+								<p>
+									Going through Claude Code sessions, git repositories and file
+									timestamps. The first run has the most to catch up on.
+								</p>
+								<p class="counted"><b class="num">{status.records}</b> records kept so far</p>
+							{:else}
+								<p>
+									lore reads Claude Code sessions, git history and file saves from disk,
+									and keeps them after those sources delete their own. Nothing has been
+									read yet.
+								</p>
+								<button class="act strong" onclick={() => collector.run('scan')}>
+									Read my history
+								</button>
+							{/if}
+						{:else if activeFilters.length}
+							<h2>Nothing matches these filters</h2>
+							<p>The archive holds this range. What is on screen is narrowed to:</p>
+							<p class="chips">
+								{#each activeFilters as f (f.label)}
+									<button class="chip" onclick={f.clear}>
+										{f.label}
+										<Icon name="close" size={13} />
+									</button>
+								{/each}
+							</p>
+							{#if searchReach}<p class="reach">{searchReach}</p>{/if}
 						{:else}
+							<h2>Nothing recorded in this range</h2>
 							<p>
 								lore may not have been running, or nothing happened. Widen the range to
 								see what it does hold.
@@ -1077,13 +1155,51 @@
 	.state :global(.act) {
 		margin-top: 6px;
 	}
-	code {
-		font-family: var(--mono);
-		/* Floored: inside .state p at 14px, a bare 0.92em computed to 12.88px. */
-		font-size: max(var(--fs-min), 0.92em);
-		padding: 1px 5px;
-		border-radius: 4px;
+	.acts {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 8px;
+	}
+	/* A live count, so a long first scan reads as progress rather than a stall.
+	   Never a percentage: the total is not known until the walk finishes. */
+	.counted {
+		font-size: 15px;
+		color: var(--text-dim);
+	}
+	.counted b {
+		color: var(--text);
+		font-weight: 620;
+	}
+	/* Each narrowing is its own control, so the way out is the thing that names
+	   the cause. */
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 7px;
+	}
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		min-height: 26px;
+		padding: 4px 9px;
+		border: 1px solid var(--line-strong);
+		border-radius: 999px;
 		background: var(--surface-raised);
+		color: var(--text-dim);
+		font-size: var(--fs-meta);
+		font-weight: 540;
+	}
+	.chip:hover {
+		background: var(--surface-hover);
 		color: var(--text);
 	}
+	/* What a filter in this view can actually reach. Without it, "no match" was a
+	   claim about the whole archive that only ever searched part of it. */
+	.reach {
+		color: var(--amber);
+	}
+
 </style>
