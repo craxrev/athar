@@ -240,7 +240,8 @@
 	}
 
 	$effect(() => {
-		const onError = (e: ErrorEvent) => (crash = `${e.message} — ${e.filename}:${e.lineno}`);
+		// ` · ` is this app's separator everywhere else it joins two facts.
+		const onError = (e: ErrorEvent) => (crash = `${e.message} · ${e.filename}:${e.lineno}`);
 		const onRejection = (e: PromiseRejectionEvent) =>
 			(crash = `unhandled rejection: ${String(e.reason)}`);
 		window.addEventListener('error', onError);
@@ -503,7 +504,7 @@
 			selectedDetail = found;
 			// A rebuild renumbers derived rows, so a selection can outlive the
 			// block it names. Saying so beats an empty pane.
-			detailError = found ? null : 'That block is no longer in the archive — a rebuild has replaced it. Select another.';
+			detailError = found ? null : 'That block is gone; a rebuild replaced it. Select another.';
 		} catch (e) {
 			if (ticket !== selectRequest) return;
 			detailError = (e as Error).message;
@@ -619,7 +620,7 @@
 	 *  the archive. Polite rather than assertive — none of it interrupts a task,
 	 *  and a scan can land at any moment. */
 	let announcement = $derived.by(() => {
-		if (crash) return `The window failed: ${crash}`;
+		if (crash) return `The window hit an error: ${crash}`;
 		if (error) return `The archive could not be read: ${error}`;
 		if (statusError) return `Collector status is unavailable: ${statusError}`;
 		if (loading) return 'Reading the archive';
@@ -653,9 +654,9 @@
 	let searchReach = $derived.by(() => {
 		if (!query) return null;
 		if (view === 'lanes')
-			return 'In Lanes a filter matches project and category names. Switch to Stream to search sessions, commits and file paths.';
+			return 'Lanes matches project and category names. Stream also searches sessions, commits and paths.';
 		if (blocks.length >= STREAM_LIMIT)
-			return `Only the ${blocks.length} most recent blocks in this range were searched.`;
+			return `Searched the ${blocks.length} most recent blocks only.`;
 		return null;
 	});
 
@@ -730,7 +731,7 @@
 			group: 'Range',
 			keys: [
 				['1 2 3 4', 'Day, week, month, all time'],
-				['←  →', 'Step back and forward a period']
+				['←  →', 'Previous, next period']
 			]
 		},
 		{
@@ -743,23 +744,22 @@
 			]
 		},
 		{
-			group: 'Moving',
+			group: 'Move',
 			keys: [
-				// Named for what the ladder actually draws, which is not always a
-				// block: a month or an all-time range draws days and months, and
-				// those are what these walk there.
-				['J  ↓', 'Next mark — block, day or month'],
+				// "Mark" rather than "block": a month or an all-time range draws days
+				// and months, and those are what these walk there.
+				['J  ↓', 'Next mark'],
 				['K  ↑', 'Previous mark'],
-				['⏎', 'Open the selected block’s session'],
+				['⏎', 'Open session'],
 				['/', 'Filter']
 			]
 		},
 		{
-			group: 'Elsewhere',
+			group: 'Other',
 			keys: [
 				['⌘,', 'Settings'],
-				['?', 'This list'],
-				['esc', 'Leave a field, then a surface, then a filter']
+				['?', 'Shortcuts'],
+				['esc', 'Close, then clear the filter']
 			]
 		}
 	];
@@ -1043,8 +1043,7 @@
 					</button>
 					{#if !railOpen && health.state === 'lapsed'}
 						<span class="working bad" role="status">
-							Not scanned in {health.daysSince} days — anything the sources have since
-							deleted is gone
+							Not scanned in {health.daysSince} days. Some history is gone
 						</span>
 					{:else if !railOpen && health.state === 'alarm'}
 						<span class="working warn" role="status">
@@ -1085,14 +1084,17 @@
 				     elapsed is wall clock, across-projects is the sum and may exceed
 				     the day — which is why the split hangs off the second one. -->
 				<div class="digest">
+					<!-- The two glosses stay, at four words each. Without them the second
+					     figure exceeding the first — which it legitimately does whenever two
+					     projects overlap — reads as a bug rather than as the sum it is. -->
 					<div class="time">
 						<span class="lead">
 							<b class="big">{duration(summary.elapsed_ms)}</b> elapsed
-							<span class="gloss">wall clock, overlaps counted once</span>
+							<span class="gloss">overlaps counted once</span>
 						</span>
 						<span>
 							<b class="mid">{compactDuration(summary.project_ms)}</b> across projects
-							<span class="gloss">summed per project, so it can exceed the range</span>
+							<span class="gloss">summed, so it can exceed the range</span>
 						</span>
 					</div>
 
@@ -1111,9 +1113,8 @@
 						     raw path here could run the width of the pane, and printed one
 						     narrowing two different ways in two places a line apart. -->
 						<p class="scopes">
-							Narrowed to {project ? shortPath(project, 2) : (category ?? 'this range')}, but
-							not to “{query}” — a text filter runs over what is loaded, so these figures do
-							not follow it.
+							Figures follow {project ? shortPath(project, 2) : (category ?? 'this range')},
+							not “{query}”.
 						</p>
 					{/if}
 
@@ -1124,7 +1125,7 @@
 						{#if summary.ai_share !== null}
 							<span
 								class="inferred"
-								title="Inferred: the share of files changed in this range that the assistant wrote, from the same attribution the commits carry"
+								title="Share of changed files the assistant wrote. Inferred, from the same attribution the commits carry."
 							>
 								<Icon name="inferred" size={13} />
 								<b>{Math.round(summary.ai_share)}%</b> AI-written
@@ -1138,22 +1139,16 @@
 			<div class="stage">
 				{#if crash}
 					<div class="state">
-						<h2>Something in the window failed</h2>
+						<h2>The window hit an error</h2>
 						<p class="mono">{crash}</p>
-						<p>
-							The archive is intact — this is the window, not the data. What was on screen may
-							have been left half-loaded, so reloading is the way back.
-						</p>
-						<button class="act" onclick={retry}>Reload the view</button>
+						<p>The archive is intact. Reload to recover the view.</p>
+						<button class="act" onclick={retry}>Reload</button>
 					</div>
 				{:else if error}
 					<div class="state">
 						<h2>The archive could not be read</h2>
 						<p class="mono">{error}</p>
-						<p>
-							The collector ships inside this app, so nothing needs installing — a scan
-							builds the archive if it is missing, and repairs the read if it is not.
-						</p>
+						<p>A scan rebuilds it.</p>
 						<div class="acts">
 							<button
 								class="act strong"
@@ -1162,7 +1157,7 @@
 							>
 								{collector.busy === 'scan' ? 'Scanning…' : 'Scan now'}
 							</button>
-							<button class="act" onclick={retry}>Try reading again</button>
+							<button class="act" onclick={retry}>Try again</button>
 						</div>
 						{#if collector.error}<p class="mono">{collector.error}</p>{/if}
 					</div>
@@ -1180,26 +1175,22 @@
 							     and handed a running scan the words "lore may not have been
 							     running". -->
 							<h2>Reading your history</h2>
-							<p>
-								Going through Claude Code sessions, git repositories and file
-								timestamps. The first run has the most to catch up on.
-							</p>
+							<p>Scanning Claude Code sessions, git repositories and file timestamps.</p>
 							<p class="counted">
-								<b class="num">{status?.records ?? 0}</b> records kept so far
+								<b class="num">{status?.records ?? 0}</b> records so far
 							</p>
 						{:else if status && status.records === 0}
 							<h2>Nothing archived yet</h2>
 							<p>
-								lore reads Claude Code sessions, git history and file saves from disk,
-								and keeps them after those sources delete their own. Nothing has been
-								read yet.
+								lore reads Claude Code sessions, git history and file saves, and keeps
+								them after those sources delete their own.
 							</p>
 							<button class="act strong" onclick={() => collector.run('scan')}>
 								Read my history
 							</button>
 						{:else if activeFilters.length}
 							<h2>Nothing matches these filters</h2>
-							<p>The archive holds this range. What is on screen is narrowed to:</p>
+							<p>Narrowed to:</p>
 							<p class="chips">
 								{#each activeFilters as f (f.label)}
 									<button class="chip" onclick={f.clear}>
@@ -1211,10 +1202,9 @@
 							{#if searchReach}<p class="reach">{searchReach}</p>{/if}
 						{:else}
 							<h2>Nothing recorded in this range</h2>
-							<p>
-								lore may not have been running, or nothing happened. Widen the range to
-								see what it does hold.
-							</p>
+							<!-- The cause worth naming, because it is the one the reader can act
+							     on and the one the product's guarantee rests on. -->
+							<p>lore scans only while its window is open. Try a wider range.</p>
 						{/if}
 					</div>
 				{:else if view === 'lanes'}
@@ -1241,9 +1231,8 @@
 				{:else}
 					{#if summary && blocks.length >= STREAM_LIMIT && summary.blocks > blocks.length}
 						<p class="truncated">
-							Showing the most recent <b class="num">{blocks.length}</b> of
-							<b class="num">{summary.blocks}</b> blocks in this range. Narrow the range to
-							see the rest — the archive holds all of it.
+							Showing the <b class="num">{blocks.length}</b> most recent of
+							<b class="num">{summary.blocks}</b> blocks. Narrow the range to see the rest.
 						</p>
 					{/if}
 					<Stream
@@ -1313,7 +1302,7 @@
 						</section>
 					{/each}
 				</div>
-				<p class="dismiss">Press <kbd>?</kbd> or <kbd>esc</kbd> to close.</p>
+				<p class="dismiss"><kbd>?</kbd> or <kbd>esc</kbd> to close.</p>
 			</div>
 		</div>
 	{/if}

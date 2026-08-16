@@ -9,12 +9,10 @@
 	 *  unfamiliar treatment cold is the moment with no key on screen — this pane
 	 *  is the one surface with room to teach it. */
 	const EVIDENCE_SENTENCE: Record<string, string> = {
-		sessions: 'Drawn from sessions: a conversation runs the length of this span.',
-		commits:
-			'Drawn from commits: their times are exact, and the work between them is inferred from the idle-gap rule.',
-		saves:
-			'Drawn from saves: file timestamps at each end, with nothing recorded in between. The count is a floor.',
-		bare: 'Drawn from records only: the span is real, but nothing in it is itemised.'
+		sessions: 'From sessions: a conversation covers the whole span.',
+		commits: 'From commits: exact at each commit, inferred between them.',
+		saves: 'From saves: timestamps at each end, nothing in between.',
+		bare: 'From records only: the span is real; nothing in it is itemised.'
 	};
 
 	let {
@@ -45,7 +43,7 @@
 		</div>
 	{:else if !block}
 		<div class="idle">
-			<p>Select a block to see what happened in it.</p>
+			<p>Select a block to see what happened.</p>
 		</div>
 	{:else}
 		<div class="scroll">
@@ -85,7 +83,7 @@
 							{#if !s.has_transcript}
 								<span class="note amber">
 									<Icon name="warn" size={14} />
-									Transcript deleted at source — only the prompts survive
+									Transcript deleted at source. Prompts survive.
 								</span>
 							{/if}
 						</button>
@@ -114,7 +112,7 @@
 									Inferred: {c.shared_files} of {c.file_count} files were written in this session
 								{:else if c.tier === 'weak'}
 									<Icon name="inferred" size={14} />
-									Inferred from timing alone — likely committed by hand
+									Inferred from timing alone; likely by hand
 								{:else}
 									<Icon name="warn" size={14} />
 									No session to attribute this to
@@ -135,15 +133,17 @@
 				<section>
 					<h3>File changes <span class="num floor">{block.file_changes.length} recorded</span></h3>
 					<Moments changes={block.file_changes} limit={8} />
-					<p class="caveat">
-						A count of changes is a floor: saves between two scans leave only the most
-						recent timestamp behind.
-					</p>
+					<!-- Kept: this count is a floor, and unmarked it reads as a total. -->
+					<p class="caveat">A floor: saves between scans leave one timestamp.</p>
 				</section>
 			{/if}
 
 			{#if !block.sessions.length && !block.commits.length && !block.file_changes.length}
-				<p class="idle">Activity was recorded here, but nothing survived in detail.</p>
+				<!-- The same sentence Stream uses for the same block, so the two panes
+				     do not describe one thing two ways. -->
+				<p class="idle">
+					<b class="num">{block.records}</b> records here, nothing itemised.
+				</p>
 			{/if}
 		</div>
 	{/if}

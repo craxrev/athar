@@ -67,7 +67,7 @@
 				: error
 					? 'The last scan failed'
 					: lastScanMs === null
-						? 'Never scanned — nothing is being kept yet'
+						? 'Never scanned. Nothing kept yet'
 						: lapsed
 							? `Not scanned in ${daysSince} days`
 							: alarm
@@ -165,7 +165,7 @@
 	<section class="grow">
 		<h2>Projects</h2>
 		{#if visible.length === 0}
-			<p class="empty">No project activity in this range.</p>
+			<p class="empty">No projects in this range.</p>
 		{:else}
 			<ul>
 				{#each visible as p (p.path)}
@@ -215,10 +215,10 @@
 				<span class="faint">· {error}</span>
 			{:else if lastScanMs === null}
 				Never scanned
-				<span class="faint">· nothing is being kept yet</span>
+				<span class="faint">· nothing kept yet</span>
 			{:else if lapsed}
 				<span class="bad">Not scanned in {daysSince} days</span>
-				<span class="faint">· anything the sources have since deleted is gone</span>
+				<span class="faint">· some history is gone</span>
 			{:else if alarm}
 				<span class="warn">{daysLeft} day{daysLeft === 1 ? '' : 's'} of source history left</span>
 				<span class="faint">· scanned {relative(lastScanMs, clock.now)}</span>

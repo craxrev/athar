@@ -97,10 +97,12 @@
 		return parts.join(' · ');
 	}
 
+	/** The same words Detail uses for the same three tiers. Two phrasings of one
+	 *  claim is two claims to anyone reading both panes. */
 	const tierLabel: Record<string, string> = {
 		certain: 'The transcript records the assistant running this commit',
-		strong: "Inferred — the commit's files were written in this session",
-		weak: 'Inferred from timing alone; likely committed by hand'
+		strong: "Inferred: the commit's files were written in this session",
+		weak: 'Inferred from timing alone; likely by hand'
 	};
 
 	/** Files a commit touched, loaded on demand and kept once loaded.
@@ -171,7 +173,7 @@
 									<span
 										class="meta"
 										title={entry.session.continued
-											? 'This block is not where the session began, so its prompts, tools and tokens are counted once, at the block where it started.'
+											? 'Counted once, at the block where this session started.'
 											: undefined}
 									>
 										{#if entry.session.continued}
@@ -190,7 +192,7 @@
 								{#if !entry.session.has_transcript}
 									<span
 										class="flag amber"
-										title="Claude Code deleted this transcript; only the prompt history survives"
+										title="Claude Code deleted this transcript. Prompts survive."
 									>
 										<Icon name="warn" size={14} /> prompts only
 									</span>
@@ -241,7 +243,7 @@
 								{#if entry.commit.unreachable}
 									<span
 										class="flag amber"
-										title="No ref reaches this commit. Git will collect it; lore has already kept it."
+										title="No ref reaches this commit. Git will collect it; lore kept it."
 									>
 										<Icon name="warn" size={14} /> only in lore
 									</span>
@@ -257,7 +259,7 @@
 									{#if files === 'loading'}
 										<p class="note">Reading the archive…</p>
 									{:else if files === 'error'}
-										<p class="note">This commit's file list could not be read.</p>
+										<p class="note">Could not read this commit's files.</p>
 									{:else}
 										<p class="inhead">In this commit</p>
 										<ul>
@@ -275,8 +277,8 @@
 										</ul>
 										{#if entry.commit.file_count > files.length}
 											<p class="note">
-												{entry.commit.file_count - files.length} more files were in this
-												commit than the archive kept.
+												{entry.commit.file_count - files.length} more files in this commit
+												than the archive kept.
 											</p>
 										{/if}
 									{/if}
@@ -324,8 +326,8 @@
 
 					{#if !block.sessions.length && !block.commits.length && !block.file_changes.length}
 						<p class="bare">
-							<span class="num">{block.records}</span> records archived here — harness state and
-							prompt history, with nothing the timeline itemises.
+							<span class="num">{block.records}</span> records here: harness state and prompt
+							history, nothing itemised.
 						</p>
 					{/if}
 				</article>

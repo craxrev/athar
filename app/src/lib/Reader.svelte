@@ -53,7 +53,7 @@
 				{#if span !== null}
 					<span
 						class="num strong"
-						title="First to last record. A resumed session spans idle time, so this is not time worked — the timeline's blocks are."
+						title="First to last record, including idle time. The timeline's blocks are the time worked."
 					>
 						{duration(span)} span
 					</span>
@@ -68,8 +68,8 @@
 				<p class="banner">
 					<Icon name="warn" size={16} />
 					<span>
-						Claude Code deleted this session's transcript. What follows is the prompt
-						history lore archived before it went — the replies are gone for good.
+						Claude Code deleted this transcript. Only the prompts lore archived remain;
+						the replies are gone.
 					</span>
 				</p>
 			{/if}
@@ -124,7 +124,7 @@
 					{#if turn.blocks.length}
 						<div class="text">
 							<Markdown blocks={turn.blocks} />
-							{#if turn.truncated}<p class="cut">… shortened on archive</p>{/if}
+							{#if turn.truncated}<p class="cut">shortened on archive</p>{/if}
 						</div>
 					{/if}
 					{#if turn.tools.length}
@@ -142,7 +142,7 @@
 			{/each}
 
 			{#if detail.turns.length === 0}
-				<p class="none">Nothing of this conversation survives in the archive.</p>
+				<p class="none">Nothing of this conversation survives.</p>
 			{/if}
 		</div>
 	</div>

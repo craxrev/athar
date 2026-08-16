@@ -133,15 +133,13 @@
 		<h2>{label}</h2>
 		<p class="lede">
 			{#if held.blocks === 0}
-				Nothing archived in this {kind}. lore may not have been running, or nothing
-				happened.
+				Nothing archived in this {kind}.
 			{:else}
 				<b class="num">{compactDuration(held.ms)}</b> across
 				<b class="num">{held.projects.length}</b>
-				project{held.projects.length === 1 ? '' : 's'}, in
+				project{held.projects.length === 1 ? '' : 's'} in
 				<b class="num">{held.blocks}</b> block{held.blocks === 1 ? '' : 's'}{#if kind === 'month'},
-					over <b class="num">{activeDays}</b> day{activeDays === 1 ? '' : 's'} that hold
-					something{/if}.
+					over <b class="num">{activeDays}</b> active day{activeDays === 1 ? '' : 's'}{/if}.
 			{/if}
 		</p>
 	</header>
@@ -150,8 +148,11 @@
 		<!-- The same ranking the rail draws, at the scale of one day: the bar behind
 		     each name is its share of the busiest project, so the shape of the day
 		     reads before any figure does. -->
+		<!-- Plain nouns, matching Detail's "Sessions / Commits / File changes": the
+		     two panes swap in one slot, and one naming things and the other asking
+		     questions read as two different products. -->
 		<section>
-			<h3>Where it went</h3>
+			<h3>Projects</h3>
 			<ul class="projects">
 				{#each held.projects as p (p.path)}
 					<li>
@@ -167,7 +168,7 @@
 		<!-- The same split the digest prints, for one day. Every block carries
 		     exactly one class, so these parts add up to the figure above them. -->
 		<section>
-			<h3>How it is known</h3>
+			<h3>Evidence</h3>
 			<ul class="split">
 				{#each held.split as part (part.label)}
 					<li><b class="num">{compactDuration(part.ms)}</b> {part.label}</li>
@@ -176,14 +177,15 @@
 		</section>
 
 		<section>
-			<h3>What was recorded</h3>
+			<h3>Recorded</h3>
 			<ul class="census">
 				<li><b class="num">{held.sessions}</b> session{held.sessions === 1 ? '' : 's'}</li>
 				<li><b class="num">{held.commits}</b> commit{held.commits === 1 ? '' : 's'}</li>
 				<li>
 					<b class="num">{held.files}</b> file change{held.files === 1 ? '' : 's'}
 					{#if held.files > 0}
-						<span class="floor">at least — a save between two scans leaves one timestamp</span>
+						<!-- Kept: without it this is a total, and the archive can only floor it. -->
+						<span class="floor">at least; saves between scans leave one timestamp</span>
 					{/if}
 				</li>
 			</ul>

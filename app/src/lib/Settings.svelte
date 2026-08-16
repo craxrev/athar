@@ -52,7 +52,7 @@
 				config = current.config;
 				revision = current.revision;
 				setCategories(config.roots.map((r) => r.category));
-				error = `${error} — reloaded, so your last change was not saved.`;
+				error = `${error}. Reloaded; your last change was not saved.`;
 			} catch {
 				// Leave the original failure standing; it is the more useful one.
 			}
@@ -148,15 +148,12 @@
 			<section class="group">
 				<h2>Scanned roots</h2>
 				<p class="note">
-					Where lore looks for git repositories and file changes. Claude Code's own
-					directory is a fixed location and is never configured. A category comes from the
-					root a project sits under.
+					Where lore looks for git repositories and file changes. A project's category
+					comes from the root it sits under. Claude Code's own directory is fixed, not
+					configured.
 				</p>
 				{#if config.roots.length === 0}
-					<p class="empty">
-						No roots. Only Claude Code is being read — git history and file changes are
-						not.
-					</p>
+					<p class="empty">No roots. Only Claude Code is being read.</p>
 				{/if}
 				<ul class="roots">
 					{#each config.roots as root (root.path)}
@@ -201,9 +198,8 @@
 					<button class="act" onclick={shuffleHues}>Shuffle colours</button>
 				</div>
 				<p class="hint">
-					A category's colour comes from its name's place in the sorted list, so it holds
-					across every view and every range. Shuffling deals the palette again — it changes
-					which colour lands on which category, never how many there are.
+					Colours come from each category's place in the sorted list, so they hold across
+					every view and range. Shuffling deals them again.
 				</p>
 			</section>
 
@@ -220,10 +216,11 @@
 						onchange={() => void save()}
 					/>
 					<span class="unit">minutes</span>
+					<!-- The 30-day fact leads rather than trailing a clause: it is the one
+					     thing in this pane the product's guarantee depends on. -->
 					<span class="why">
-						Scanning happens while this window is open, and only then. Nothing runs in
-						the background, so lore has to be opened at least once every 30 days or so —
-						that is how long the sources keep their own history before deleting it.
+						Only while this window is open; nothing runs in the background. Open lore at
+						least monthly, or the sources delete that history themselves.
 					</span>
 				</label>
 
@@ -242,8 +239,8 @@
 					/>
 					<span class="unit">minutes</span>
 					<span class="why">
-						Longer means fewer, longer blocks and more counted time — a coffee break stops
-						splitting the day. Changing it re-derives; nothing is re-read.
+						Longer means fewer, longer blocks and more counted time. Changing it
+						re-derives; nothing is re-read.
 					</span>
 				</label>
 
@@ -259,19 +256,17 @@
 					/>
 					<span class="unit">days</span>
 					<span class="why">
-						A modified time records only the last save, so older ones say little beyond
-						"untouched since".
+						A modified time records only the last save, so older ones say little.
 					</span>
 				</label>
 			</section>
 
 			<section class="group">
-				<h2>Your git identities</h2>
+				<h2>Git identities</h2>
 				<p class="note">
-					Commits by these addresses are archived as yours. Repository and global git config
-					are read automatically; add any address you use on another machine. Everyone
-					else's commits are skipped — without this, a clone would fill the record with
-					other people's work.
+					Commits from these addresses are archived as yours; everyone else's are skipped.
+					Your git config is read automatically; add any address you use on another
+					machine.
 				</p>
 				<ul class="identities">
 					{#each config.identities as identity (identity)}
@@ -302,8 +297,8 @@
 			<section class="group">
 				<h2>Excluded directories</h2>
 				<p class="note">
-					Pruned during the walk. Inside a repository lore asks git instead, so
-					<span class="mono">.gitignore</span> already applies there.
+					Pruned during the walk. Inside a repository lore asks git, so
+					<span class="mono">.gitignore</span> already applies.
 				</p>
 				<p class="chips">
 					{#each config.exclude as name (name)}<span class="chip">{name}</span>{/each}
@@ -313,10 +308,9 @@
 			<section class="group">
 				<h2>Collector</h2>
 				<p class="note">
-					A scan reads the sources and archives what is new; it runs on its own while
-					this window is open, and these force one now. A rebuild recomputes blocks,
-					sessions and links from records already archived — it reads nothing and can
-					lose nothing.
+					A scan reads the sources and archives what is new. A rebuild recomputes blocks,
+					sessions and links from records already archived; it reads nothing and can lose
+					nothing.
 				</p>
 				<div class="actions">
 					<button
@@ -345,9 +339,9 @@
 							<span class="ok">Saved</span>
 						{/if}
 						{#if collector.needsScan}
-							<span class="pending">A root or identity changed — scan to read it.</span>
+							<span class="pending">A root or identity changed. Scan to read it.</span>
 						{:else if collector.needsRebuild}
-							<span class="pending">A grouping setting changed — rebuild to apply it.</span>
+							<span class="pending">A grouping setting changed. Rebuild to apply it.</span>
 						{/if}
 					</span>
 				</div>
@@ -373,7 +367,7 @@
 				</section>
 			{/if}
 		{:else if !error}
-			<p class="note">Reading the configuration…</p>
+			<p class="note">Reading configuration…</p>
 		{/if}
 	</div>
 </section>

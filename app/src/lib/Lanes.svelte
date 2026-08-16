@@ -486,9 +486,7 @@
 
 		<div class="body">
 			{#if dayProjectCount === 0}
-				<p class="none">
-					Nothing archived on this day. lore may not have been running, or nothing happened.
-				</p>
+				<p class="none">Nothing archived on this day.</p>
 			{/if}
 			{#each dayGroups as group (group.category)}
 				<div class="group">
