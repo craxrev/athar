@@ -862,3 +862,10 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Spend the accent on a row type, a role, or a category of thing. It means
   *chosen*, and one more meaning is all it takes to mean nothing.
 - Animate a bar with a transform that deforms the marks inside it.
+- Put `content-visibility: auto` on anything whose overflow has to reach an
+  ancestor scroller. It implies `contain: paint`, which clips the subtree to its
+  own box — so on the year row it deleted the sheet's horizontal scroll outright
+  and put half of every year out of reach, silently, in a commit about
+  performance. The idiom is right on the five surfaces where nothing overflows,
+  and a defect on the one where overflow *is* the layout. A child with a scroller
+  of its own is fine: it clips its own overflow and never needs out.

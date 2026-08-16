@@ -1363,14 +1363,30 @@
 	/* The year leads and its total closes, as they did before — but both are
 	   pinned to the edges of the scrollport, so neither is lost partway through a
 	   sideways scroll of the sheet. */
+	/* No `content-visibility` here, and it cannot come back.
+
+	   It implies `contain: paint`, which clips a subtree to its own padding box —
+	   and this row's grid is *built* to overflow: fifty-three columns of cells run
+	   about 646px inside a pane that can be 500. That overflow is the only thing
+	   `.sheets` has to scroll, so containing it here removed the sheet's
+	   horizontal scroll entirely and put half of every year out of reach, with the
+	   sticky year label and total stuck against a scrollport that no longer
+	   scrolled. Skipping off-screen rows is worth real time on the panel sheet,
+	   where nothing overflows; here it silently deleted the interaction. */
 	.year {
-		content-visibility: auto;
-		contain-intrinsic-size: auto 84px;
 		display: grid;
 		grid-template-columns: 42px max-content auto;
 		align-items: center;
 		gap: 12px;
 		margin-bottom: 13px;
+		/* Sized to the row, not to the pane. A block box would stop at the pane's
+		   width and let its tracks spill past it — which scrolls, but leaves the
+		   sticky year label and total pinned only for as long as that box is on
+		   screen, so both slide away halfway along a sheet they are there to
+		   survive. `min-width` keeps the short years as wide as the scrollport so
+		   every row still ends at the same edge. */
+		width: max-content;
+		min-width: 100%;
 	}
 	.yr,
 	.ytot {
