@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
+	import { hueStyle } from './palette.svelte';
 	import { compactDuration, relative, retention } from './format';
 	import { clock } from './collector.svelte';
 
@@ -127,7 +128,7 @@
 						>
 							<span class="share" style="width: {share(c.ms, categoryPeak)}%" aria-hidden="true"
 							></span>
-							<span class="swatch" data-category={c.name} aria-hidden="true"></span>
+							<span class="swatch" style={hueStyle(c.name)} aria-hidden="true"></span>
 							<span class="label">{c.name}</span>
 							<span class="num trail">{compactDuration(c.ms)}</span>
 						</button>
@@ -153,7 +154,7 @@
 							title={p.path}
 						>
 							<span class="share" style="width: {share(p.ms, busiest)}%" aria-hidden="true"></span>
-							<span class="swatch" data-category={p.category} aria-hidden="true"></span>
+							<span class="swatch" style={hueStyle(p.category)} aria-hidden="true"></span>
 							<span class="label">{p.label}</span>
 							<span class="num trail">{compactDuration(p.ms)}</span>
 						</button>
@@ -338,25 +339,13 @@
 		height: 9px;
 		flex: none;
 		border-radius: var(--radius-swatch);
-		background: var(--text-faint);
+		background: var(--cat, var(--text-faint));
 	}
 	.swatch.all {
 		background: var(--text-dim);
 	}
 	/* Categories come from the filesystem layout, so their set is open-ended;
 	   these four are the ones this machine has. */
-	.swatch[data-category='work'] {
-		background: var(--cat-work);
-	}
-	.swatch[data-category='research'] {
-		background: var(--cat-research);
-	}
-	.swatch[data-category='personal'] {
-		background: var(--cat-personal);
-	}
-	.swatch[data-category='freelance'] {
-		background: var(--cat-freelance);
-	}
 
 	.empty {
 		margin: 2px 8px;

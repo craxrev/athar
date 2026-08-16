@@ -17,7 +17,6 @@ colors:
   accent-magenta: "#e93d97"
   accent-soft: "rgba(233, 61, 151, 0.16)"
   accent-edge: "rgba(233, 61, 151, 0.42)"
-  on-accent: "#14040c"
   uncertain-amber: "#f2a93b"
   uncertain-amber-soft: "rgba(242, 169, 59, 0.14)"
   git-add: "#56c98a"
@@ -27,14 +26,6 @@ colors:
   wash: "rgba(255, 255, 255, 0.022)"
   fill-subtle: "rgba(255, 255, 255, 0.06)"
   scrim: "rgba(0, 0, 0, 0.45)"
-  category-work: "#4c8dff"
-  category-work-tint: "#9dc0ff"
-  category-research: "#e93d97"
-  category-research-tint: "#f79ec9"
-  category-personal: "#56c98a"
-  category-personal-tint: "#8fdcb1"
-  category-freelance: "#f2a93b"
-  category-freelance-tint: "#f6c987"
 typography:
   display:
     fontFamily: "-apple-system, BlinkMacSystemFont, Segoe UI, system-ui, sans-serif"
@@ -288,18 +279,45 @@ one is how a system starts drifting. Text runs `text` → `text-dim` → `text-f
 the floor and measures 5.95:1 on `ground`, which is where it was set after an
 earlier value failed the 4.5:1 requirement.
 
-Category hues (`work`, `research`, `personal`, `freelance`) identify project
-groups derived from the filesystem. They never compete with the accent for state.
-They do tint a timeline mark, because a day row holds several projects at once
-and the mark has to say whose work it was — see **The Two Axes Rule** below for
-the channel split that makes that safe.
+**Category hues are derived, not declared.** Categories come from the scanned
+roots, which are configuration — a person names one whatever they like and adds a
+twelfth whenever they like. Four hues named in CSS could only ever colour four,
+and did it by matching literal strings in thirty-two selectors, so a rename or a
+capital letter dropped a category to grey with nothing said. `src/lib/palette.ts`
+hashes the normalised name into a palette of **ten** and hands back a solid and a
+tint; components set `--cat` and `--cat-tint` and the CSS reads those.
+
+The palette excludes every hue this system already spends meaning on: magenta is
+selection and live state, amber is uncertainty, git owns red and green. The old
+four broke that three times over — `research` *was* the accent's exact value,
+`personal` was `git-add`'s, `freelance` was amber's — which is why a selected
+rose mark was indistinguishable from an unselected one. Each entry is generated
+at one OKLCH lightness and chroma so no category is louder than another, and each
+solid clears 4:1 on ground even at the density floor.
+
+**The palette can be re-dealt.** Sorting gives one arrangement, and a pairing the
+reader dislikes would otherwise need a root renamed to escape. A seed permutes
+the palette, and Settings carries a **Shuffle colours** action beside the roots
+list that re-deals it — the same categories, a different set of colours. The seed
+is the only thing kept, alongside the view and range the window reopens on; no
+colour is ever stored against a category. Shuffling changes which colour lands
+where, never how many there are.
+
+Ten hues for an unbounded set of names means an eleventh category shares with a
+first. That is stated rather than designed away: two categories on one hue are
+told apart by the name beside them, never by the mark alone. An empty category is
+given a hue at all — an uncategorised path is the absence of a category, not one
+of them, and neutral is the honest answer. That is not only a point of principle:
+it is routinely the largest group, so colouring it spent the loudest mark on
+screen on the least meaning and cost a real category a slot. `text` would be
+worse than a hue, being the brightest ink the system has.
 
 **The Density Floor Rule.** A cell's hours ride its **hue**, never its alpha
 alone. Ramping opacity from near-nothing was the obvious way to draw density and
 it put most days between 1.3:1 and 2.3:1 against ground — under the 3:1 that the
 Legible Mark Rule demands of anything carrying a class, on the very marks the
 widest ranges are made of. The floor is `0.72` alpha, set by the worst case:
-solid `cat-research` reaches 3:1 at `0.70`. Density then rides a mix toward the
+the palette's least luminous hue reaches 3:1 just above `0.70`. Density then rides a mix toward the
 category's own **tint**, which is what the tints were minted for. A quiet day
 measures 3.14:1 and a heavy one 7.26:1 — a full step apart, both legal.
 
@@ -587,10 +605,23 @@ transcript survived — prompt timestamps are exact, so the span is evidenced ev
 where the content is gone. That absence is the *attribution* axis, and
 `prompts only` already carries it.
 
-**The Ink Rule.** Selection takes the ink, never the shape. A selected saves-only
-block is still visibly a pair of end marks in magenta, not a solid claim. Any
-state that flattens a treatment into a rectangle has destroyed the only thing the
-treatment was there to say.
+**The Ink Rule.** Selection takes no ink at all: it recedes everything it was not.
+The accent was the obvious choice and turned out to be unavailable —
+`accent-magenta` and `category-research` are the same value, so a selected rose
+mark was indistinguishable from an unselected one, and a ring in the same magenta
+failed the same way. Both other channels were already spoken for: hue says which
+project, texture says how the span is known. So the chosen mark is left exactly
+as it was and every other mark on the timeline drops to
+`brightness(0.42) saturate(0.75)`, which works identically on every category
+because it depends on no hue.
+
+Dim with a filter, never with opacity. At 28% alpha the hour rules showed through
+every bar and two marks that touched blended into a third colour; a filtered mark
+stays opaque and still hides what is behind it. The selected mark also rises above
+its neighbours — a day strip carries every project at once and the archive holds
+403 cross-project overlaps, so without it the chosen mark came out striped by the
+marks it was chosen over. Any state that flattens a treatment, or spends a channel
+already carrying meaning, has destroyed the thing it was there to say.
 
 **The Legible Mark Rule.** Every mark that carries a class clears 3:1 against
 `ground` on its own — solid 3.28, hatch strokes 4.22, amber caps 9.79, connector

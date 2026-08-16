@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hueStyle } from './palette.svelte';
 	import Icon from './Icon.svelte';
 	import type { BlockDetail, CommitSummary, SessionSummary } from './archive';
 	import { clock, day, dayKey, duration, fullDay, tokens } from './format';
@@ -151,7 +152,7 @@
 					>
 						<span class="num when">{clock(block.started_ms)}</span>
 						<span class="project" title={block.project_path}>{block.project}</span>
-						<span class="swatch" data-category={block.category}>{block.category}</span>
+						<span class="swatch" style={hueStyle(block.category)}>{block.category}</span>
 						<span class="composition">{prepared.get(block.id)?.composition ?? ''}</span>
 						<span class="num span">{duration(block.ended_ms - block.started_ms)}</span>
 					</button>
@@ -415,24 +416,10 @@
 		font-weight: 560;
 		padding: 2px 7px;
 		border-radius: var(--radius-pill);
-		color: var(--text-dim);
-		background: var(--fill-subtle);
-	}
-	.swatch[data-category='work'] {
-		color: var(--cat-work-tint);
-		background: var(--cat-work-fill);
-	}
-	.swatch[data-category='research'] {
-		color: var(--cat-research-tint);
-		background: var(--cat-research-fill);
-	}
-	.swatch[data-category='personal'] {
-		color: var(--cat-personal-tint);
-		background: var(--cat-personal-fill);
-	}
-	.swatch[data-category='freelance'] {
-		color: var(--cat-freelance-tint);
-		background: var(--cat-freelance-fill);
+		/* The chip's ground is mixed from the category's own hue rather than
+		   stored as a third value per category: one number, one place. */
+		color: var(--cat-tint, var(--text-dim));
+		background: color-mix(in srgb, var(--cat, transparent) 15%, var(--fill-subtle));
 	}
 
 	/* What the buckets used to say by their size. */

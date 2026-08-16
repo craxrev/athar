@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hueStyle, setCategories, shuffleHues } from './palette.svelte';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import Icon from './Icon.svelte';
 	import { archive, type LoreConfig, type Paths } from './archive';
@@ -34,6 +35,10 @@
 			const written = await archive.saveConfig($state.snapshot(config), revision);
 			config = written.config;
 			revision = written.revision;
+			// Renaming a root renames a category, which redeals the palette. Doing
+			// it here rather than waiting for the next scan keeps the swatch in
+			// this list honest the moment the field is committed.
+			setCategories(config.roots.map((r) => r.category));
 			error = null;
 			saved = true;
 			setTimeout(() => (saved = false), 2000);
@@ -46,6 +51,7 @@
 				const current = await archive.config();
 				config = current.config;
 				revision = current.revision;
+				setCategories(config.roots.map((r) => r.category));
 				error = `${error} — reloaded, so your last change was not saved.`;
 			} catch {
 				// Leave the original failure standing; it is the more useful one.
@@ -136,7 +142,7 @@
 				<ul class="roots">
 					{#each config.roots as root (root.path)}
 						<li>
-							<span class="swatch" data-category={root.category} aria-hidden="true"></span>
+							<span class="swatch" style={hueStyle(root.category)} aria-hidden="true"></span>
 							<span class="path" title={root.path}>{root.path}</span>
 							<input
 								class="cat"
@@ -171,7 +177,15 @@
 						</li>
 					{/each}
 				</ul>
-				<button class="act" onclick={addRoot}>Add a root…</button>
+				<div class="rootacts">
+					<button class="act" onclick={addRoot}>Add a root…</button>
+					<button class="act" onclick={shuffleHues}>Shuffle colours</button>
+				</div>
+				<p class="hint">
+					A category's colour comes from its name's place in the sorted list, so it holds
+					across every view and every range. Shuffling deals the palette again — it changes
+					which colour lands on which category, never how many there are.
+				</p>
 			</section>
 
 			<section class="group">
@@ -479,24 +493,27 @@
 		background: var(--surface);
 	}
 
+	.rootacts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+	/* Sits under the pair of actions it explains, at the same measure as the
+	   other notes in this pane. */
+	.hint {
+		margin: 9px 0 0;
+		max-width: 68ch;
+		font-size: var(--fs-min);
+		line-height: 1.5;
+		color: var(--text-faint);
+	}
+
 	.swatch {
 		width: 9px;
 		height: 9px;
 		flex: none;
 		border-radius: var(--radius-swatch);
-		background: var(--text-faint);
-	}
-	.swatch[data-category='work'] {
-		background: var(--cat-work);
-	}
-	.swatch[data-category='research'] {
-		background: var(--cat-research);
-	}
-	.swatch[data-category='personal'] {
-		background: var(--cat-personal);
-	}
-	.swatch[data-category='freelance'] {
-		background: var(--cat-freelance);
+		background: var(--cat, var(--text-faint));
 	}
 
 	.path {

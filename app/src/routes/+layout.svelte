@@ -43,7 +43,6 @@
 		--accent: #e93d97;
 		--accent-soft: rgba(233, 61, 151, 0.16);
 		--accent-edge: rgba(233, 61, 151, 0.42);
-		--on-accent: #14040c;
 		/* Text sitting on an accent fill needs the lightened form, exactly as the
 		   category hues do: the solid accent on accent-soft measures 4.48:1. */
 		--accent-tint: #ea439a;
@@ -55,26 +54,9 @@
 		--del: #e65c63; /* 4.52:1 on --surface-hover, the worst surface it lands on */
 		--del-soft: rgba(230, 92, 99, 0.14);
 
-		/* Category identity, defined once. Each hue needs three forms: the solid
-		   for legend swatches, a translucent fill for chips, and a
-		   lightened tint for text sitting on that fill — the solid hue is not
-		   legible as text on a dark ground. Categories come from the filesystem,
-		   so this set is open-ended; an unknown category falls back to neutral. */
-		--cat-work: #4c8dff;
-		--cat-work-fill: rgba(76, 141, 255, 0.14);
-		--cat-work-tint: #9dc0ff;
 
-		--cat-research: #e93d97;
-		--cat-research-fill: rgba(233, 61, 151, 0.16);
-		--cat-research-tint: #f79ec9;
 
-		--cat-personal: #56c98a;
-		--cat-personal-fill: rgba(86, 201, 138, 0.14);
-		--cat-personal-tint: #8fdcb1;
 
-		--cat-freelance: #f2a93b;
-		--cat-freelance-fill: rgba(242, 169, 59, 0.14);
-		--cat-freelance-tint: #f6c987;
 
 		/* Seven steps, each with a job. Only the first two existed as tokens, so the
 		   other five were literals repeated across components — a documented scale

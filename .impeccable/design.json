@@ -184,66 +184,6 @@
           "oklch(95.0% 0.1029 20.2)"
         ]
       },
-      "category-work": {
-        "role": "tertiary",
-        "displayName": "Work Blue",
-        "canonical": "#4c8dff",
-        "tonalRamp": [
-          "oklch(15.0% 0.1093 260.7)",
-          "oklch(26.4% 0.1301 260.7)",
-          "oklch(37.9% 0.151 260.7)",
-          "oklch(49.3% 0.1718 260.7)",
-          "oklch(60.7% 0.1718 260.7)",
-          "oklch(72.1% 0.151 260.7)",
-          "oklch(83.6% 0.1301 260.7)",
-          "oklch(95.0% 0.1093 260.7)"
-        ]
-      },
-      "category-research": {
-        "role": "tertiary",
-        "displayName": "Research Magenta",
-        "canonical": "#e93d97",
-        "tonalRamp": [
-          "oklch(15.0% 0.1324 353.4)",
-          "oklch(26.4% 0.1576 353.4)",
-          "oklch(37.9% 0.1828 353.4)",
-          "oklch(49.3% 0.2081 353.4)",
-          "oklch(60.7% 0.2081 353.4)",
-          "oklch(72.1% 0.1828 353.4)",
-          "oklch(83.6% 0.1576 353.4)",
-          "oklch(95.0% 0.1324 353.4)"
-        ]
-      },
-      "category-personal": {
-        "role": "tertiary",
-        "displayName": "Personal Green",
-        "canonical": "#56c98a",
-        "tonalRamp": [
-          "oklch(15.0% 0.0838 156.6)",
-          "oklch(26.4% 0.0997 156.6)",
-          "oklch(37.9% 0.1157 156.6)",
-          "oklch(49.3% 0.1316 156.6)",
-          "oklch(60.7% 0.1316 156.6)",
-          "oklch(72.1% 0.1157 156.6)",
-          "oklch(83.6% 0.0997 156.6)",
-          "oklch(95.0% 0.0838 156.6)"
-        ]
-      },
-      "category-freelance": {
-        "role": "tertiary",
-        "displayName": "Freelance Amber",
-        "canonical": "#f2a93b",
-        "tonalRamp": [
-          "oklch(15.0% 0.0882 73.0)",
-          "oklch(26.4% 0.105 73.0)",
-          "oklch(37.9% 0.1219 73.0)",
-          "oklch(49.3% 0.1387 73.0)",
-          "oklch(60.7% 0.1387 73.0)",
-          "oklch(72.1% 0.1219 73.0)",
-          "oklch(83.6% 0.105 73.0)",
-          "oklch(95.0% 0.0882 73.0)"
-        ]
-      },
       "accent-tint": {
         "role": "primary",
         "displayName": "Accent Tint",
@@ -386,7 +326,7 @@
       "refersTo": "timeline-mark",
       "description": "A span a conversation brackets end to end. Hue says whose work it was; a solid surface says the whole span is known.",
       "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark \" style=\"left: 18%; width: 34%\"></button></div></div>",
-      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } "
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: #c27ee0; } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } "
     },
     {
       "name": "Timeline Mark — from commits",
@@ -394,7 +334,7 @@
       "refersTo": "timeline-mark",
       "description": "Exact at the commits, inferred between them. The hatch claims no positions inside the span.",
       "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-commits\" style=\"left: 18%; width: 34%\"></button></div></div>",
-      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-commits { background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.42) 0 2px, transparent 2px 5px); }"
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: #c27ee0; } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-commits { background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.42) 0 2px, transparent 2px 5px); }"
     },
     {
       "name": "Timeline Mark — from saves",
@@ -402,7 +342,7 @@
       "refersTo": "timeline-mark-saves",
       "description": "Two mtimes and nothing known between. The ends are marked in amber because the ends are what the archive has.",
       "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-saves\" style=\"left: 18%; width: 34%\"></button></div></div>",
-      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-saves { box-shadow: inset 2px 0 0 var(--amber, #f2a93b), inset -2px 0 0 var(--amber, #f2a93b); }"
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: #c27ee0; } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-saves { box-shadow: inset 2px 0 0 var(--amber, #f2a93b), inset -2px 0 0 var(--amber, #f2a93b); }"
     },
     {
       "name": "Timeline Mark — from records only",
@@ -410,15 +350,15 @@
       "refersTo": "timeline-mark",
       "description": "The span is real; nothing in it is describable, so the surface is broken and it claims no ends.",
       "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-bare\" style=\"left: 18%; width: 34%\"></button></div></div>",
-      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-bare { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.45) 0 3px, transparent 3px 6px); }"
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: #c27ee0; } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-bare { background-image: repeating-linear-gradient(90deg, rgba(0,0,0,0.45) 0 3px, transparent 3px 6px); }"
     },
     {
       "name": "Timeline Mark — selected",
       "kind": "custom",
       "refersTo": "timeline-mark-selected",
-      "description": "Selection takes the ink, never the shape: a selected saves-only span is still visibly a pair of end marks.",
-      "html": "<div class=\"ds-row\"><div class=\"ds-strip\"><button class=\"ds-mark ds-mark-saves ds-mark-on\" style=\"left: 18%; width: 34%\"></button></div></div>",
-      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); overflow: hidden; } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: var(--cat-research, #e93d97); } .ds-mark:hover { filter: brightness(1.22); } .ds-mark:focus-visible { outline: 2px solid var(--accent-edge, rgba(233,61,151,0.42)); outline-offset: 1px; } .ds-mark-on { background-color: var(--accent, #e93d97); box-shadow: inset 2px 0 0 var(--on-accent, #14040c), inset -2px 0 0 var(--on-accent, #14040c), 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28); }"
+      "description": "Selection recedes what it was not. The chosen mark is left exactly as it was and every other mark in the row dims; no colour is reassigned, so hue still says which project.",
+      "html": "<div class=\"ds-row picked\"><div class=\"ds-strip\"><button class=\"ds-mark\" style=\"left: 6%; width: 16%\"></button><button class=\"ds-mark ds-mark-on\" style=\"left: 30%; width: 30%\"></button><button class=\"ds-mark ds-mark-work\" style=\"left: 68%; width: 20%\"></button></div></div>",
+      "css": ".ds-row { position: relative; height: 44px; display: flex; align-items: center; background: var(--ground, #0b0c0f); } .ds-strip { position: relative; flex: 1; height: 24px; border-radius: 6px; background: rgba(255,255,255,0.03); } .ds-mark { position: absolute; top: 2px; bottom: 2px; border-radius: 2px; border: 0; padding: 0; cursor: pointer; background: #c27ee0; transition: filter 120ms ease-out; } .ds-mark-work { background: #47a3fa; } .picked .ds-mark { filter: brightness(0.42) saturate(0.75); } .ds-mark-on { filter: none; z-index: 1; box-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.28); } .picked .ds-mark:hover { filter: brightness(0.7) saturate(0.85); } .ds-mark-on:hover { filter: brightness(1.22); }"
     },
     {
       "name": "Day Tile",
@@ -426,7 +366,7 @@
       "refersTo": "day-tile",
       "description": "The month rung's atom: the last grain where a day can still say a name.",
       "html": "<button class=\"ds-tile\"><span class=\"ds-tile-head\"><span class=\"ds-tile-day\">14</span><span class=\"ds-tile-held\">6.2h</span></span><span class=\"ds-tile-who\"><span class=\"ds-tile-dot\"></span>lore-app</span><span class=\"ds-tile-who\"><span class=\"ds-tile-dot ds-work\"></span>gfny_fe</span><span class=\"ds-tile-micro\"><i style=\"left:34%;width:22%\"></i><i style=\"left:64%;width:12%\"></i></span></button>",
-      "css": ".ds-tile { display: flex; flex-direction: column; gap: 3px; width: 118px; min-height: 82px; padding: 6px 7px 7px; border: 1px solid var(--line, rgba(255,255,255,0.07)); border-radius: 6px; background: var(--surface, #12141a); text-align: left; cursor: pointer; font: inherit; color: var(--text-dim, #a2a8b6); } .ds-tile:hover { border-color: var(--line-strong, rgba(255,255,255,0.14)); background: var(--surface-raised, #191c24); } .ds-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; } .ds-tile-day { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 620; font-variant-numeric: tabular-nums; } .ds-tile-held { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: var(--text, #edeef2); font-variant-numeric: tabular-nums; } .ds-tile-who { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--text-faint, #878e9d); } .ds-tile-dot { width: 7px; height: 7px; border-radius: 2px; background: var(--cat-research, #e93d97); } .ds-work { background: var(--cat-work, #4c8dff); } .ds-tile-micro { position: relative; height: 5px; margin-top: auto; border-radius: 2px; background: rgba(255,255,255,0.04); } .ds-tile-micro i { position: absolute; top: 0; bottom: 0; border-radius: 1px; background: var(--cat-research, #e93d97); }"
+      "css": ".ds-tile { display: flex; flex-direction: column; gap: 3px; width: 118px; min-height: 82px; padding: 6px 7px 7px; border: 1px solid var(--line, rgba(255,255,255,0.07)); border-radius: 6px; background: var(--surface, #12141a); text-align: left; cursor: pointer; font: inherit; color: var(--text-dim, #a2a8b6); } .ds-tile:hover { border-color: var(--line-strong, rgba(255,255,255,0.14)); background: var(--surface-raised, #191c24); } .ds-tile-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; } .ds-tile-day { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 620; font-variant-numeric: tabular-nums; } .ds-tile-held { font-family: ui-monospace, Menlo, monospace; font-size: 13px; font-weight: 600; color: var(--text, #edeef2); font-variant-numeric: tabular-nums; } .ds-tile-who { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; color: var(--text-faint, #878e9d); } .ds-tile-dot { width: 7px; height: 7px; border-radius: 2px; background: #c27ee0; } .ds-work { background: #47a3fa; } .ds-tile-micro { position: relative; height: 5px; margin-top: auto; border-radius: 2px; background: rgba(255,255,255,0.04); } .ds-tile-micro i { position: absolute; top: 0; bottom: 0; border-radius: 1px; background: #c27ee0; }"
     },
     {
       "name": "Day Cells",
@@ -434,7 +374,7 @@
       "refersTo": "day-cell",
       "description": "The all-time rung: one cell a day, hue by the class that took most of it, opacity by hours. Every cell carries real evidence — a date with nothing in it is the metaphor the anti-reference was written against.",
       "html": "<div class=\"ds-cells\"><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.55\"></span><span class=\"ds-cell\" style=\"opacity:.9\"></span><span class=\"ds-cell\" style=\"opacity:1\"></span><span class=\"ds-cell\" style=\"opacity:.38\"></span><span class=\"ds-cell\" style=\"opacity:.7\"></span><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.85\"></span><span class=\"ds-cell\" style=\"opacity:.45\"></span><span class=\"ds-cell\" style=\"opacity:.24\"></span><span class=\"ds-cell\" style=\"opacity:.62\"></span><span class=\"ds-cell\" style=\"opacity:.95\"></span><span class=\"ds-cell\" style=\"opacity:.3\"></span><span class=\"ds-cell\" style=\"opacity:.5\"></span></div>",
-      "css": ".ds-cells { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 8px); gap: 2px; } .ds-cell { width: 8px; height: 8px; border-radius: 3px; background: var(--cat-research, #e93d97); }"
+      "css": ".ds-cells { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 8px); gap: 2px; } .ds-cell { width: 8px; height: 8px; border-radius: 3px; background: #c27ee0; }"
     },
     {
       "name": "Rail Row — ranked",
@@ -442,7 +382,7 @@
       "refersTo": "rail-row",
       "description": "The rail's project list is the ranked view: the duration it already carried, with a share bar behind the label scaled to the busiest in range.",
       "html": "<button class=\"ds-rank\"><span class=\"ds-rank-share\" style=\"width:72%\"></span><span class=\"ds-rank-swatch\"></span><span class=\"ds-rank-label\">lore-app</span><span class=\"ds-rank-trail\">19h</span></button>",
-      "css": ".ds-rank { position: relative; display: flex; align-items: center; gap: 9px; width: 220px; padding: 7px 8px; border: 0; border-radius: 6px; background: none; overflow: hidden; cursor: pointer; color: var(--text-dim, #a2a8b6); font: inherit; font-size: 14.5px; font-weight: 520; text-align: left; } .ds-rank:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rank-share { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(255,255,255,0.06); } .ds-rank > :not(.ds-rank-share) { position: relative; } .ds-rank-swatch { width: 9px; height: 9px; border-radius: 3px; background: var(--cat-research, #e93d97); } .ds-rank-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-rank-trail { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--text-faint, #878e9d); font-variant-numeric: tabular-nums; }"
+      "css": ".ds-rank { position: relative; display: flex; align-items: center; gap: 9px; width: 220px; padding: 7px 8px; border: 0; border-radius: 6px; background: none; overflow: hidden; cursor: pointer; color: var(--text-dim, #a2a8b6); font: inherit; font-size: 14.5px; font-weight: 520; text-align: left; } .ds-rank:hover { background: var(--surface-hover, #1f2330); color: var(--text, #edeef2); } .ds-rank-share { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: rgba(255,255,255,0.06); } .ds-rank > :not(.ds-rank-share) { position: relative; } .ds-rank-swatch { width: 9px; height: 9px; border-radius: 3px; background: #c27ee0; } .ds-rank-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-rank-trail { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--text-faint, #878e9d); font-variant-numeric: tabular-nums; }"
     },
     {
       "name": "Rail Row",
@@ -539,7 +479,7 @@
       },
       {
         "name": "The Ink Rule",
-        "body": "Selection takes the ink, never the shape. A selected saves-only block is still visibly a pair of end marks in magenta, not a solid claim. Any state that flattens a treatment into a rectangle has destroyed the only thing the treatment was there to say.",
+        "body": "Selection takes no ink at all: it recedes everything it was not. accent-magenta and category-research are the same value, so neither a magenta fill nor a magenta ring could mark a selected mark, and hue and texture were already spoken for. The chosen mark is left as it was; every other mark drops to brightness(0.42) saturate(0.75). Dim with a filter, never opacity — a translucent mark lets the hour rules through and blends with its neighbours.",
         "section": "components"
       },
       {
@@ -554,7 +494,12 @@
       },
       {
         "name": "The Density Floor Rule",
-        "body": "A cell's hours ride its hue, never its alpha alone. The floor is 0.72 alpha, set by the worst case: solid cat-research reaches 3:1 on ground at 0.70. Density then rides a mix toward the category's own tint, so a quiet day measures 3.14:1 and a heavy one 7.26:1 — a full step apart, both clearing the Legible Mark Rule.",
+        "body": "A cell's hours ride its hue, never its alpha alone. The floor is 0.72 alpha, because nothing carrying a class may sit under 3:1 and the palette's least luminous hue reaches it just above 0.70. Density then rides a mix toward that category's own tint, so a quiet day and a heavy one stay a full step apart and both clear the Legible Mark Rule.",
+        "section": "colors"
+      },
+      {
+        "name": "The Derived Hue Rule",
+        "body": "Category colour is derived, never matched against literal names in CSS. Lightness and chroma are interpolated between the system's own tokens at the nearest hue, so every entry is a sibling of a colour already in the system; only the hue is chosen freely. Magenta (selection), amber (the saves caps sit inside a mark) and git's red are withheld. Categories sort by name and take slots in order; a seed permutes the palette so it can be re-dealt from Settings. `uncategorized` takes no hue at all.",
         "section": "colors"
       }
     ],

@@ -3,6 +3,7 @@
 	import Detail from '$lib/Detail.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import Lanes from '$lib/Lanes.svelte';
+	import { setCategories } from '$lib/palette.svelte';
 	import Rail from '$lib/Rail.svelte';
 	import Reader from '$lib/Reader.svelte';
 	import Settings from '$lib/Settings.svelte';
@@ -42,6 +43,13 @@
 	 *  After that the last used view and range are remembered — switching view by
 	 *  itself when the range changes would make the app unpredictable. */
 	let view = $state<View>((localStorage.getItem('lore.view') as View) ?? 'lanes');
+	/** Years or months at the widest grain. It lives here rather than inside the
+	 *  timeline because the timeline is remounted whenever a filter changes, and
+	 *  a view choice that resets when you narrow to a project is a view choice
+	 *  the reader has to keep making. */
+	let allShape = $state<'years' | 'months'>(
+		(localStorage.getItem('lore.allShape') as 'years' | 'months') ?? 'years'
+	);
 	let scope = $state<Scope>((localStorage.getItem('lore.scope') as Scope) ?? 'week');
 	/** How many periods back from the present the range sits. Zero is now.
 	 *
@@ -221,6 +229,22 @@
 	$effect(() => {
 		localStorage.setItem('lore.view', view);
 		localStorage.setItem('lore.scope', scope);
+		localStorage.setItem('lore.allShape', allShape);
+	});
+
+	/** Category colour is dealt from the configured roots, sorted, so it depends
+	 *  on the set of names and nothing else — not the range on screen, which
+	 *  holds only the categories active in it. Read once here and again whenever
+	 *  a scan reports the config has changed underneath us. */
+	$effect(() => {
+		void archiveVersion;
+		void archive
+			.config()
+			.then((view) => setCategories(view.config.roots.map((r) => r.category)))
+			.catch(() => {
+				// A palette is not worth failing the window over; categories stay
+				// neutral until the next read succeeds.
+			});
 	});
 
 	// The collector is a separate process writing on its own schedule, so the
@@ -413,6 +437,17 @@
 	}
 
 	async function select(blockId: number) {
+		// The bar is the toggle. Clicking the one already selected clears it and
+		// closes the pane — a second click on the same thing means "done with
+		// this", not "show it to me again". The pane closes outright rather than
+		// leaving it to the arrival rule, which only folds a pane the reader has
+		// never opened by hand.
+		if (blockId === selectedBlock) {
+			clearSelection();
+			detailOpen = false;
+			return;
+		}
+
 		selectedBlock = blockId;
 		detailOpen = true;
 		if (tight) railOpen = false;
@@ -917,14 +952,6 @@
 
 				<button
 					class="ghost"
-					onclick={toggleDetail}
-					title="Toggle detail (⇧⌘B)"
-					aria-label="Toggle detail"
-				>
-					<Icon name="panelRight" size={18} />
-				</button>
-				<button
-					class="ghost"
 					onclick={() => {
 						rememberFocus();
 						settingsOpen = true;
@@ -933,6 +960,16 @@
 					aria-label="Settings"
 				>
 					<Icon name="settings" size={18} />
+				</button>
+				<!-- Last, so the two pane toggles bracket the toolbar the way the panes
+				     bracket the window: left edge opens the left, right edge the right. -->
+				<button
+					class="ghost"
+					onclick={toggleDetail}
+					title="Toggle detail (⇧⌘B)"
+					aria-label="Toggle detail"
+				>
+					<Icon name="panelRight" size={18} />
 				</button>
 			</div>
 
@@ -1143,6 +1180,8 @@
 							selected={selectedBlock}
 							onSelect={select}
 							onDrill={drillTo}
+							{allShape}
+							onShape={(next) => (allShape = next)}
 						/>
 					{/key}
 				{:else}

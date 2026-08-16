@@ -2,6 +2,7 @@
 	import type { Evidence, Lane } from './archive';
 	import { clock, compactDuration } from './format';
 	import Icon from './Icon.svelte';
+	import { hueStyle } from './palette.svelte';
 
 	/** The four ways a block's span can be evidenced, weakest last, named once.
 	 *  The digest uses the same words: a split the timeline calls something else
@@ -24,7 +25,9 @@
 		scope,
 		selected,
 		onSelect,
-		onDrill
+		onDrill,
+		allShape,
+		onShape
 	}: {
 		lanes: Lane[];
 		fromMs: number;
@@ -35,6 +38,10 @@
 		/** Walk down the ladder to the period containing `at`. The page turns that
 		 *  into an offset; this component never owns the range. */
 		onDrill: (next: 'day' | 'week' | 'month', at: number) => void;
+		/** Owned by the page, because this component is remounted on every filter
+		 *  change and a choice that resets that often is not a choice. */
+		allShape: 'years' | 'months';
+		onShape: (next: 'years' | 'months') => void;
 	} = $props();
 
 	const DAY = 86_400_000;
@@ -219,14 +226,14 @@
 		return out;
 	});
 
-	/** Years or months, at the widest grain only.
+	/** The months of the range, newest first, each with its own week grid.
 	 *
-	 *  Both are the same cell at the same grain; what differs is what the cells
-	 *  are grouped under. Years hold the whole archive at once and read as
-	 *  density; months are the unit a person actually remembers a stretch of work
-	 *  by — "that was a February thing" — and cost the vertical room to say so. */
-	let allShape = $state<'years' | 'months'>('years');
-
+	 *  Years and months are the same cell at the same grain; what differs is what
+	 *  the cells are grouped under. Years hold the whole archive at once and read
+	 *  as density; months are the unit a person actually remembers a stretch of
+	 *  work by — "that was a February thing" — and cost the vertical room to say
+	 *  so. Which of the two is on screen is the page's to own, not this
+	 *  component's; see `allShape` above. */
 	let months = $derived.by(() => {
 		const out: { at: number; label: string; cells: (number | null)[]; ms: number }[] = [];
 		const last = new Date(toMs - 1);
@@ -324,7 +331,7 @@
 	}
 </script>
 
-<div class="lanes">
+<div class="lanes" class:picked={selected !== null}>
 	{#if scope === 'day'}
 		<!-- Grain: one hour. The day is wide enough for projects to sit side by
 		     side on a shared axis, which is the one range where comparing them is
@@ -333,8 +340,12 @@
 			<span></span>
 			<div class="marks">
 				{#each [0, 3, 6, 9, 12, 15, 18, 21] as h (h)}
-					<span class="hour" class:first={h === 0} style="left: {(h / 24) * 100}%"
-						>{String(h).padStart(2, '0')}:00</span
+					<span
+						class="hour"
+						class:first={h === 0}
+						class:quarter={h % 6 !== 0}
+						class:half={h % 12 !== 0}
+						style="left: {(h / 24) * 100}%">{String(h).padStart(2, '0')}:00</span
 					>
 				{/each}
 			</div>
@@ -350,7 +361,7 @@
 			{#each dayGroups as group (group.category)}
 				<div class="group">
 					<div class="grouphead">
-						<span class="swatch" data-category={group.category} aria-hidden="true"></span>
+						<span class="swatch" style={hueStyle(group.category)} aria-hidden="true"></span>
 						<h3>{group.category}</h3>
 						<span class="num">{compactDuration(group.ms)}</span>
 					</div>
@@ -359,13 +370,18 @@
 						<div class="prow" style="--stagger: {Math.min(i, 12) * 22}ms">
 							<span class="project">{label(row.project)}</span>
 							<div class="track">
+								{#each [3, 6, 9, 12, 15, 18, 21] as h (h)}
+									<span class="rule" style="left: {(h / 24) * 100}%"></span>
+								{/each}
 								{#each row.spans as s (s.blockId + '-' + s.from)}
 									<button
 										class="span"
 										class:on={selected === s.blockId}
 										data-evidence={s.evidence}
-										data-category={s.category}
-										style="left: {offsetIn(dayStartMs, s.from)}%; width: {widthIn(dayStartMs, s)}%"
+										style="left: {offsetIn(dayStartMs, s.from)}%; width: {widthIn(
+											dayStartMs,
+											s
+										)}%; {hueStyle(s.category)}"
 										title={spanTitle(s)}
 										aria-label={spanTitle(s)}
 										aria-pressed={selected === s.blockId}
@@ -388,8 +404,12 @@
 			<span></span>
 			<div class="marks">
 				{#each [0, 3, 6, 9, 12, 15, 18, 21] as h (h)}
-					<span class="hour" class:first={h === 0} style="left: {(h / 24) * 100}%"
-						>{String(h).padStart(2, '0')}:00</span
+					<span
+						class="hour"
+						class:first={h === 0}
+						class:quarter={h % 6 !== 0}
+						class:half={h % 12 !== 0}
+						style="left: {(h / 24) * 100}%">{String(h).padStart(2, '0')}:00</span
 					>
 				{/each}
 			</div>
@@ -417,8 +437,9 @@
 								class="span"
 								class:on={selected === s.blockId}
 								data-evidence={s.evidence}
-								data-category={s.category}
-								style="left: {offsetIn(day, s.from)}%; width: {widthIn(day, s)}%"
+								style="left: {offsetIn(day, s.from)}%; width: {widthIn(day, s)}%; {hueStyle(
+									s.category
+								)}"
 								title={spanTitle(s)}
 								aria-label={spanTitle(s)}
 								aria-pressed={selected === s.blockId}
@@ -467,7 +488,7 @@
 								</span>
 								{#each names.slice(0, 2) as name (name)}
 									<span class="who">
-										<span class="swatch" data-category={categoryOf.get(name)} aria-hidden="true"
+										<span class="swatch" style={hueStyle(categoryOf.get(name))} aria-hidden="true"
 										></span>
 										<span class="nm">{label(name)}</span>
 									</span>
@@ -478,11 +499,10 @@
 								<span class="micro" aria-hidden="true">
 									{#each rec.spans as s (s.blockId + '-' + s.from)}
 										<i
-											data-category={s.category}
 											style="left: {offsetIn(cell, s.from)}%; width: {Math.max(
 												widthIn(cell, s),
 												1.2
-											)}%"
+											)}%; {hueStyle(s.category)}"
 										></i>
 									{/each}
 								</span>
@@ -507,13 +527,13 @@
 					type="button"
 					class:on={allShape === 'years'}
 					aria-pressed={allShape === 'years'}
-					onclick={() => (allShape = 'years')}>Years</button
+					onclick={() => onShape('years')}>Years</button
 				>
 				<button
 					type="button"
 					class:on={allShape === 'months'}
 					aria-pressed={allShape === 'months'}
-					onclick={() => (allShape = 'months')}>Months</button
+					onclick={() => onShape('months')}>Months</button
 				>
 			</div>
 		</div>
@@ -543,8 +563,7 @@
 										<span
 											class="mcell"
 											class:held={!!rec}
-											data-category={rec?.category ?? ''}
-											style="--weight: {weight(rec)}"
+											style="--weight: {weight(rec)}; {hueStyle(rec?.category)}"
 											title={dayTitle(cell, rec)}
 										></span>
 									{/if}
@@ -567,8 +586,7 @@
 									{#if rec}
 										<button
 											class="cell held"
-											data-category={rec?.category ?? ''}
-											style="--weight: {weight(rec)}"
+											style="--weight: {weight(rec)}; {hueStyle(rec?.category)}"
 											title={dayTitle(cell, rec)}
 											aria-label={dayTitle(cell, rec)}
 											onclick={() => onDrill('month', cell)}
@@ -599,7 +617,7 @@
 				{#if categories.length > 1 && scope !== 'day'}
 					{#each categories as c (c)}
 						<li>
-							<span class="swatch" data-category={c} aria-hidden="true"></span>
+							<span class="swatch" style={hueStyle(c)} aria-hidden="true"></span>
 							{c}
 						</li>
 					{/each}
@@ -665,10 +683,26 @@
 		grid-template-columns: var(--week-cols);
 	}
 	/* The only cell that carries ticks, sitting in the same column as the track
-	   it labels. */
+	   it labels. A container, so the labels below can thin themselves out
+	   against the width they actually have rather than the window's — this pane
+	   is resized by the side panes, not by the viewport. */
 	.marks {
 		position: relative;
 		min-width: 0;
+		container-type: inline-size;
+	}
+	/* Eight labels need about 58px each before `00:00` and `03:00` start
+	   touching. Under that the three-hour marks go, then the six-hour ones,
+	   leaving midnight and midday. */
+	@container (max-width: 464px) {
+		.hour.quarter {
+			display: none;
+		}
+	}
+	@container (max-width: 232px) {
+		.hour.half {
+			display: none;
+		}
 	}
 	.hour {
 		position: absolute;
@@ -696,22 +730,11 @@
 		border: 0;
 		padding: 0;
 		border-radius: var(--radius-mark);
-		background: var(--text-faint);
+		background: var(--cat, var(--text-faint));
 		cursor: pointer;
+		transition: filter var(--motion-state);
 		animation: grow 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
 		animation-delay: var(--stagger);
-	}
-	.span[data-category='work'] {
-		background: var(--cat-work);
-	}
-	.span[data-category='research'] {
-		background: var(--cat-research);
-	}
-	.span[data-category='personal'] {
-		background: var(--cat-personal);
-	}
-	.span[data-category='freelance'] {
-		background: var(--cat-freelance);
 	}
 
 	/* Exact at the commits, inferred between them by the idle-gap rule. The
@@ -741,16 +764,46 @@
 	.span:hover {
 		filter: brightness(1.22);
 	}
-	/* Selection takes the ink, never the shape: a selected saves-only span is
-	   still visibly a pair of end marks. */
-	.span.on {
-		background-color: var(--accent);
-		box-shadow: var(--lift-1);
+	/* Selection recedes the rest of the timeline rather than recolouring one mark.
+	   Every colour is already spoken for: hue says which project, texture says
+	   how the span is known, and the accent is selection's own. Category hues
+	   are drawn from a palette that excludes it, but a mark still cannot be
+	   recoloured to mean chosen without spending a channel that is carrying
+	   something. Dimming what was not chosen needs no colour at all — it
+	   works the same on every category, and the selected mark keeps saying
+	   exactly what it said before it was picked.
+
+	   Brightness rather than opacity, because a translucent mark is not a
+	   receded one: at 28% alpha the hour rules showed straight through every
+	   bar, and two marks that touched blended into a third colour. Filtering
+	   leaves the fill opaque, so a dimmed bar still hides what is behind it. */
+	.picked .span {
+		filter: brightness(0.42) saturate(0.75);
 	}
+	/* Above every other mark in the row. A day strip holds all of the day's
+	   projects, and the archive has four hundred cross-project overlaps, so an
+	   unselected block that shares time with the selected one was drawn straight
+	   across it — the chosen mark came out striped with the marks it was chosen
+	   over. Anything wholly inside the selection is unreachable here as a
+	   result; the day rung gives each project its own row, which is where an
+	   overlap gets untangled. */
+	.span.on {
+		filter: none;
+		box-shadow: var(--lift-1);
+		z-index: 1;
+	}
+	/* A dimmed bar still answers the pointer, just from further back. */
+	.picked .span:hover {
+		filter: brightness(0.7) saturate(0.85);
+	}
+	.span.on:hover {
+		filter: brightness(1.22);
+	}
+	/* The lift, without losing the amber end caps this treatment draws. */
 	.span.on[data-evidence='saves'] {
 		box-shadow:
-			inset 2px 0 0 var(--on-accent),
-			inset -2px 0 0 var(--on-accent),
+			inset 2px 0 0 var(--amber),
+			inset -2px 0 0 var(--amber),
 			var(--lift-1);
 	}
 
@@ -977,19 +1030,7 @@
 		position: absolute;
 		top: 0;
 		bottom: 0;
-		background: var(--text-faint);
-	}
-	.micro i[data-category='work'] {
-		background: var(--cat-work);
-	}
-	.micro i[data-category='research'] {
-		background: var(--cat-research);
-	}
-	.micro i[data-category='personal'] {
-		background: var(--cat-personal);
-	}
-	.micro i[data-category='freelance'] {
-		background: var(--cat-freelance);
+		background: var(--cat, var(--text-faint));
 	}
 
 	/* ---- rung 4 · all time --------------------------------------------------- */
@@ -1083,20 +1124,8 @@
 		background: var(--well);
 	}
 	.mcell.held {
-		background: var(--text-faint);
+		background: color-mix(in oklab, var(--cat-tint, var(--text-dim)) calc(var(--weight) * 55%), var(--cat, var(--text-faint)));
 		opacity: calc(0.72 + var(--weight) * 0.28);
-	}
-	.mcell.held[data-category='work'] {
-		background: color-mix(in oklab, var(--cat-work-tint) calc(var(--weight) * 55%), var(--cat-work));
-	}
-	.mcell.held[data-category='research'] {
-		background: color-mix(in oklab, var(--cat-research-tint) calc(var(--weight) * 55%), var(--cat-research));
-	}
-	.mcell.held[data-category='personal'] {
-		background: color-mix(in oklab, var(--cat-personal-tint) calc(var(--weight) * 55%), var(--cat-personal));
-	}
-	.mcell.held[data-category='freelance'] {
-		background: color-mix(in oklab, var(--cat-freelance-tint) calc(var(--weight) * 55%), var(--cat-freelance));
 	}
 
 	/* Fifty-three columns cannot shrink below 636px, and the window's own 880px
@@ -1139,28 +1168,16 @@
 		border-radius: var(--radius-swatch);
 		background: var(--well);
 	}
-	/* The floor is 0.72 because magenta is the worst case: solid `cat-research`
-	   over ground reaches 3:1 at 0.70 alpha and nothing that carries a class may
-	   sit under it. Density then rides the hue rather than the alpha, mixing
-	   toward the category's own tint — the token that exists precisely because a
+	/* The floor is 0.72 because nothing carrying a class may sit under 3:1, and
+	   the palette's least luminous hue reaches it just above 0.70 alpha. Density
+	   then rides the hue rather than the alpha, mixing toward that category's
+	   own tint — the lighter sibling every palette entry carries, because a
 	   solid hue is not legible small on a dark ground. A quiet day and a heavy
 	   one stay a full step apart, and both clear the Legible Mark Rule. */
 	.cell.held {
 		cursor: pointer;
-		background: var(--text-faint);
+		background: color-mix(in oklab, var(--cat-tint, var(--text-dim)) calc(var(--weight) * 55%), var(--cat, var(--text-faint)));
 		opacity: calc(0.72 + var(--weight) * 0.28);
-	}
-	.cell.held[data-category='work'] {
-		background: color-mix(in oklab, var(--cat-work-tint) calc(var(--weight) * 55%), var(--cat-work));
-	}
-	.cell.held[data-category='research'] {
-		background: color-mix(in oklab, var(--cat-research-tint) calc(var(--weight) * 55%), var(--cat-research));
-	}
-	.cell.held[data-category='personal'] {
-		background: color-mix(in oklab, var(--cat-personal-tint) calc(var(--weight) * 55%), var(--cat-personal));
-	}
-	.cell.held[data-category='freelance'] {
-		background: color-mix(in oklab, var(--cat-freelance-tint) calc(var(--weight) * 55%), var(--cat-freelance));
 	}
 	.cell.held:hover {
 		outline: 1px solid var(--accent);
@@ -1243,19 +1260,7 @@
 		height: 9px;
 		flex: none;
 		border-radius: var(--radius-swatch);
-		background: var(--text-faint);
-	}
-	.swatch[data-category='work'] {
-		background: var(--cat-work);
-	}
-	.swatch[data-category='research'] {
-		background: var(--cat-research);
-	}
-	.swatch[data-category='personal'] {
-		background: var(--cat-personal);
-	}
-	.swatch[data-category='freelance'] {
-		background: var(--cat-freelance);
+		background: var(--cat, var(--text-faint));
 	}
 
 	/* One authored moment per surface: marks are revealed from their own start
@@ -1287,6 +1292,7 @@
 		}
 		/* State feedback keeps its colour change and loses only the ramp — a
 		   blanket kill would take the feedback with it. */
+		.span,
 		.open,
 		.tile,
 		.mpanel,
