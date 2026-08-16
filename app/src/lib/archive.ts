@@ -212,16 +212,35 @@ export interface Paths {
 	db_path: string;
 }
 
+/** A failure that carries why, not just what.
+ *
+ *  `no_archive` is the one kind that is not a fault: nothing has been collected
+ *  yet, which is simply what a new install looks like. The window draws its
+ *  error state in preference to its empty one, so reported as an ordinary error
+ *  it put "The archive could not be read" in front of every first-time user and
+ *  hid the setup screen behind it. */
+export class ArchiveError extends Error {
+	readonly kind: string | null;
+	constructor(message: string, kind: string | null) {
+		super(message);
+		this.name = 'ArchiveError';
+		this.kind = kind;
+	}
+}
+
+/** True when the archive simply does not exist yet, rather than failing to read. */
+export const isMissingArchive = (e: unknown): boolean =>
+	e instanceof ArchiveError && e.kind === 'no_archive';
+
 /** Commands surface their failure message so the UI can name the problem. */
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
 	try {
 		return await invoke<T>(command, args);
 	} catch (error) {
-		const message =
-			typeof error === 'object' && error && 'message' in error
-				? String((error as { message: unknown }).message)
-				: String(error);
-		throw new Error(message);
+		const box = typeof error === 'object' && error ? (error as Record<string, unknown>) : null;
+		const message = box && 'message' in box ? String(box.message) : String(error);
+		const kind = box && typeof box.kind === 'string' ? box.kind : null;
+		throw new ArchiveError(message, kind);
 	}
 }
 

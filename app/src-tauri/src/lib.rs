@@ -33,13 +33,32 @@ struct Archive {
 #[derive(Serialize)]
 struct Failure {
     message: String,
+    /// What kind of failure this is, where the difference changes what the window
+    /// should draw. Only one kind so far, and it earns the field on its own:
+    /// `no_archive` is not a fault at all. Nothing has been collected yet, which
+    /// is the ordinary state of a new install — and reported as a plain error it
+    /// put "The archive could not be read" in front of every first-time user,
+    /// which reads as breakage and hid the setup screen entirely, since the
+    /// error state is drawn in preference to the empty one.
+    ///
+    /// A field rather than a message the window matches on: copy is rewritten,
+    /// and a rewrite that silently turns the welcome back into an error screen is
+    /// exactly the failure this is here to prevent.
+    kind: Option<&'static str>,
+}
+
+impl Failure {
+    fn new(message: impl Into<String>) -> Self {
+        Failure {
+            message: message.into(),
+            kind: None,
+        }
+    }
 }
 
 impl From<anyhow::Error> for Failure {
     fn from(err: anyhow::Error) -> Self {
-        Failure {
-            message: format!("{err:#}"),
-        }
+        Failure::new(format!("{err:#}"))
     }
 }
 
@@ -49,9 +68,7 @@ fn with_conn<T, F>(archive: &Archive, f: F) -> Reply<T>
 where
     F: FnOnce(&Connection, &Config) -> anyhow::Result<T>,
 {
-    let mut guard = archive.conn.lock().map_err(|_| Failure {
-        message: "archive lock poisoned".into(),
-    })?;
+    let mut guard = archive.conn.lock().map_err(|_| Failure::new("archive lock poisoned"))?;
     // The archive is created by the collector, which on a first run happens long
     // after this window opened. Opening it only at startup meant the window held
     // its opening verdict for the whole session: the first scan built the
@@ -65,11 +82,10 @@ where
             .and_then(|p| api::open_readonly(&p).ok());
     }
     let conn = guard.as_ref().ok_or_else(|| Failure {
-        message: "no archive yet — run a scan to build one".into(),
+        message: "no archive yet".into(),
+        kind: Some("no_archive"),
     })?;
-    let config = archive.config.lock().map_err(|_| Failure {
-        message: "config lock poisoned".into(),
-    })?;
+    let config = archive.config.lock().map_err(|_| Failure::new("config lock poisoned"))?;
     f(conn, &config).map_err(Into::into)
 }
 
@@ -250,28 +266,23 @@ fn paths() -> Reply<Paths> {
 /// scan — minutes, on a run that finds real work.
 #[tauri::command(async)]
 fn run_collector(action: String) -> Reply<String> {
-    let binary = collector().ok_or_else(|| Failure {
-        message: "no collector ships with this build of the window".into(),
-    })?;
+    let binary = collector()
+        .ok_or_else(|| Failure::new("no collector ships with this build of the window"))?;
     let verb = match action.as_str() {
         "scan" => "scan",
         "rebuild" => "rebuild",
         other => {
-            return Err(Failure {
-                message: format!("unknown action: {other}"),
-            })
+            return Err(Failure::new(format!("unknown action: {other}")))
         }
     };
     let out = std::process::Command::new(&binary)
         .arg(verb)
         .output()
-        .map_err(|e| Failure {
-            message: format!("running {verb}: {e}"),
-        })?;
+        .map_err(|e| Failure::new(format!("running {verb}: {e}")))?;
     if !out.status.success() {
-        return Err(Failure {
-            message: String::from_utf8_lossy(&out.stderr).trim().to_string(),
-        });
+        return Err(Failure::new(
+            String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        ));
     }
     Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
 }

@@ -13,6 +13,7 @@
 	import { clock, collector } from '$lib/collector.svelte';
 	import { markSelector, type Mark, type Scope } from '$lib/grain';
 	import { readPref, writePref } from '$lib/prefs';
+	import { isMissingArchive } from '$lib/archive';
 	import {
 		archive,
 		type BlockDetail,
@@ -374,7 +375,10 @@
 		} catch (e) {
 			// Reported separately: a failing status poll must not mask, or be
 			// masked by, a failure to read the timeline.
-			statusError = (e as Error).message;
+			// Same rule: nothing collected yet is the ordinary state of a new
+			// install, and the empty state already says so far better than a
+			// collector-unavailable banner would.
+			statusError = isMissingArchive(e) ? null : (e as Error).message;
 		}
 	}
 
@@ -455,7 +459,11 @@
 				error = null;
 			})
 			.catch((e: Error) => {
-				error = e.message ?? String(e);
+				// An archive that does not exist yet is not a failed read. Reported as
+				// one it wins the stage over the empty state, and a first-time user is
+				// told the archive "could not be read" instead of being shown how to
+				// begin.
+				error = isMissingArchive(e) ? null : (e.message ?? String(e));
 				lanes = [];
 			});
 	});
@@ -496,7 +504,7 @@
 				// The figures go with the failure. A digest still printing a confident
 				// total above "the archive could not be read" is the most corrosive
 				// state this window can render.
-				error = e.message ?? String(e);
+				error = isMissingArchive(e) ? null : (e.message ?? String(e));
 				summary = null;
 				blocks = [];
 			})
@@ -518,7 +526,7 @@
 			.then((s) => (summary = s))
 			.catch((e: Error) => {
 				summary = null;
-				error = e.message ?? String(e);
+				error = isMissingArchive(e) ? null : (e.message ?? String(e));
 			});
 	});
 
