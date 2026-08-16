@@ -319,11 +319,20 @@
 	 *  on the set of names and nothing else — not the range on screen, which
 	 *  holds only the categories active in it. Read once here and again whenever
 	 *  a scan reports the config has changed underneath us. */
+	/** How many roots are configured, read from the config file rather than from
+	 *  the archive. On a first run there is no archive, so `status` is null and
+	 *  cannot answer this — and a first run is exactly when the answer decides
+	 *  what the window should ask the reader to do. */
+	let rootCount = $state<number | null>(null);
+
 	$effect(() => {
 		void archiveVersion;
 		void archive
 			.config()
-			.then((view) => setCategories(view.config.roots.map((r) => r.category)))
+			.then((view) => {
+				setCategories(view.config.roots.map((r) => r.category));
+				rootCount = view.config.roots.length;
+			})
 			.catch(() => {
 				// A palette is not worth failing the window over; categories stay
 				// neutral until the next read succeeds.
@@ -1288,30 +1297,43 @@
 								athar reads Claude Code sessions, git history and file saves, and keeps
 								them after those sources delete their own.
 							</p>
-							{#if !status?.roots?.length}
-								<!-- Claude Code sits at a fixed path and needs no configuration, so a
-								     scan is worth offering on its own. Git and file changes are not:
-								     with no root there is nothing for them to read, and offering the
-								     scan without saying so is how you get a scan that looks broken. -->
+							{#if rootCount === 0}
+								<!-- Setup leads, not the scan.
+								     A scan is the obvious first button and the wrong one: with no
+								     root it reads Claude Code and nothing else, and files every
+								     recorded path as its own uncategorised project, because athar
+								     will not guess that `athar-app/app` belongs to `athar-app`
+								     rather than standing alone. The result looks broken and is not,
+								     which is the worst thing a first run can produce. A root costs
+								     one folder pick and makes the same scan do all of it. -->
+								<p>Start by telling athar where your projects live.</p>
 								<p class="reach">
-									Git and file changes need a scanned root. Claude Code sessions are
-									read without one.
+									Without a root, git history and file changes are not read at all, and
+									each folder is filed as its own project.
 								</p>
-							{/if}
-							<div class="acts">
+								<div class="acts">
+									<button
+										class="act strong"
+										onclick={() => {
+											rememberFocus();
+											settingsOpen = true;
+										}}
+									>
+										Choose a root…
+									</button>
+									<button class="act" onclick={() => collector.run('scan')}>
+										Read Claude Code only
+									</button>
+								</div>
+							{:else if rootCount !== null}
 								<button class="act strong" onclick={() => collector.run('scan')}>
 									Read my history
 								</button>
-								<button
-									class="act"
-									onclick={() => {
-										rememberFocus();
-										settingsOpen = true;
-									}}
-								>
-									Add a root…
-								</button>
-							</div>
+							{/if}
+							<!-- No button at all until the config has answered. It arrives in
+							     milliseconds from a local file, and offering the wrong first
+							     action for one frame is worse than offering none. -->
+
 						{:else if activeFilters.length}
 							<h2>Nothing matches these filters</h2>
 							<p>Narrowed to:</p>
