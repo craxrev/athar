@@ -675,7 +675,7 @@
 			.map((l) => ({
 				path: l.project_path,
 				// A duplicate leaf name keeps its parent, so two different projects
-				// called `profile-next` are distinguishable.
+				// called `dashboard-web` are distinguishable.
 				label:
 					(seen.get(l.project) ?? 0) > 1
 						? l.project_path.split('/').filter(Boolean).slice(-2).join('/')

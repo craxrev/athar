@@ -204,13 +204,13 @@ impl Config {
     /// directory can be any subdirectory, and dependency trees contain their own
     /// repositories. Walking down from the configured root, the project is the
     /// **shallowest git repository** in the chain — which folds
-    /// `profile-next/node_modules/pdfjs-dist` and `ProFile-iOS/ios` back into the
+    /// `dashboard-web/node_modules/pdfjs-dist` and `dashboard-ios/ios` back into the
     /// repository they belong to. When no repository exists in the chain, the
     /// top-level folder under the root is the project, which is the case for
     /// research directories that were never version-controlled.
     ///
     /// Both halves are needed: a blanket top-level rule would merge
-    /// `freelance/beecoop/malek` and `freelance/beecoop/colocqui` into `beecoop`,
+    /// `freelance/clients/northwind` and `freelance/clients/acme` into `clients`,
     /// which is a folder of separate client projects rather than a project.
     ///
     /// Returns `None` for a path under no configured root; that path is its own
@@ -353,43 +353,43 @@ mod tests {
     #[test]
     fn folds_a_subdirectory_into_its_repository() {
         let root = temp_root();
-        repo(&root.join("profile-next"));
-        fs::create_dir_all(root.join("profile-next/node_modules/pdfjs-dist")).unwrap();
+        repo(&root.join("dashboard-web"));
+        fs::create_dir_all(root.join("dashboard-web/node_modules/pdfjs-dist")).unwrap();
         let config = config_for(&root);
 
         // A dependency's own repository is not a project.
         assert_eq!(
-            config.canonical_project(&root.join("profile-next/node_modules/pdfjs-dist")),
-            Some(root.join("profile-next"))
+            config.canonical_project(&root.join("dashboard-web/node_modules/pdfjs-dist")),
+            Some(root.join("dashboard-web"))
         );
         // Neither is a working directory inside the repository.
         assert_eq!(
-            config.canonical_project(&root.join("profile-next/app/src")),
-            Some(root.join("profile-next"))
+            config.canonical_project(&root.join("dashboard-web/app/src")),
+            Some(root.join("dashboard-web"))
         );
     }
 
     #[test]
     fn keeps_sibling_repositories_under_a_grouping_folder_apart() {
         let root = temp_root();
-        fs::create_dir_all(root.join("beecoop")).unwrap();
-        repo(&root.join("beecoop/malek"));
-        repo(&root.join("beecoop/colocqui"));
-        repo(&root.join("beecoop/coinsence/html_i4c"));
+        fs::create_dir_all(root.join("clients")).unwrap();
+        repo(&root.join("clients/northwind"));
+        repo(&root.join("clients/acme"));
+        repo(&root.join("clients/initech/landing"));
         let config = config_for(&root);
 
-        // `beecoop` is a folder of client projects, not a project.
+        // `clients` is a folder of client projects, not a project.
         assert_eq!(
-            config.canonical_project(&root.join("beecoop/malek/src")),
-            Some(root.join("beecoop/malek"))
+            config.canonical_project(&root.join("clients/northwind/src")),
+            Some(root.join("clients/northwind"))
         );
         assert_eq!(
-            config.canonical_project(&root.join("beecoop/colocqui")),
-            Some(root.join("beecoop/colocqui"))
+            config.canonical_project(&root.join("clients/acme")),
+            Some(root.join("clients/acme"))
         );
         assert_eq!(
-            config.canonical_project(&root.join("beecoop/coinsence/html_i4c/x")),
-            Some(root.join("beecoop/coinsence/html_i4c"))
+            config.canonical_project(&root.join("clients/initech/landing/x")),
+            Some(root.join("clients/initech/landing"))
         );
     }
 

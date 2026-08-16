@@ -1335,9 +1335,9 @@ mod tests {
 
         let dir = std::env::temp_dir().join(format!("athar-fold-{}", std::process::id()));
         let root = dir.join("freelance");
-        let malek = root.join("beecoop/malek");
-        std::fs::create_dir_all(malek.join(".git")).unwrap();
-        std::fs::create_dir_all(root.join("beecoop/colocqui/.git")).unwrap();
+        let northwind = root.join("clients/northwind");
+        std::fs::create_dir_all(northwind.join(".git")).unwrap();
+        std::fs::create_dir_all(root.join("clients/acme/.git")).unwrap();
 
         let config = Config {
             idle_gap_mins: 20,
@@ -1351,7 +1351,7 @@ mod tests {
         let mut conn = temp_db();
         let origin = db::origin_cursor(&conn, "claude", "/t.jsonl").unwrap().id;
         // Recorded from a subdirectory of the repository, as a session would be.
-        let deep = malek.join("src");
+        let deep = northwind.join("src");
         let project = db::project_id(&conn, &deep.to_string_lossy()).unwrap();
         conn.execute(
             "INSERT INTO raw_records (origin_id, line_no, ts_ms, kind, session_id, project_id, json, bytes_original)
@@ -1368,12 +1368,12 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(folded, malek.to_string_lossy(), "folds into its repository");
+        assert_eq!(folded, northwind.to_string_lossy(), "folds into its repository");
 
         // The project is deleted. Its repository can no longer be seen, so a
-        // recomputed fold would land on `beecoop` and merge this history with
-        // colocqui's. The remembered decision must hold instead.
-        std::fs::remove_dir_all(&malek).unwrap();
+        // recomputed fold would land on `clients` and merge this history with
+        // acme's. The remembered decision must hold instead.
+        std::fs::remove_dir_all(&northwind).unwrap();
         rebuild(&mut conn, &config).unwrap();
         let after: String = conn
             .query_row(
@@ -1384,7 +1384,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             after,
-            malek.to_string_lossy(),
+            northwind.to_string_lossy(),
             "a deleted project must not be re-folded into its parent folder"
         );
 

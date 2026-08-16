@@ -448,7 +448,7 @@ pub fn timeline(
     let mut out = Vec::new();
     for block in crate::stats::blocks_between(conn, from_ms, to_ms, limit)? {
         // Matched on the full path: leaf names collide across trees, and two
-        // projects called `profile-next` are not the same project.
+        // projects called `dashboard-web` are not the same project.
         if project_filter.is_some_and(|p| p != block.project) {
             continue;
         }
