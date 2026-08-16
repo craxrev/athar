@@ -7,12 +7,16 @@ that each forget. athar puts them on one timeline and keeps them.
 
 macOS. Offline.
 
+![A week in athar](docs/week.png)
+
 ## What you get
 
 - A timeline: a day by the hour, a week by the day, a month as tiles, all time as a heatmap
 - Click anything to see its conversations, commits and files
 - Read any conversation back in full
 - Totals: hours, projects, sessions, commits, tokens, and how much the assistant wrote
+
+<img src="docs/all-years.png" width="49%"> <img src="docs/detail.png" width="49%">
 
 ## Why it keeps its own copy
 
