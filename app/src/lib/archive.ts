@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 
-/** Mirrors `lore_core::api`. Coverage is uneven by design and these types say so. */
+/** Mirrors `athar_core::api`. Coverage is uneven by design and these types say so. */
 
 export type Tier = 'certain' | 'strong' | 'weak';
 
@@ -20,7 +20,7 @@ export interface CollectorStatus {
 	/** 'scan' or 'rebuild' while a collector is working, whoever started it. */
 	running: string | null;
 	roots: string[];
-	sessions_only_in_lore: number;
+	sessions_only_in_athar: number;
 }
 
 export interface ProjectInfo {
@@ -190,7 +190,7 @@ export interface Root {
 	category: string;
 }
 
-export interface LoreConfig {
+export interface AtharConfig {
 	scan_interval_mins: number;
 	idle_gap_mins: number;
 	file_lookback_days: number;
@@ -203,7 +203,7 @@ export interface LoreConfig {
 /** The config, with an identifier for the file it came from. Handing that back on
  *  save is what lets a stale copy be refused instead of overwriting. */
 export interface ConfigView {
-	config: LoreConfig;
+	config: AtharConfig;
 	revision: string | null;
 }
 
@@ -274,7 +274,7 @@ export const archive = {
 	session: (id: string) => call<SessionDetail | null>('session', { id }),
 	commitFiles: (sha: string) => call<CommitFile[]>('commit_files', { sha }),
 	config: () => call<ConfigView>('read_config'),
-	saveConfig: (config: LoreConfig, revision: string | null) =>
+	saveConfig: (config: AtharConfig, revision: string | null) =>
 		call<ConfigView>('write_config', { config, revision }),
 	runCollector: (action: 'scan' | 'rebuild') => call<string>('run_collector', { action })
 };

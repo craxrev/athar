@@ -2,7 +2,7 @@
 	import { hueStyle, setCategories, shuffleHues } from './palette.svelte';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import Icon from './Icon.svelte';
-	import { archive, type LoreConfig, type Paths } from './archive';
+	import { archive, type AtharConfig, type Paths } from './archive';
 	import { collector } from './collector.svelte';
 
 	let {
@@ -18,7 +18,7 @@
 		onSaved: () => void;
 	} = $props();
 
-	let config = $state<LoreConfig | null>(null);
+	let config = $state<AtharConfig | null>(null);
 	/** Which file the values above came from. Sent back on save so an edit made
 	 *  elsewhere is refused rather than overwritten. */
 	let revision = $state<string | null>(null);
