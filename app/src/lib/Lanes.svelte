@@ -26,6 +26,8 @@
 		selected,
 		onSelect,
 		onDrill,
+		selectedPeriod,
+		onSelectPeriod,
 		allShape,
 		onShape
 	}: {
@@ -38,6 +40,11 @@
 		/** Walk down the ladder to the period containing `at`. The page turns that
 		 *  into an offset; this component never owns the range. */
 		onDrill: (next: 'day' | 'week' | 'month', at: number) => void;
+		/** A tile, a cell and a month panel stand for a period, not a block, so
+		 *  the grains that draw them select a period instead. The pane answers it;
+		 *  going there is a separate, deliberate step. */
+		selectedPeriod: number | null;
+		onSelectPeriod: (at: number, kind: 'day' | 'month') => void;
 		/** Owned by the page, because this component is remounted on every filter
 		 *  change and a choice that resets that often is not a choice. */
 		allShape: 'years' | 'months';
@@ -46,6 +53,23 @@
 
 	const DAY = 86_400_000;
 	const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+	/** Built once. `toLocaleDateString` constructs a formatter per call, and the
+	 *  months sheet asks for three thousand of them — enough to be felt on every
+	 *  render and every scroll that brings a panel into view. */
+	const DAY_TITLE = new Intl.DateTimeFormat(undefined, {
+		weekday: 'long',
+		day: 'numeric',
+		month: 'long',
+		year: 'numeric'
+	});
+	const MONTH_SHORT = new Intl.DateTimeFormat(undefined, { month: 'short', year: '2-digit' });
+	const MONTH_LONG = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' });
+	const DAY_SHORT = new Intl.DateTimeFormat(undefined, {
+		weekday: 'short',
+		day: 'numeric',
+		month: 'short'
+	});
 
 	function startOfDay(ms: number): number {
 		const d = new Date(ms);
@@ -190,12 +214,7 @@
 	}
 
 	function dayTitle(at: number, rec: DayRecord | undefined): string {
-		const when = new Date(at).toLocaleDateString(undefined, {
-			weekday: 'long',
-			day: 'numeric',
-			month: 'long',
-			year: 'numeric'
-		});
+		const when = DAY_TITLE.format(at);
 		if (!rec) return `${when} · nothing archived`;
 		return `${when} · ${compactDuration(rec.ms)} · ${rec.names.length} project${
 			rec.projects.size === 1 ? '' : 's'
@@ -252,7 +271,7 @@
 			}
 			out.push({
 				at: cursor.getTime(),
-				label: cursor.toLocaleDateString(undefined, { month: 'short', year: '2-digit' }),
+				label: MONTH_SHORT.format(cursor),
 				cells,
 				ms
 			});
@@ -331,7 +350,7 @@
 	}
 </script>
 
-<div class="lanes" class:picked={selected !== null}>
+<div class="lanes" class:picked={selected !== null || selectedPeriod !== null}>
 	{#if scope === 'day'}
 		<!-- Grain: one hour. The day is wide enough for projects to sit side by
 		     side on a shared axis, which is the one range where comparing them is
@@ -421,11 +440,7 @@
 				{@const rec = byDay.get(day)}
 				<div class="drow" class:void={!rec} style="--stagger: {Math.min(i, 12) * 22}ms">
 					<span class="date"
-						>{new Date(day).toLocaleDateString(undefined, {
-							weekday: 'short',
-							day: 'numeric',
-							month: 'short'
-						})}</span
+						>{DAY_SHORT.format(day)}</span
 					>
 					<span class="num total">{rec ? compactDuration(rec.ms) : '—'}</span>
 					<div class="strip">
@@ -477,10 +492,12 @@
 							{@const names = rec.names}
 							<button
 								class="tile"
+								class:on={selectedPeriod === cell}
+								aria-pressed={selectedPeriod === cell}
 								style="--stagger: {Math.min(i, 24) * 12}ms"
 								title={dayTitle(cell, rec)}
 								aria-label={dayTitle(cell, rec)}
-								onclick={() => onDrill('day', cell)}
+								onclick={() => onSelectPeriod(cell, 'day')}
 							>
 								<span class="head">
 									<span class="num day">{new Date(cell).getDate()}</span>
@@ -544,11 +561,12 @@
 					{#each months as m (m.at)}
 						<button
 							class="mpanel"
-							title="{new Date(m.at).toLocaleDateString(undefined, {
-								month: 'long',
-								year: 'numeric'
-							})} · {m.ms ? compactDuration(m.ms) : 'nothing archived'}"
-							onclick={() => onDrill('month', m.at)}
+							title="{MONTH_LONG.format(m.at)} · {m.ms
+								? compactDuration(m.ms)
+								: 'nothing archived'}"
+							class:on={selectedPeriod === m.at}
+							aria-pressed={selectedPeriod === m.at}
+							onclick={() => onSelectPeriod(m.at, 'month')}
 						>
 							<span class="mhead">
 								<span class="num mlabel">{m.label}</span>
@@ -586,10 +604,12 @@
 									{#if rec}
 										<button
 											class="cell held"
+											class:on={selectedPeriod === cell}
+											aria-pressed={selectedPeriod === cell}
 											style="--weight: {weight(rec)}; {hueStyle(rec?.category)}"
 											title={dayTitle(cell, rec)}
 											aria-label={dayTitle(cell, rec)}
-											onclick={() => onDrill('month', cell)}
+											onclick={() => onSelectPeriod(cell, 'day')}
 										></button>
 									{:else}
 										<span class="cell"></span>
@@ -977,6 +997,34 @@
 		cursor: default;
 		animation: none;
 	}
+	/* Chosen, at the grains where a day is the unit. The same recede the marks
+	   use: what was not chosen steps back, and the chosen one is left as it was
+	   so its hue and its hours still read. */
+	/* Tiles and cells recede; month panels do not. A filter forces a compositing
+	   layer per element, and there are eighty-nine panels — the cost showed up as
+	   a stutter while scrolling the sheet. A panel says it is chosen with its
+	   border and its ground instead, which costs nothing. */
+	.picked .tile:not(.pad):not(.empty),
+	.picked .cell.held {
+		filter: brightness(0.5) saturate(0.8);
+	}
+	.picked .tile.on,
+	.picked .cell.on {
+		filter: none;
+	}
+	.mpanel.on {
+		border-color: var(--line-strong);
+		background: var(--surface);
+	}
+	.tile.on {
+		border-color: var(--line-strong);
+		background: var(--surface-raised);
+	}
+	.cell.on {
+		outline: 1px solid var(--text);
+		outline-offset: 1px;
+	}
+
 	.tile:not(.pad):not(.empty):hover {
 		border-color: var(--line-strong);
 		background: var(--surface-raised);
@@ -1082,6 +1130,11 @@
 	   ratio, so shrink-to-fit resolves their width to zero and the whole grid
 	   collapses — the panel renders as a header over nothing. */
 	.mpanel {
+		/* Eighty-nine panels of thirty-seven cells each. Skipping the ones off
+		   screen is the difference between a sheet that scrolls and one that
+		   stutters. */
+		content-visibility: auto;
+		contain-intrinsic-size: auto 118px;
 		display: flex;
 		flex-direction: column;
 		align-items: stretch;
@@ -1132,37 +1185,61 @@
 	   minimum can leave this pane 508px. The sheet scrolls sideways as one piece
 	   so every year stays column-aligned, and the year label pins to the left so
 	   you never lose which row you are reading. */
+	/* One cell size at every width. Sizing it to the pane meant a year looked
+	   denser with the detail pane open than without, and the pane has nothing to
+	   do with how big a day is — the sheet scrolls instead, on the platform's own
+	   overlay scrollbar, which stays out of the way until it is used. */
 	.sheets {
 		padding: 18px var(--edge) 8px;
 		overflow-x: auto;
-		scrollbar-width: thin;
-		scrollbar-color: var(--line-strong) transparent;
+		--cell: 10px;
+		--cellgap: 2px;
 	}
+	/* The year leads and its total closes, as they did before — but both are
+	   pinned to the edges of the scrollport, so neither is lost partway through a
+	   sideways scroll of the sheet. */
 	.year {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 84px;
 		display: grid;
-		grid-template-columns: 42px minmax(0, max-content) auto;
+		grid-template-columns: 42px max-content auto;
 		align-items: center;
 		gap: 12px;
 		margin-bottom: 13px;
 	}
-	.yr {
+	.yr,
+	.ytot {
 		position: sticky;
-		left: 0;
 		z-index: 1;
-		padding-right: 6px;
 		background: var(--ground);
+	}
+	.yr {
+		left: 0;
+		padding-right: 8px;
 		font-weight: 620;
 		color: var(--text);
+	}
+	.ytot {
+		right: 0;
+		padding-left: 8px;
+		text-align: right;
+		color: var(--text-faint);
 	}
 	.grid {
 		display: grid;
 		grid-auto-flow: column;
-		grid-template-rows: repeat(7, 10px);
-		gap: 2px;
+		grid-template-rows: repeat(7, var(--cell));
+		gap: var(--cellgap);
+		/* Without this the columns are auto-sized *and* stretched — a grid's
+		   default `justify-content` behaves as stretch — so the spare width in the
+		   row was shared between 53 tracks and the gaps came back uneven, worse
+		   the wider the pane. The cells are a fixed size; the leftover space
+		   belongs at the end of the row, not between the days. */
+		justify-content: start;
 	}
 	.cell {
-		width: 10px;
-		height: 10px;
+		width: var(--cell);
+		height: var(--cell);
 		padding: 0;
 		border: 0;
 		border-radius: var(--radius-swatch);
@@ -1182,9 +1259,6 @@
 	.cell.held:hover {
 		outline: 1px solid var(--accent);
 		outline-offset: 1px;
-	}
-	.ytot {
-		color: var(--text-faint);
 	}
 
 	/* ---- the key ------------------------------------------------------------

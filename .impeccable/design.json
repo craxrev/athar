@@ -501,6 +501,11 @@
         "name": "The Derived Hue Rule",
         "body": "Category colour is derived, never matched against literal names in CSS. Lightness and chroma are interpolated between the system's own tokens at the nearest hue, so every entry is a sibling of a colour already in the system; only the hue is chosen freely. Magenta (selection), amber (the saves caps sit inside a mark) and git's red are withheld. Categories sort by name and take slots in order; a seed permutes the palette so it can be re-dealt from Settings. `uncategorized` takes no hue at all.",
         "section": "colors"
+      },
+      {
+        "name": "The Selection Answers Rule",
+        "body": "A click selects and the right pane answers; it never navigates. The pane describes whatever the rung draws — a block at day and week, a day or a month at the wider grains — counted from the lanes already on screen so it cannot disagree with the marks beside it. Moving the window is a separate, deliberate step offered inside the pane.",
+        "section": "components"
       }
     ],
     "dos": [

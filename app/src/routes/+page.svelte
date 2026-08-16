@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import PeriodPanel from '$lib/PeriodPanel.svelte';
 	import Detail from '$lib/Detail.svelte';
 	import Icon from '$lib/Icon.svelte';
 	import Lanes from '$lib/Lanes.svelte';
@@ -125,6 +126,11 @@
 	let lanes = $state<Lane[]>([]);
 	let blocks = $state<BlockDetail[]>([]);
 	let selectedBlock = $state<number | null>(null);
+	/** The period a tile, a cell or a month panel stands for, and which kind it
+	 *  is. Mutually exclusive with a block: the pane answers one selection, and a
+	 *  grain draws only one kind of mark. */
+	let selectedPeriod = $state<number | null>(null);
+	let periodKind = $state<'day' | 'month'>('day');
 	let reader = $state<SessionDetail | null>(null);
 	/** Settings takes over the window, like the reader: it is somewhere you go,
 	 *  not a mode the timeline sits inside. */
@@ -190,6 +196,25 @@
 		// empty range that cannot contain anything is not a state worth reaching.
 		offset = Math.min(0, offset + by);
 		clearSelection();
+	}
+
+	/** A period chosen at a grain that draws periods rather than blocks. Clicking
+	 *  the same one again clears it, exactly as a bar does. */
+	function selectPeriod(at: number, kind: 'day' | 'month') {
+		if (selectedPeriod === at) {
+			selectedPeriod = null;
+			detailOpen = false;
+			return;
+		}
+		selectRequest += 1;
+		selectedDetail = null;
+		detailLoading = false;
+		detailError = null;
+		selectedBlock = null;
+		selectedPeriod = at;
+		periodKind = kind;
+		detailOpen = true;
+		if (tight) railOpen = false;
 	}
 
 	/** Walk down the grain ladder to the period holding `at`.
@@ -431,6 +456,7 @@
 	function clearSelection() {
 		selectRequest += 1;
 		selectedBlock = null;
+		selectedPeriod = null;
 		selectedDetail = null;
 		detailLoading = false;
 		detailError = null;
@@ -449,6 +475,7 @@
 		}
 
 		selectedBlock = blockId;
+		selectedPeriod = null;
 		detailOpen = true;
 		if (tight) railOpen = false;
 		detailError = null;
@@ -1180,6 +1207,8 @@
 							selected={selectedBlock}
 							onSelect={select}
 							onDrill={drillTo}
+							{selectedPeriod}
+							onSelectPeriod={selectPeriod}
 							{allShape}
 							onShape={(next) => (allShape = next)}
 						/>
@@ -1203,12 +1232,23 @@
 		</div>
 
 		{#if detailOpen}
-			<Detail
-				block={selectedDetail}
-				loading={detailLoading}
-				error={detailError}
-				onOpenSession={openSession}
-			/>
+			{#if selectedPeriod !== null}
+				<aside class="periodpane">
+					<PeriodPanel
+						lanes={filteredLanes}
+						at={selectedPeriod}
+						kind={periodKind}
+						onOpen={(at, kind) => drillTo(kind, at)}
+					/>
+				</aside>
+			{:else}
+				<Detail
+					block={selectedDetail}
+					loading={detailLoading}
+					error={detailError}
+					onOpenSession={openSession}
+				/>
+			{/if}
 		{/if}
 	{/if}
 	{#if shortcutsOpen}
@@ -1670,6 +1710,19 @@
 	}
 	.inferred :global(svg) {
 		color: var(--amber);
+	}
+
+	/* The same shell Detail draws, because it is the same pane — only its answer
+	   differs. */
+	.periodpane {
+		display: flex;
+		flex-direction: column;
+		width: 372px;
+		flex: none;
+		min-height: 0;
+		overflow: hidden;
+		border-left: 1px solid var(--line);
+		background: var(--surface);
 	}
 
 	.stage {

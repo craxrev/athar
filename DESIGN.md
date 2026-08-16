@@ -554,6 +554,19 @@ character stands in for an icon anywhere.
   class says `all from sessions` rather than restating a figure it just gave.
 - **Timeline marks** carry evidence in their texture and project class in their
   hue. See below.
+- **The right pane answers whatever the rung selects.** A day and a week draw
+  blocks, so it describes a block. A month and all time draw days and months, so
+  it describes one of those instead: the period's total, its projects ranked by
+  share, the evidence split that adds up to that total, and what was recorded.
+  Before this it asked the reader to select a block on screens that draw none —
+  372px spent on an instruction that could not be followed. Everything it shows
+  is counted from the lanes already on screen, never re-queried, so it cannot
+  disagree with the marks beside it.
+- **A click selects; it never navigates.** Every mark on the timeline answers in
+  the pane, and clicking the same one again clears it. Moving the window is a
+  separate, deliberate step — the pane's own "Open this day" or "Open this
+  month". A tile that jumped the whole window on a single click made the
+  cheapest gesture the most disruptive one.
 - **The rail's project list is the ranked view.** No rung of the ladder lists
   projects as rows, so this is the only place they are enumerated: the durations
   it already carried gain a share bar behind the label, and the list answers
