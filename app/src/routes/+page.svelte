@@ -1020,6 +1020,7 @@
 			{project}
 			{categories}
 			lastScanMs={status?.last_scan_ms ?? null}
+			unread={(status?.unparsed ?? 0) + (status?.unknown ?? 0)}
 			running={collector.busy}
 			error={collector.error}
 			{intervalMins}

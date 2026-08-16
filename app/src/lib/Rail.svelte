@@ -15,6 +15,7 @@
 		intervalMins,
 		running,
 		error,
+		unread,
 		onScope,
 		onCategory,
 		onProject
@@ -35,6 +36,10 @@
 		/** Set while a collector is working, whether this window started it or the
 		 *  schedule did. The footer is the only place a background scan is visible. */
 		running: string | null;
+		/** Records archived but not understood — a source's format moved. Kept as
+		 *  raw bytes, so nothing is lost yet; recoverable only while someone still
+		 *  knows to write an adapter and rebuild. */
+		unread: number;
 		onScope: (s: 'day' | 'week' | 'month' | 'all') => void;
 		onCategory: (c: string | null) => void;
 		onProject: (p: string | null) => void;
@@ -76,7 +81,9 @@
 							? `Not scanned in ${daysSince} days`
 							: alarm
 								? `${daysLeft} day${daysLeft === 1 ? '' : 's'} of source history left`
-								: ''
+								: unread > 0
+									? `${unread} records archived but not understood`
+									: ''
 	);
 
 	/** Every project in the range, busiest first, and deliberately uncapped.
@@ -226,6 +233,14 @@
 			{:else if alarm}
 				<span class="warn">{daysLeft} day{daysLeft === 1 ? '' : 's'} of source history left</span>
 				<span class="faint">· scanned {relative(lastScanMs, clock.now)}</span>
+			{:else if unread > 0}
+				<!-- Above the settled state and below every other alarm. In a healthy
+				     archive this is zero, so it only ever displaces "Scanned 4m ago" —
+				     text that is worth nothing — with the one fact that says a source
+				     has changed shape and the adapter has not caught up. The bytes are
+				     safe; the window it stays fixable in is not. -->
+				<span class="warn">{unread} records not understood</span>
+				<span class="faint">· kept raw, and readable once athar learns the format</span>
 			{:else}
 				Scanned {relative(lastScanMs, clock.now)}
 				<span class="faint">· every {intervalMins}m</span>

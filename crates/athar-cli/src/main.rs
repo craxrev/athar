@@ -573,6 +573,28 @@ fn doctor() -> Result<()> {
         db_path.display(),
         if db_path.exists() { "" } else { "(not yet created)" }
     );
+    // Reported here because doctor is where you look when something seems wrong,
+    // and this is the one fault the collector handles so well that it leaves no
+    // other trace: a line it cannot parse is archived verbatim rather than
+    // dropped, so the evidence survives a format change in silence. Silence is
+    // the wrong answer — the raw bytes stay readable only for as long as somebody
+    // knows to write the adapter.
+    if db_path.exists() {
+        if let Ok(conn) = athar_core::api::open_readonly(&db_path) {
+            if let Ok(s) = athar_core::api::status(&conn, &config) {
+                let unread = s.unparsed + s.unknown;
+                if unread > 0 {
+                    println!(
+                        "unread      {unread} records archived but not understood \
+                         ({} unparsed, {} unrecognised kinds)",
+                        s.unparsed, s.unknown
+                    );
+                } else {
+                    println!("unread      none — every archived record parsed");
+                }
+            }
+        }
+    }
     println!("interval    every {} min", config.scan_interval_mins);
     println!(
         "claude      {} {}",

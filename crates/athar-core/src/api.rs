@@ -218,6 +218,22 @@ pub struct CollectorStatus {
     /// Sessions whose transcript the source has already deleted, and which now
     /// exist only here.
     pub sessions_only_in_athar: i64,
+    /// Records archived without being understood, and the reason this pair is
+    /// worth carrying all the way to the window.
+    ///
+    /// The collector already refuses to drop what it cannot read: a line whose
+    /// JSON will not parse is kept verbatim as `_unparsed`, and one that parses
+    /// into a type nothing recognises is kept as `_unknown`. That protects the
+    /// evidence — the source file will not exist in thirty days to re-read — but
+    /// it protects it *silently*, and silence is the wrong response to a source
+    /// changing its format underneath us.
+    ///
+    /// In a healthy archive both are zero. Anything else means Claude Code is
+    /// writing something this build does not model yet, which is recoverable
+    /// only for as long as somebody notices in time to write an adapter and
+    /// rebuild. Counted here so the window can say so.
+    pub unparsed: i64,
+    pub unknown: i64,
 }
 
 /// Opens the archive read-only. A missing database is an error the caller shows
@@ -1041,6 +1057,8 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
         file_changes: one("SELECT count(*) FROM raw_records WHERE kind='file_change'")?,
         origins: one("SELECT count(*) FROM origins")?,
         sessions_only_in_athar: one("SELECT count(*) FROM sessions WHERE has_transcript = 0")?,
+        unparsed: one("SELECT count(*) FROM raw_records WHERE kind = '_unparsed'")?,
+        unknown: one("SELECT count(*) FROM raw_records WHERE kind = '_unknown'")?,
         earliest_ms: earliest,
         latest_ms: latest,
         scan_interval_mins: config.scan_interval_mins,

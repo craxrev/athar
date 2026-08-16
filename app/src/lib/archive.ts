@@ -21,6 +21,12 @@ export interface CollectorStatus {
 	running: string | null;
 	roots: string[];
 	sessions_only_in_athar: number;
+	/** Records archived without being understood. Zero in a healthy archive; any
+	 *  other number means a source changed its format under us and the adapter
+	 *  has not caught up. The bytes are kept either way — this is the count that
+	 *  makes someone look. */
+	unparsed: number;
+	unknown: number;
 }
 
 export interface ProjectInfo {
