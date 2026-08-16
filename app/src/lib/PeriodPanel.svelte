@@ -181,12 +181,11 @@
 			<ul class="census">
 				<li><b class="num">{held.sessions}</b> session{held.sessions === 1 ? '' : 's'}</li>
 				<li><b class="num">{held.commits}</b> commit{held.commits === 1 ? '' : 's'}</li>
+				<!-- As in Detail: the floor rides the figure, because it changes what the
+				     figure means. The other two counts are exact and say nothing. -->
 				<li>
-					<b class="num">{held.files}</b> file change{held.files === 1 ? '' : 's'}
-					{#if held.files > 0}
-						<!-- Kept: without it this is a total, and the archive can only floor it. -->
-						<span class="floor">at least; saves between scans leave one timestamp</span>
-					{/if}
+					{#if held.files > 0}at least {/if}<b class="num">{held.files}</b>
+					file change{held.files === 1 ? '' : 's'}
 				</li>
 			</ul>
 		</section>
@@ -316,13 +315,6 @@
 	.census b {
 		color: var(--text);
 		font-weight: 620;
-	}
-
-	/* The one figure on this pane the archive can only floor. */
-	.floor {
-		display: block;
-		font-size: var(--fs-min);
-		color: var(--text-faint);
 	}
 
 	.open {

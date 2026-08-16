@@ -425,6 +425,39 @@ Durations follow two authored rules: a span under a minute prints `<1m`, never
 crossing midnight prints its dates, because clock times alone read as a
 contradiction against a multi-day span.
 
+## Copy
+
+Plain and short. The reader is one developer looking at their own work on their
+own machine, so domain words are free — commit, mtime, reflog, block, session,
+rebuild all land without help. What does not land is lore explaining itself.
+
+**One rule decides every string: keep what qualifies a figure, cut what explains
+the build.** The copy had drifted into this document's own register — compound
+sentences, em-dash asides, a justification after every statement — which reads
+well on a page and badly in a pane you are trying to get an answer out of. An
+error state offering an architecture lesson before its two buttons is the shape
+to watch for.
+
+- **A heading that already states the case gets no restating sentence.** If the
+  body has nothing new, it goes.
+- **Say the cause only when the reader can act on it.** "lore scans only while
+  its window is open" earns its place on an empty range, because opening the
+  window is the fix. "The collector ships inside this app" does not.
+- **A floored count says `at least` on the figure, never in a footnote below it.**
+  Coverage for file changes is incomplete by construction — three saves inside
+  one scan interval leave one mtime — so the number means something different
+  from what it appears to, and a caveat under the list is a caveat the eye skips.
+  Two words on the number are shorter and harder to miss.
+- **Two panes describing one thing use one wording.** Detail and the period panel
+  swap in the same slot; Stream and Detail describe the same commit tiers. Every
+  such pair was phrased twice, and two phrasings of one claim read as two claims.
+- **Em-dashes belong in this document, not in the interface.** Where a sentence
+  needs two clauses in a pane, it takes a period or a semicolon.
+
+Section headings across the panes are plain nouns — Sessions, Commits, File
+changes, Projects, Evidence, Recorded — not questions. "Where it went" and "How
+it is known" were good writing and the wrong register beside a list of counts.
+
 ## Layout
 
 Three panes in a row flexbox, sized by the panes themselves rather than by a
@@ -577,7 +610,9 @@ character stands in for an icon anywhere.
 - **Digest** runs two tiers, because a flat strip of six equal figures led with
   none of them. The time tier carries elapsed in the `figure` token (19px mono) and
   across-projects a step below it (15px), on purpose: elapsed is wall clock with
-  overlaps counted once, across-projects is the sum and may exceed the range. The
+  overlaps counted once, across-projects is the sum and may exceed the range —
+  which the two labels say by themselves, so neither figure carries a gloss under
+  it any more. The
   evidence split sits directly beneath across-projects and the census sits below
   both, its values dropped to `text-dim` so supporting counts never read louder
   than the figure they support. Every metric stays an atomic nowrap unit, so a
@@ -740,6 +775,8 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Keep magenta for selection and live state; keep amber for uncertainty.
 - Set data in the mono token with tabular numerals.
 - Say what a surface does hold when it cannot show what was expected.
+- Write the shortest thing that is still true, and put a qualifier on the figure
+  it qualifies rather than in a note beneath it.
 - Cap a view by relevance, not by chance, and state the remainder: Stream keeps
   the most recent 300 blocks and says so. Cap it only where the cost is real,
   though — see the Don't below.
@@ -771,6 +808,9 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
   is the metaphor the anti-reference was written against, and revoking the ban
   did not revoke that.
 - Borrow a word or a colour across the attribution and evidence axes.
+- Explain lore's architecture in a pane. The reader came for an answer, not for
+  how the answer is built; that belongs here.
+- Follow a heading with a sentence that restates it.
 - Leave a figure unlabelled about what it covers. The digest is narrowed by the
   rail's filters in SQL; the one narrowing it cannot follow is a text query, and
   it says so.

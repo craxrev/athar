@@ -1084,17 +1084,15 @@
 				     elapsed is wall clock, across-projects is the sum and may exceed
 				     the day — which is why the split hangs off the second one. -->
 				<div class="digest">
-					<!-- The two glosses stay, at four words each. Without them the second
-					     figure exceeding the first — which it legitimately does whenever two
-					     projects overlap — reads as a bug rather than as the sum it is. -->
+					<!-- No glosses: the two labels carry the distinction themselves.
+					     "Elapsed" is wall clock, "across projects" is a sum, and that is
+					     also why the second can exceed the first. -->
 					<div class="time">
 						<span class="lead">
 							<b class="big">{duration(summary.elapsed_ms)}</b> elapsed
-							<span class="gloss">overlaps counted once</span>
 						</span>
 						<span>
 							<b class="mid">{compactDuration(summary.project_ms)}</b> across projects
-							<span class="gloss">summed, so it can exceed the range</span>
 						</span>
 					</div>
 
@@ -1669,17 +1667,6 @@
 	.digest b.mid {
 		font-size: 15px;
 	}
-	/* The distinction the whole digest is built around, and it lived only in a
-	   hover title — unreachable by keyboard and unread by anyone who did not
-	   already suspect there was something to read. */
-	.gloss {
-		display: block;
-		font-size: var(--fs-min);
-		font-weight: 500;
-		color: var(--text-faint);
-		white-space: normal;
-	}
-
 	/* Bound to the figure above it by proximity: three of these sum to
 	   across-projects exactly, which is the whole reason the split lands there
 	   and not on elapsed. */

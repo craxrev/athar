@@ -130,11 +130,14 @@
 			{/if}
 
 			{#if block.file_changes.length}
+				<!-- "at least" rides the figure rather than a sentence under it. The
+				     count is a floor — three saves inside one scan interval leave one
+				     timestamp — and that changes what the number means, so it cannot be a
+				     footnote the eye skips. Two words on the number beat a caveat below
+				     the list, and are shorter than the caveat was. -->
 				<section>
-					<h3>File changes <span class="num floor">{block.file_changes.length} recorded</span></h3>
+					<h3>File changes <span class="num floor">at least {block.file_changes.length}</span></h3>
 					<Moments changes={block.file_changes} limit={8} />
-					<!-- Kept: this count is a floor, and unmarked it reads as a total. -->
-					<p class="caveat">A floor: saves between scans leave one timestamp.</p>
 				</section>
 			{/if}
 
@@ -335,13 +338,5 @@
 	}
 	.note.amber {
 		color: var(--amber);
-	}
-
-
-	.caveat {
-		margin: 10px 0 0;
-		font-size: var(--fs-meta);
-		line-height: 1.5;
-		color: var(--text-faint);
 	}
 </style>
