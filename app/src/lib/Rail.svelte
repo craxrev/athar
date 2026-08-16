@@ -75,38 +75,18 @@
 								: ''
 	);
 
-	/** How many projects the list holds before it says what it is not showing.
+	/** Every project in the range, busiest first, and deliberately uncapped.
 	 *
-	 *  Beyond this it stops being a ranking and becomes a directory: at all time
-	 *  the range holds every project the archive has ever seen, and a scroller
-	 *  with no end in sight answers "where did it go" worse than a top twelve
-	 *  does. Twelve because the rail is 244px and this is the only enumeration of
-	 *  projects left in the app — enough to see a shape, short enough to read
-	 *  without scrolling at the window's own minimum height. */
-	const RAIL_LIMIT = 12;
-
-	// The rail answers "what am I looking at". Long project lists stay readable by
-	// showing the ones with recent activity first, which the query already orders.
-	let inRange = $derived(category ? projects.filter((p) => p.category === category) : projects);
-	let visible = $derived.by(() => {
-		const top = inRange.slice(0, RAIL_LIMIT);
-		// The chosen project always keeps its row. Falling outside the cap would
-		// hide the control that lifts the very filter narrowing the view, leaving
-		// the range bar's chip as the only way back.
-		if (project && !top.some((p) => p.path === project)) {
-			const chosen = inRange.find((p) => p.path === project);
-			if (chosen) return [...top.slice(0, RAIL_LIMIT - 1), chosen];
-		}
-		return top;
-	});
-	/** What the cap holds back, and what it is worth. Stated the way Stream states
-	 *  its own 300-block cap: a view that cannot show everything says so, rather
-	 *  than implying the range ends where the list does. */
-	let hidden = $derived.by(() => {
-		const shown = new Set(visible.map((p) => p.path));
-		return inRange.filter((p) => !shown.has(p.path));
-	});
-	let hiddenMs = $derived(hidden.reduce((ms, p) => ms + p.ms, 0));
+	 *  This is the app's only enumeration of projects — no rung of the ladder
+	 *  lists them as rows — so a cap here does not tidy a ranking, it removes a
+	 *  filter. A project outside a top twelve would be unselectable from the one
+	 *  surface that offers projects at all.
+	 *
+	 *  It is also not the kind of list a cap is for. Stream bounds at 300 because
+	 *  a block card is a heavy thing to render a thousand of; a rail row is one
+	 *  flex line, the list is already ordered by the thing you came to compare,
+	 *  and it sits in its own scroller. Length costs a scroll here, not an answer. */
+	let visible = $derived(category ? projects.filter((p) => p.category === category) : projects);
 
 	/** No rung of the timeline lists projects as rows any more, so this list is
 	 *  the only place they are enumerated — and the only place their sizes can be
@@ -205,16 +185,6 @@
 					</li>
 				{/each}
 			</ul>
-			{#if hidden.length}
-				<p class="capped">
-					The <b class="num">{visible.length}</b> busiest.
-					<b class="num">{hidden.length}</b>
-					more {hidden.length === 1 ? 'holds' : 'hold'}
-					<b class="num">{compactDuration(hiddenMs)}</b>{hidden.length > 1
-						? ' between them'
-						: ''}.
-				</p>
-			{/if}
 		{/if}
 	</section>
 
@@ -420,22 +390,6 @@
 		margin: 2px 8px;
 		font-size: 13.5px;
 		color: var(--text-faint);
-	}
-
-	/* Sits under the list it bounds, never inside the scroller: what a view holds
-	   back has to stay on screen while you scroll the part it shows. */
-	.capped {
-		flex: none;
-		margin: 8px 8px 0;
-		padding-top: 8px;
-		border-top: 1px solid var(--line);
-		font-size: var(--fs-min);
-		line-height: 1.45;
-		color: var(--text-faint);
-	}
-	.capped b {
-		color: var(--text-dim);
-		font-weight: 620;
 	}
 
 	footer {

@@ -615,17 +615,18 @@ character stands in for an icon anywhere.
   clamped step onto a toggle used to do. A walked mark is scrolled into view
   through a selector that lives beside the type it matches, because the attribute
   and the lookup drifting apart is silent, and did.
-- **The rail's project list is the ranked view.** No rung of the ladder lists
-  projects as rows, so this is the only place they are enumerated: the durations
-  it already carried gain a share bar behind the label, and the list answers
-  "where did it go" while the ladder answers "when". It caps at the **twelve
-  busiest** and says what it held back in Stream's voice — the count and the time
-  those projects hold between them — because past twelve a ranking becomes a
-  directory, and at all time the range holds every project the archive has ever
-  seen. The chosen project always keeps its row even when it falls outside the
-  cap: hiding it would hide the control that lifts the filter narrowing the view.
-  The statement sits below the scroller, not inside it, so what is held back stays
-  on screen while you scroll what is shown.
+- **The rail's project list is the ranked view, and it is uncapped on purpose.**
+  No rung of the ladder lists projects as rows, so this is the only place they
+  are enumerated: the durations it already carried gain a share bar behind the
+  label, and the list answers "where did it go" while the ladder answers "when".
+  A cap was written here once, at the twelve busiest, and taken back out —
+  because a list that is the *only* enumeration of a thing cannot be truncated
+  without removing a capability. A project past the cut would have been
+  unselectable from the one surface that offers projects at all, which is not a
+  tidier ranking, it is a missing filter. The list is also the wrong shape for a
+  cap: Stream bounds at 300 because a block card is heavy to render a thousand
+  times, whereas a rail row is one flex line, already ordered by the quantity you
+  came to compare, in its own scroller. Length costs a scroll here, not an answer.
 - **Empty and partial states** name what they hold rather than rendering blank: a
   block with nothing itemised states its record count; a continued session states
   where it began and that its figures count once.
@@ -739,10 +740,9 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Keep magenta for selection and live state; keep amber for uncertainty.
 - Set data in the mono token with tabular numerals.
 - Say what a surface does hold when it cannot show what was expected.
-- Cap a view by relevance, not by chance, and state the remainder in the same
-  voice everywhere: Stream keeps the most recent 300 blocks, the rail's project
-  list the twelve busiest of the range, and both say so — with the count and what
-  it is worth, outside the scroller it bounds.
+- Cap a view by relevance, not by chance, and state the remainder: Stream keeps
+  the most recent 300 blocks and says so. Cap it only where the cost is real,
+  though — see the Don't below.
 - Let the surface that draws the marks be the one that says which marks exist.
   Anything else — the keyboard, the pane, the legend — reads that list rather
   than deriving its own.
@@ -774,9 +774,14 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Leave a figure unlabelled about what it covers. The digest is narrowed by the
   rail's filters in SQL; the one narrowing it cannot follow is a text query, and
   it says so.
-- Ship an uncapped view. The timeline is bounded by the range itself — a grain
-  always resolves to a finite set of days — and the rail's project list is bounded
-  at twelve, which it states in Stream's voice.
+- Ship an uncapped view *whose length costs the reader an answer*. The timeline
+  is bounded by the range itself — a grain always resolves to a finite set of
+  days — and Stream states its 300. But a cap is a subtraction, and it has to be
+  paid for: **never cap the only enumeration of something.** The rail's project
+  list is the sole place projects appear as rows, so bounding it would delete a
+  filter rather than shorten a list, and it stays uncapped however long a range
+  makes it. A scroll is the right price for length; an unreachable project is
+  not.
 - Draw a mark the keyboard cannot reach, or let the keyboard reach one that was
   not drawn. Both are the same fault seen from opposite ends, and both come from
   a second copy of the rule that decides which rung is on screen.
