@@ -165,6 +165,13 @@
 					comes from the root it sits under. Claude Code's own directory is fixed, not
 					configured.
 				</p>
+				<!-- The consequence, stated where the control lives rather than implied by
+				     the colour of a button. Removing a root is reversible and deletes
+				     nothing, and a reader who has to guess that will assume the worst. -->
+				<p class="note">
+					Removing a root stops future scans of it. Nothing already archived is deleted,
+					and adding it back restores its projects on the next rebuild.
+				</p>
 				{#if config.roots.length === 0}
 					<p class="empty">No roots. Only Claude Code is being read.</p>
 				{/if}
@@ -184,13 +191,9 @@
 							/>
 							{#if confirming === root.path}
 								<!-- Focused on appearance: this replaces the control that opened it,
-								     so without it focus fell to the document body and the
-								     destructive choice was reachable only by tabbing from the top. -->
-								<button
-									class="act danger"
-									onclick={() => removeRoot(root.path)}
-									use:focusOnMount
-								>
+								     so without it focus fell to the document body and the choice was
+								     reachable only by tabbing from the top of the pane. -->
+								<button class="act" onclick={() => removeRoot(root.path)} use:focusOnMount>
 									Remove
 								</button>
 								<button class="act" onclick={() => (confirming = null)}>Keep</button>
@@ -570,13 +573,13 @@
 		flex: none;
 	}
 
-	.danger {
-		border-color: var(--del);
-		color: var(--del);
-	}
-	.danger:hover:not(:disabled) {
-		background: color-mix(in srgb, var(--del) 14%, transparent);
-	}
+	/* No danger treatment here, deliberately.
+	   Red is this system's word for a loss already taken — removed lines, a failed
+	   tool call, an archive past its retention. Removing a root is none of those:
+	   raw records are immutable, nothing is deleted, and re-adding the root
+	   restores the grouping on the next rebuild. Dressing a reversible setting as
+	   destruction teaches the reader that the red here means nothing, which is
+	   what they will remember the day it appears somewhere it does. */
 
 	.remove {
 		flex: none;
@@ -589,7 +592,7 @@
 	}
 	.remove:hover {
 		background: var(--surface-hover);
-		color: var(--del);
+		color: var(--text);
 	}
 
 	.field {
