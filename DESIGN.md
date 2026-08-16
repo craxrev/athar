@@ -213,6 +213,27 @@ what they hand it:
 | By month | a **tile** | its date, its hours, what was worked on |
 | All time | a **cell** | its position and its ink |
 
+**Which rung a range lands on is computed once, in `src/lib/grain.ts`, and the
+timeline and the keyboard both read it.** The rail selects a *unit* and the range
+gives a *length*, and the two do not always agree — "all time" on a two-week-old
+archive is a week of days, not seven years of cells — so the rung has to be
+derived rather than read off the scope. It has to be derived in one place for a
+sharper reason: the marks the reader can *see* and the marks the reader can
+*reach* are the same set, and two copies of the rule is exactly how they stopped
+being. Under a second copy, `j` at month grain selected a block that no rung had
+drawn: the pane described it, every tile on screen receded around it, and nothing
+lit up.
+
+**A rung draws the days of the range, never the days of a calendar unit.** The
+tile rung is reached at `all time` whenever the archive is younger than about six
+weeks, and a grid built from one month's first-of-month drew that month and
+stopped — on a 20 July to 16 August archive, sixteen of twenty-eight days in
+range never rendered while nineteen days from before the archive existed rendered
+as tiles reading "nothing archived". It now emits a section per month the range
+touches, headed only when there is more than one, and a day inside a drawn month
+but outside the range is a **pad, never an empty tile**: the archive was never
+asked about it, and "nothing archived" is a claim like any other.
+
 Each rung drops exactly one channel, and the drop happens where the previous
 rung stops fitting. **Category grouping lives on the day rung and nowhere else.**
 Rows are projects only there, so that is the only rung where a heading can name a
@@ -254,7 +275,7 @@ already spoken for by meaning:
 
 | Role | Token | Reserved for |
 |---|---|---|
-| Selection, live state | `accent-magenta` | The current selection and anything actionable. Flat fill only. |
+| Selection, live state | `accent-magenta` | The current selection, and the one thing happening right now. Flat fill only. |
 | Uncertainty | `uncertain-amber` | Inferred attribution, coverage gaps, unreachable commits, coarse timestamps |
 | Insertions | `git-add` | Added lines, and the "witnessed" confidence tier |
 | Deletions | `git-del` | Removed lines, failed tool calls |
@@ -269,6 +290,20 @@ Magenta is the accent **because** red, green and amber were unavailable: git own
 red and green semantically wherever a diff figure appears, and amber had to stay
 free for the honesty markers the product depends on. Any future accent change must
 respect the same exclusion.
+
+**"Anything actionable" was too wide a door, and it was quietly walked through
+three times.** The session icon in Stream, the "You" label on every user turn in
+the reader, and the "wrote" badge on a touched file had all taken the accent —
+each defensible alone, and collectively fatal to the thing the accent is for. A
+day in Stream holds twenty blocks and a block holds several sessions, so an
+accented row type puts dozens of magenta marks on screen competing with the one
+accent fill that means *this is the block you chose*; a two-hundred-turn
+transcript spends it a hundred times on neither selection nor live state. All
+three were taken back rather than written into the rule: the row types are told
+apart by their drawn icons, "You" leads on the ink ramp, and `wrote` takes
+`git-add`, because what a session did to a file is git's vocabulary and not the
+accent's. **A control being clickable does not earn the accent. Being chosen
+does.**
 
 Five ground steps carry depth, and the ramp runs in both directions: `ground` for
 the window, `surface-inset` for a panel opened *inside* a row, `surface` for panes
@@ -442,7 +477,9 @@ binding for new work and as aspiration for old.
 Radius went the other way, because it *was* a real system with missing parts: all
 seven documented steps are now tokens (`--radius`, `--radius-sm`, `--radius-bar`,
 `--radius-swatch`, `--radius-mark`, `--radius-pill`, `--radius-circle`) and no
-`border-radius` literal remains in the build. Two structural constants are named
+`border-radius` literal remains in the build. One did survive the sweep — the
+2px on a tile's micro strip, which is `--radius-mark` spelled out — and a claim
+of "none" with one left is worth less than the sweep was. Two structural constants are named
 for the same reason: `--traffic-inset` and `--traffic-inset-wide` are where macOS
 puts its window controls, measured for two bar heights, and they move together.
 
@@ -567,11 +604,28 @@ character stands in for an icon anywhere.
   separate, deliberate step — the pane's own "Open this day" or "Open this
   month". A tile that jumped the whole window on a single click made the
   cheapest gesture the most disruptive one.
+- **The keyboard walks what the rung drew, in the order it drew it.** `j` and `k`
+  step whatever the range resolves to — a block at day and week grain, a day at
+  month and all time, a month on the contact sheet — and the timeline publishes
+  that list rather than the page reassembling one from the lanes. Two
+  consequences the page's own copy got wrong: a walk through the week rung now
+  goes newest day first, the order the rung actually draws, instead of sorting
+  every bar in the range by start time and contradicting the axis; and the last
+  press of `j` holds the final mark instead of clearing it, which is what a
+  clamped step onto a toggle used to do. A walked mark is scrolled into view
+  through a selector that lives beside the type it matches, because the attribute
+  and the lookup drifting apart is silent, and did.
 - **The rail's project list is the ranked view.** No rung of the ladder lists
   projects as rows, so this is the only place they are enumerated: the durations
   it already carried gain a share bar behind the label, and the list answers
-  "where did it go" while the ladder answers "when". It caps by relevance and says
-  so, in the same voice as Stream.
+  "where did it go" while the ladder answers "when". It caps at the **twelve
+  busiest** and says what it held back in Stream's voice — the count and the time
+  those projects hold between them — because past twelve a ranking becomes a
+  directory, and at all time the range holds every project the archive has ever
+  seen. The chosen project always keeps its row even when it falls outside the
+  cap: hiding it would hide the control that lifts the filter narrowing the view.
+  The statement sits below the scroller, not inside it, so what is held back stays
+  on screen while you scroll what is shown.
 - **Empty and partial states** name what they hold rather than rendering blank: a
   block with nothing itemised states its record count; a continued session states
   where it began and that its figures count once.
@@ -628,9 +682,27 @@ as it was and every other mark on the timeline drops to
 `brightness(0.42) saturate(0.75)`, which works identically on every category
 because it depends on no hue.
 
-Dim with a filter, never with opacity. At 28% alpha the hour rules showed through
-every bar and two marks that touched blended into a third colour; a filtered mark
-stays opaque and still hides what is behind it. The selected mark also rises above
+**The recede excludes the chosen mark; it is never undone by a rule after it.**
+`:not()` carries the specificity of its own argument, so
+`.picked .tile:not(.pad):not(.empty)` weighed four classes against
+`.picked .tile.on`'s three and won outright — selecting a tile dimmed every tile
+including the one selected, which is the exact inverse of what this rule is for,
+and it read as the grid greying out for no reason. Every recede now excludes
+`.on` in the rule that dims, so there is nothing to out-weigh and nothing that
+breaks if the rules move.
+
+Dim with a filter, never with opacity — **on a span**. At 28% alpha the hour rules
+showed through every bar and two marks that touched blended into a third colour;
+a filtered mark stays opaque and still hides what is behind it. That reasoning is
+about what sits *behind* the mark, so it does not reach the two rungs where
+nothing does. A tile and a cell sit on bare ground, and a cell recedes on the one
+property it is already spending — its own density alpha, scaled — because a
+filter starts a compositing layer per element and a year sheet holds 2,697 cells,
+thirty times the eighty-nine panels whose filters already had to come out for
+stutter. Tiles keep the filter: forty-five of them cost nothing, and their
+entrance animates opacity and would win the cascade against it. **The mechanism
+follows what is behind the mark and what else is animating it; the meaning is the
+same recede either way.** The selected mark also rises above
 its neighbours — a day strip carries every project at once and the archive holds
 403 cross-project overlaps, so without it the chosen mark came out striped by the
 marks it was chosen over. Any state that flattens a treatment, or spends a channel
@@ -647,7 +719,16 @@ as noise, a pair of end marks touch — so a narrow bar keeps its class colour a
 gives up its texture. The lane legend names only the classes the range actually
 holds, and always renders at least one. Suppressing it below two classes had the
 logic backwards: a day evidenced only by file saves is exactly when someone meets
-an unfamiliar treatment cold, and it was exactly when no key was drawn. The class also rides the bar's `title`, which is reused
+an unfamiliar treatment cold, and it was exactly when no key was drawn.
+
+**And only where a mark can carry a treatment at all.** Evidence rides the
+surface of a span, and only the two rungs that draw spans have a surface — a
+tile's micro strip and a cell carry hue and nothing else. The key was rendered
+outside the rung chain, so at month and all time it named four treatments that
+nothing on screen could show, teaching a vocabulary the screen was not speaking.
+Each half of the key is now drawn only where it names something: the treatments
+where marks have texture, the hues where a row is not already headed by its
+category, the day count wherever a range is longer than a day. The class also rides the bar's `title`, which is reused
 verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 
 ## Do's and Don'ts
@@ -660,7 +741,11 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Say what a surface does hold when it cannot show what was expected.
 - Cap a view by relevance, not by chance, and state the remainder in the same
   voice everywhere: Stream keeps the most recent 300 blocks, the rail's project
-  list the busiest of the range, and both say so.
+  list the twelve busiest of the range, and both say so — with the count and what
+  it is worth, outside the scroller it bounds.
+- Let the surface that draws the marks be the one that says which marks exist.
+  Anything else — the keyboard, the pane, the legend — reads that list rather
+  than deriving its own.
 - Give a raised surface a shadow with offset and blur.
 - Let a mark that carries meaning clear 3:1 against its ground on its own.
 - Split a figure only where the parts add up. Elapsed does not; across-projects
@@ -689,7 +774,13 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
 - Leave a figure unlabelled about what it covers. The digest is narrowed by the
   rail's filters in SQL; the one narrowing it cannot follow is a text query, and
   it says so.
-- Ship an uncapped view. The timeline is bounded by the range itself now — a
-  grain always resolves to a finite set of days — but the rail's project list is
-  not, and it states what it holds back in Stream's voice.
+- Ship an uncapped view. The timeline is bounded by the range itself — a grain
+  always resolves to a finite set of days — and the rail's project list is bounded
+  at twelve, which it states in Stream's voice.
+- Draw a mark the keyboard cannot reach, or let the keyboard reach one that was
+  not drawn. Both are the same fault seen from opposite ends, and both come from
+  a second copy of the rule that decides which rung is on screen.
+- Name a channel in a legend that the marks on screen do not carry.
+- Spend the accent on a row type, a role, or a category of thing. It means
+  *chosen*, and one more meaning is all it takes to mean nothing.
 - Animate a bar with a transform that deforms the marks inside it.

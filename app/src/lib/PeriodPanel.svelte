@@ -126,7 +126,10 @@
 <div class="drag" data-tauri-drag-region></div>
 
 <div class="scroll">
-	<header>
+	<!-- Polite live region, as Detail carries: walking the sheet with j/k changes
+	     this pane and nothing else, so without it a keyboard user moved through
+	     five days and was told nothing at all. -->
+	<header aria-live="polite">
 		<h2>{label}</h2>
 		<p class="lede">
 			{#if held.blocks === 0}
@@ -233,15 +236,21 @@
 	}
 
 	section {
-		padding-top: 18px;
+		padding-top: 20px;
 	}
 
+	/* The same section heading Detail sets, because this is the same pane — the
+	   two swap in one 372px slot as the selection changes, and an uppercase
+	   tracked variant here changed the pane's typographic register depending on
+	   which kind of mark you had clicked. It was also the only tracked uppercase
+	   in the build, which is the shape "no micro-labels" rules out. */
 	h3 {
-		margin: 0 0 8px;
-		font-size: 13px;
+		display: flex;
+		align-items: baseline;
+		gap: 8px;
+		margin: 0 0 9px;
+		font-size: var(--fs-meta);
 		font-weight: 640;
-		letter-spacing: 0.06em;
-		text-transform: uppercase;
 		color: var(--text-faint);
 	}
 

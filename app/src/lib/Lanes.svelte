@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Evidence, Lane } from './archive';
 	import { clock, compactDuration } from './format';
+	import { grainOf, type Mark, type Scope } from './grain';
 	import Icon from './Icon.svelte';
 	import { hueStyle } from './palette.svelte';
 
@@ -29,12 +30,13 @@
 		selectedPeriod,
 		onSelectPeriod,
 		allShape,
-		onShape
+		onShape,
+		marks = $bindable([])
 	}: {
 		lanes: Lane[];
 		fromMs: number;
 		toMs: number;
-		scope: 'day' | 'week' | 'month' | 'all';
+		scope: Scope;
 		selected: number | null;
 		onSelect: (blockId: number) => void;
 		/** Walk down the ladder to the period containing `at`. The page turns that
@@ -49,6 +51,13 @@
 		 *  change and a choice that resets that often is not a choice. */
 		allShape: 'years' | 'months';
 		onShape: (next: 'years' | 'months') => void;
+		/** What is on screen, in the order the eye reads it, published so the
+		 *  keyboard walks exactly what this rung drew. Bound out rather than
+		 *  reassembled by the page: the page's own copy was right only while every
+		 *  rung drew blocks, and after the ladder `j` at month grain selected a
+		 *  block with no mark on screen. The component that draws the marks is the
+		 *  one that knows which marks exist. */
+		marks?: Mark[];
 	} = $props();
 
 	const DAY = 86_400_000;
@@ -163,6 +172,10 @@
 
 	let activeDays = $derived([...byDay.keys()].sort((a, b) => a - b));
 	let rangeDays = $derived(Math.max(Math.round((toMs - fromMs) / DAY), 1));
+	/** Which rung this range resolves to. Shared with the page rather than
+	 *  branched on inline, so the marks the keyboard can reach and the marks the
+	 *  template draws are decided by one rule. */
+	let grain = $derived(grainOf(scope, fromMs, toMs));
 	/** Scaled against the busiest day on screen, so ink means the same thing
 	 *  everywhere in the view. Half the peak saturates, because a single
 	 *  fourteen-hour outlier otherwise renders every ordinary day as nearly
@@ -175,8 +188,14 @@
 	 *
 	 *  Suppressing the key below two classes got this backwards: a day evidenced
 	 *  only by file saves is precisely when someone meets an unfamiliar treatment
-	 *  cold, and it was precisely when no key was drawn. */
+	 *  cold, and it was precisely when no key was drawn.
+	 *
+	 *  And only where the marks carry texture at all. Evidence rides the surface
+	 *  of a span, and only the two rungs that draw spans have one: a tile's strip
+	 *  and a cell carry hue and nothing else. Naming four treatments beside marks
+	 *  that cannot show them teaches a vocabulary the screen is not speaking. */
 	let present = $derived.by(() => {
+		if (grain !== 'hours' && grain !== 'days') return [];
 		const seen = new Set<Evidence>();
 		for (const rec of byDay.values()) for (const c of rec.classes.keys()) seen.add(c);
 		return EVIDENCE.filter((e) => seen.has(e.id));
@@ -187,6 +206,11 @@
 		for (const lane of lanes) seen.add(lane.category);
 		return [...seen];
 	});
+
+	/** The hue key, drawn only where a mark's colour is the only thing naming its
+	 *  class. The day rung heads every group with its category's swatch and name,
+	 *  so a second key at the foot would restate what is already above each row. */
+	let legendHues = $derived(grain === 'hours' || categories.length < 2 ? [] : categories);
 
 	const categoryOf = $derived(new Map(lanes.map((l) => [l.project, l.category])));
 
@@ -231,16 +255,38 @@
 		return out.reverse();
 	});
 
-	let monthCells = $derived.by(() => {
-		const first = new Date(startOfDay(fromMs));
-		first.setDate(1);
-		const out: (number | null)[] = [];
-		// Monday-first, matching the axis's own week rule.
-		for (let pad = (first.getDay() + 6) % 7; pad > 0; pad--) out.push(null);
+	/** The days of the range as tiles, grouped by the month each falls in.
+	 *
+	 *  Deriving the grid from the range rather than from one month is not a
+	 *  refinement. This rung is reached at `all` whenever the archive is younger
+	 *  than about six weeks — the first weeks of use — and a single-month walk
+	 *  stopped at the end of the range's first month: on a 20 Jul – 16 Aug
+	 *  archive it drew all of July and nothing of August, so sixteen of the
+	 *  twenty-eight days in range never rendered, while nineteen days from
+	 *  before the archive existed rendered as tiles reading "nothing archived".
+	 *  Meanwhile the key below still counted the range, so it announced days the
+	 *  grid could not show.
+	 *
+	 *  A day inside a drawn month but outside the range is a pad, never an empty
+	 *  tile: the archive was never asked about it, and "nothing archived" is a
+	 *  claim. */
+	let tileMonths = $derived.by(() => {
+		const first = startOfDay(fromMs);
+		const out: { at: number; cells: (number | null)[] }[] = [];
 		const cursor = new Date(first);
-		while (cursor.getMonth() === first.getMonth() && cursor.getTime() < toMs) {
-			out.push(startOfDay(cursor.getTime()));
-			cursor.setDate(cursor.getDate() + 1);
+		cursor.setDate(1);
+		while (cursor.getTime() < toMs) {
+			const cells: (number | null)[] = [];
+			// Monday-first, matching the axis's own week rule.
+			for (let pad = (cursor.getDay() + 6) % 7; pad > 0; pad--) cells.push(null);
+			const walk = new Date(cursor);
+			while (walk.getMonth() === cursor.getMonth()) {
+				const key = startOfDay(walk.getTime());
+				cells.push(key >= first && key < toMs ? key : null);
+				walk.setDate(walk.getDate() + 1);
+			}
+			out.push({ at: cursor.getTime(), cells });
+			cursor.setMonth(cursor.getMonth() + 1);
 		}
 		return out;
 	});
@@ -348,10 +394,77 @@
 		if (!rec) return 0;
 		return Math.min(rec.ms / peakDay, 1);
 	}
+
+	/* ---- what the keyboard can reach -----------------------------------------
+	   Assembled from the same lists the template renders from, in the same order,
+	   so the walk cannot reach a mark that was not drawn or skip one that was. */
+
+	/** A block that crosses midnight is drawn on two day rows, and pressing `j`
+	 *  onto the id already selected would toggle it off rather than advance. Two
+	 *  marks, one selection: the second is dropped and the first keeps its
+	 *  place. */
+	function blockMarks(ids: number[]): Mark[] {
+		const seen = new Set<number>();
+		const out: Mark[] = [];
+		for (const id of ids) {
+			if (seen.has(id)) continue;
+			seen.add(id);
+			out.push({ kind: 'block', id });
+		}
+		return out;
+	}
+
+	let drawn = $derived.by((): Mark[] => {
+		if (grain === 'hours')
+			return blockMarks(
+				dayGroups
+					.flatMap((g) => g.rows)
+					.flatMap((r) => r.spans)
+					.map((s) => s.blockId)
+			);
+		if (grain === 'days')
+			// Row by row, newest day first, and left to right inside a row — the order
+			// the rung actually draws. A day's spans arrive project-major, which is
+			// not how a strip reads; sorting every bar in the range by start time, as
+			// the page used to, was wrong the other way and walked against the rows.
+			return blockMarks(
+				weekDays.flatMap((day) =>
+					(byDay.get(day)?.spans ?? [])
+						.slice()
+						.sort((a, b) => a.from - b.from)
+						.map((s) => s.blockId)
+				)
+			);
+		if (grain === 'tiles')
+			return tileMonths
+				.flatMap((m) => m.cells)
+				.filter((cell): cell is number => cell !== null && byDay.has(cell))
+				.map((at) => ({ kind: 'day', at }));
+		if (allShape === 'months') return months.map((m) => ({ kind: 'month', at: m.at }));
+		return years
+			.flatMap((y) => y.cells)
+			.filter((cell): cell is number => cell !== null && byDay.has(cell))
+			.map((at) => ({ kind: 'day', at }));
+	});
+
+	$effect(() => {
+		marks = drawn;
+	});
+
+	/** The one cell in the year sheet that is in the tab order.
+	 *
+	 *  Every day the archive holds is a button here — 2,697 of them — so tabbing
+	 *  from the sheet to the key beneath it was thousands of presses. One stop
+	 *  gets you into the grid and `j`/`k` walk it, which is the same pair that
+	 *  walks every other rung. Nothing is unreachable; the sheet just stops being
+	 *  a wall. */
+	let roving = $derived(
+		selectedPeriod ?? (drawn[0]?.kind === 'day' ? drawn[0].at : null)
+	);
 </script>
 
 <div class="lanes" class:picked={selected !== null || selectedPeriod !== null}>
-	{#if scope === 'day'}
+	{#if grain === 'hours'}
 		<!-- Grain: one hour. The day is wide enough for projects to sit side by
 		     side on a shared axis, which is the one range where comparing them is
 		     legible — so this rung keeps the project rows the others give up. -->
@@ -397,6 +510,7 @@
 										class="span"
 										class:on={selected === s.blockId}
 										data-evidence={s.evidence}
+										data-block={s.blockId}
 										style="left: {offsetIn(dayStartMs, s.from)}%; width: {widthIn(
 											dayStartMs,
 											s
@@ -414,7 +528,7 @@
 				</div>
 			{/each}
 		</div>
-	{:else if scope === 'week' || rangeDays <= 10}
+	{:else if grain === 'days'}
 		<!-- Grain: one day, as a row. Every hour of it is resolved, and an empty
 		     day stays in the run drawn empty — a quiet week reads as quiet
 		     rather than as a short one. -->
@@ -452,6 +566,7 @@
 								class="span"
 								class:on={selected === s.blockId}
 								data-evidence={s.evidence}
+								data-block={s.blockId}
 								style="left: {offsetIn(day, s.from)}%; width: {widthIn(day, s)}%; {hueStyle(
 									s.category
 								)}"
@@ -473,7 +588,7 @@
 				</div>
 			{/each}
 		</div>
-	{:else if scope === 'month' || rangeDays <= 45}
+	{:else if grain === 'tiles'}
 		<!-- Grain: one day, as a tile. Thirty days as rows is twenty-six pixels
 		     each and a wasted axis; as tiles it is a page, and the tile is the
 		     last rung where a day can still say a name. -->
@@ -482,56 +597,65 @@
 		</div>
 
 		<div class="body">
-			<div class="month">
-				{#each monthCells as cell, i (i)}
-					{#if cell === null}
-						<span class="tile pad"></span>
-					{:else}
-						{@const rec = byDay.get(cell)}
-						{#if rec}
-							{@const names = rec.names}
-							<button
-								class="tile"
-								class:on={selectedPeriod === cell}
-								aria-pressed={selectedPeriod === cell}
-								style="--stagger: {Math.min(i, 24) * 12}ms"
-								title={dayTitle(cell, rec)}
-								aria-label={dayTitle(cell, rec)}
-								onclick={() => onSelectPeriod(cell, 'day')}
-							>
-								<span class="head">
-									<span class="num day">{new Date(cell).getDate()}</span>
-									<span class="num held">{compactDuration(rec.ms)}</span>
-								</span>
-								{#each names.slice(0, 2) as name (name)}
-									<span class="who">
-										<span class="swatch" style={hueStyle(categoryOf.get(name))} aria-hidden="true"
-										></span>
-										<span class="nm">{label(name)}</span>
-									</span>
-								{/each}
-								{#if names.length > 2}
-									<span class="who more">+{names.length - 2} more</span>
-								{/if}
-								<span class="micro" aria-hidden="true">
-									{#each rec.spans as s (s.blockId + '-' + s.from)}
-										<i
-											style="left: {offsetIn(cell, s.from)}%; width: {Math.max(
-												widthIn(cell, s),
-												1.2
-											)}%; {hueStyle(s.category)}"
-										></i>
-									{/each}
-								</span>
-							</button>
+			{#each tileMonths as m (m.at)}
+				<!-- Named only when the range crosses a boundary. At `by month` the range
+				     bar above already says which month this is, and repeating it here
+				     would be a heading over the only thing on screen. -->
+				{#if tileMonths.length > 1}
+					<h3 class="tilemonth">{MONTH_LONG.format(m.at)}</h3>
+				{/if}
+				<div class="month">
+					{#each m.cells as cell, i (i)}
+						{#if cell === null}
+							<span class="tile pad"></span>
 						{:else}
-							<span class="tile empty" title={dayTitle(cell, undefined)}>
-								<span class="head"><span class="num day">{new Date(cell).getDate()}</span></span>
-							</span>
+							{@const rec = byDay.get(cell)}
+							{#if rec}
+								{@const names = rec.names}
+								<button
+									class="tile"
+									class:on={selectedPeriod === cell}
+									aria-pressed={selectedPeriod === cell}
+									data-period={cell}
+									style="--stagger: {Math.min(i, 24) * 12}ms"
+									title={dayTitle(cell, rec)}
+									aria-label={dayTitle(cell, rec)}
+									onclick={() => onSelectPeriod(cell, 'day')}
+								>
+									<span class="head">
+										<span class="num day">{new Date(cell).getDate()}</span>
+										<span class="num held">{compactDuration(rec.ms)}</span>
+									</span>
+									{#each names.slice(0, 2) as name (name)}
+										<span class="who">
+											<span class="swatch" style={hueStyle(categoryOf.get(name))} aria-hidden="true"
+											></span>
+											<span class="nm">{label(name)}</span>
+										</span>
+									{/each}
+									{#if names.length > 2}
+										<span class="who more">+{names.length - 2} more</span>
+									{/if}
+									<span class="micro" aria-hidden="true">
+										{#each rec.spans as s (s.blockId + '-' + s.from)}
+											<i
+												style="left: {offsetIn(cell, s.from)}%; width: {Math.max(
+													widthIn(cell, s),
+													1.2
+												)}%; {hueStyle(s.category)}"
+											></i>
+										{/each}
+									</span>
+								</button>
+							{:else}
+								<span class="tile empty" title={dayTitle(cell, undefined)}>
+									<span class="head"><span class="num day">{new Date(cell).getDate()}</span></span>
+								</span>
+							{/if}
 						{/if}
-					{/if}
-				{/each}
-			</div>
+					{/each}
+				</div>
+			{/each}
 		</div>
 	{:else}
 		<!-- Grain: one day, as a cell. The only arrangement that holds every day
@@ -566,6 +690,7 @@
 								: 'nothing archived'}"
 							class:on={selectedPeriod === m.at}
 							aria-pressed={selectedPeriod === m.at}
+							data-period={m.at}
 							onclick={() => onSelectPeriod(m.at, 'month')}
 						>
 							<span class="mhead">
@@ -606,6 +731,8 @@
 											class="cell held"
 											class:on={selectedPeriod === cell}
 											aria-pressed={selectedPeriod === cell}
+											data-period={cell}
+											tabindex={cell === roving ? 0 : -1}
 											style="--weight: {weight(rec)}; {hueStyle(rec?.category)}"
 											title={dayTitle(cell, rec)}
 											aria-label={dayTitle(cell, rec)}
@@ -625,28 +752,33 @@
 		</div>
 	{/if}
 
-	{#if present.length}
+	<!-- Each half is drawn only where it names something on screen: the treatments
+	     where marks carry texture, the hues where a row is not already headed by
+	     its category, the count wherever a range is more than one day. -->
+	{#if present.length || legendHues.length || rangeDays > 1}
 		<div class="key">
-			<ul>
-				{#each present as e (e.id)}
-					<li>
-						<span class="sample" data-evidence={e.id} aria-hidden="true"></span>
-						{e.label}
-					</li>
-				{/each}
-				{#if categories.length > 1 && scope !== 'day'}
-					{#each categories as c (c)}
+			{#if present.length || legendHues.length}
+				<ul>
+					{#each present as e (e.id)}
+						<li>
+							<span class="sample" data-evidence={e.id} aria-hidden="true"></span>
+							{e.label}
+						</li>
+					{/each}
+					{#each legendHues as c (c)}
 						<li>
 							<span class="swatch" style={hueStyle(c)} aria-hidden="true"></span>
 							{c}
 						</li>
 					{/each}
-				{/if}
-			</ul>
-			<p class="held">
-				<b class="num">{activeDays.length}</b> of
-				<b class="num">{rangeDays}</b> days hold something
-			</p>
+				</ul>
+			{/if}
+			{#if rangeDays > 1}
+				<p class="held">
+					<b class="num">{activeDays.length}</b> of
+					<b class="num">{rangeDays}</b> days hold something
+				</p>
+			{/if}
 		</div>
 	{/if}
 </div>
@@ -797,7 +929,7 @@
 	   receded one: at 28% alpha the hour rules showed straight through every
 	   bar, and two marks that touched blended into a third colour. Filtering
 	   leaves the fill opaque, so a dimmed bar still hides what is behind it. */
-	.picked .span {
+	.picked .span:not(.on) {
 		filter: brightness(0.42) saturate(0.75);
 	}
 	/* Above every other mark in the row. A day strip holds all of the day's
@@ -812,8 +944,10 @@
 		box-shadow: var(--lift-1);
 		z-index: 1;
 	}
-	/* A dimmed bar still answers the pointer, just from further back. */
-	.picked .span:hover {
+	/* A dimmed bar still answers the pointer, just from further back. Spelled with
+	   the same exclusion as the rule above it, so which of these wins does not
+	   depend on which was written first. */
+	.picked .span:not(.on):hover {
 		filter: brightness(0.7) saturate(0.85);
 	}
 	.span.on:hover {
@@ -960,6 +1094,18 @@
 		font-weight: 560;
 		color: var(--text-faint);
 	}
+	/* Only drawn when the range crosses a month. More space above it than below,
+	   and none above the first: there is no grid before it to separate from. */
+	.tilemonth {
+		margin: 22px 0 0;
+		padding: 0 var(--edge);
+		font-size: 13.5px;
+		font-weight: 640;
+		color: var(--text-dim);
+	}
+	.tilemonth:first-child {
+		margin-top: 4px;
+	}
 	.month {
 		display: grid;
 		grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -999,18 +1145,32 @@
 	}
 	/* Chosen, at the grains where a day is the unit. The same recede the marks
 	   use: what was not chosen steps back, and the chosen one is left as it was
-	   so its hue and its hours still read. */
-	/* Tiles and cells recede; month panels do not. A filter forces a compositing
-	   layer per element, and there are eighty-nine panels — the cost showed up as
-	   a stutter while scrolling the sheet. A panel says it is chosen with its
-	   border and its ground instead, which costs nothing. */
-	.picked .tile:not(.pad):not(.empty),
-	.picked .cell.held {
+	   so its hue and its hours still read.
+
+	   The two rungs recede by different means, and the difference is not
+	   arbitrary. A filter is what the spans need, because the hour rules run
+	   behind them and a translucent bar lets them through; a tile and a cell sit
+	   on bare ground with nothing behind either. So a cell — and there are 2,697
+	   of them in a year sheet, against the eighty-nine panels whose filters
+	   already had to be taken out for stutter — recedes on the one property it is
+	   already spending: its own density alpha, scaled. Tiles keep the filter,
+	   both because forty-five of them cost nothing and because their entrance
+	   animates opacity and would win the cascade against it.
+
+	   The chosen mark is excluded from the recede rather than exempted by a second
+	   rule after it. `:not()` carries the specificity of its own argument, so
+	   `.picked .tile:not(.pad):not(.empty)` weighs four classes against
+	   `.picked .tile.on`'s three and won — the selected tile was dimmed along with
+	   everything it was chosen over, which is precisely the state the Ink Rule
+	   exists to produce the opposite of. Excluding `.on` in the rule that dims
+	   leaves nothing to out-weigh, and nothing to break if these move. */
+	.picked .tile:not(.pad):not(.empty):not(.on) {
 		filter: brightness(0.5) saturate(0.8);
 	}
-	.picked .tile.on,
-	.picked .cell.on {
-		filter: none;
+	/* The chosen cell keeps the density alpha it had; only what it was chosen over
+	   is scaled down. */
+	.picked .cell.held:not(.on) {
+		opacity: calc((0.72 + var(--weight) * 0.28) * 0.42);
 	}
 	.mpanel.on {
 		border-color: var(--line-strong);
@@ -1020,8 +1180,12 @@
 		border-color: var(--line-strong);
 		background: var(--surface-raised);
 	}
+	/* The accent, as everywhere else a thing is chosen. Hover took it and
+	   selection took the brightest neutral in the system, which read the two
+	   states in the wrong order — the transient one louder than the committed
+	   one. */
 	.cell.on {
-		outline: 1px solid var(--text);
+		outline: 1px solid var(--accent);
 		outline-offset: 1px;
 	}
 
@@ -1067,7 +1231,7 @@
 		position: relative;
 		height: 5px;
 		margin-top: auto;
-		border-radius: 2px;
+		border-radius: var(--radius-mark);
 		background: var(--well);
 		overflow: hidden;
 	}
@@ -1112,9 +1276,12 @@
 		background: var(--surface-hover);
 		color: var(--text-dim);
 	}
+	/* The tint, not the solid: this is the case the tint was minted for. The solid
+	   accent on its own fill measures 4.48:1 — under the 4.5 floor by two
+	   hundredths — and the tint clears it at 4.64. */
 	.modes button.on {
 		background: var(--accent-soft);
-		color: var(--accent);
+		color: var(--accent-tint);
 	}
 
 	/* Months are wider than they are tall at this size, so four across keeps a
@@ -1256,9 +1423,16 @@
 		background: color-mix(in oklab, var(--cat-tint, var(--text-dim)) calc(var(--weight) * 55%), var(--cat, var(--text-faint)));
 		opacity: calc(0.72 + var(--weight) * 0.28);
 	}
+	/* Quieter than the accent ring that means chosen — the two sat the other way
+	   round, with the pointer louder than the commitment — but still a neutral
+	   with ink in it. A divider at 14% white measured 1.44:1 against ground, which
+	   is under the 3:1 an indicator owes and is not a hover state, it is nothing. */
 	.cell.held:hover {
-		outline: 1px solid var(--accent);
+		outline: 1px solid var(--text-faint);
 		outline-offset: 1px;
+	}
+	.cell.on:hover {
+		outline-color: var(--accent);
 	}
 
 	/* ---- the key ------------------------------------------------------------
@@ -1292,9 +1466,14 @@
 	.key .held {
 		margin: 0 0 0 auto;
 		flex: none;
+		/* Pushed right by the legend beside it; on its own it leads the bar rather
+		   than floating at the far edge of an otherwise empty rule. */
 		font-size: var(--fs-min);
 		font-weight: 500;
 		color: var(--text-faint);
+	}
+	.key:not(:has(ul)) .held {
+		margin-left: 0;
 	}
 	.key .held b {
 		font-family: var(--mono);

@@ -58,11 +58,55 @@
 	let alarm = $derived(health.state === 'alarm');
 	let lapsed = $derived(health.state === 'lapsed');
 
+	/** What the footer is worth announcing, without the part of it that ticks. */
+	let alert = $derived(
+		running === 'rebuild'
+			? 'Rebuilding the archive'
+			: running
+				? 'Scanning'
+				: error
+					? 'The last scan failed'
+					: lastScanMs === null
+						? 'Never scanned — nothing is being kept yet'
+						: lapsed
+							? `Not scanned in ${daysSince} days`
+							: alarm
+								? `${daysLeft} day${daysLeft === 1 ? '' : 's'} of source history left`
+								: ''
+	);
+
+	/** How many projects the list holds before it says what it is not showing.
+	 *
+	 *  Beyond this it stops being a ranking and becomes a directory: at all time
+	 *  the range holds every project the archive has ever seen, and a scroller
+	 *  with no end in sight answers "where did it go" worse than a top twelve
+	 *  does. Twelve because the rail is 244px and this is the only enumeration of
+	 *  projects left in the app — enough to see a shape, short enough to read
+	 *  without scrolling at the window's own minimum height. */
+	const RAIL_LIMIT = 12;
+
 	// The rail answers "what am I looking at". Long project lists stay readable by
 	// showing the ones with recent activity first, which the query already orders.
-	let visible = $derived(
-		category ? projects.filter((p) => p.category === category) : projects
-	);
+	let inRange = $derived(category ? projects.filter((p) => p.category === category) : projects);
+	let visible = $derived.by(() => {
+		const top = inRange.slice(0, RAIL_LIMIT);
+		// The chosen project always keeps its row. Falling outside the cap would
+		// hide the control that lifts the very filter narrowing the view, leaving
+		// the range bar's chip as the only way back.
+		if (project && !top.some((p) => p.path === project)) {
+			const chosen = inRange.find((p) => p.path === project);
+			if (chosen) return [...top.slice(0, RAIL_LIMIT - 1), chosen];
+		}
+		return top;
+	});
+	/** What the cap holds back, and what it is worth. Stated the way Stream states
+	 *  its own 300-block cap: a view that cannot show everything says so, rather
+	 *  than implying the range ends where the list does. */
+	let hidden = $derived.by(() => {
+		const shown = new Set(visible.map((p) => p.path));
+		return inRange.filter((p) => !shown.has(p.path));
+	});
+	let hiddenMs = $derived(hidden.reduce((ms, p) => ms + p.ms, 0));
 
 	/** No rung of the timeline lists projects as rows any more, so this list is
 	 *  the only place they are enumerated — and the only place their sizes can be
@@ -161,10 +205,29 @@
 					</li>
 				{/each}
 			</ul>
+			{#if hidden.length}
+				<p class="capped">
+					The <b class="num">{visible.length}</b> busiest.
+					<b class="num">{hidden.length}</b>
+					more {hidden.length === 1 ? 'holds' : 'hold'}
+					<b class="num">{compactDuration(hiddenMs)}</b>{hidden.length > 1
+						? ' between them'
+						: ''}.
+				</p>
+			{/if}
 		{/if}
 	</section>
 
-	<footer role="status">
+	<!-- The announcement is carried here rather than by the footer itself.
+	     `role="status"` on the footer meant the whole line was a live region, and
+	     the line contains "scanned 4m ago" — a value the window's clock advances
+	     every thirty seconds. A screen reader was told the collector's status,
+	     unprompted, about once a minute. What is worth interrupting for is the
+	     state, and a healthy archive is not news: the settled case announces
+	     nothing at all, which is also the only case that ticks. -->
+	<p class="offscreen" role="status">{alert}</p>
+
+	<footer>
 		<span
 			class="dot"
 			class:stale={lastScanMs === null || alarm}
@@ -322,6 +385,12 @@
 	.row.on :global(svg) {
 		color: var(--accent);
 	}
+	/* Drawn inside, as Stream draws it: the project list is a scroller, and a
+	   scroller clips an outset ring against its own edges — so the rows that
+	   scroll lost the left and right sides of theirs. */
+	.row:focus-visible {
+		outline-offset: -2px;
+	}
 
 	.label {
 		flex: 1;
@@ -351,6 +420,22 @@
 		margin: 2px 8px;
 		font-size: 13.5px;
 		color: var(--text-faint);
+	}
+
+	/* Sits under the list it bounds, never inside the scroller: what a view holds
+	   back has to stay on screen while you scroll the part it shows. */
+	.capped {
+		flex: none;
+		margin: 8px 8px 0;
+		padding-top: 8px;
+		border-top: 1px solid var(--line);
+		font-size: var(--fs-min);
+		line-height: 1.45;
+		color: var(--text-faint);
+	}
+	.capped b {
+		color: var(--text-dim);
+		font-weight: 620;
 	}
 
 	footer {
@@ -416,5 +501,19 @@
 	.state {
 		min-width: 0;
 		overflow-wrap: anywhere;
+	}
+
+	/* Present to assistive technology, absent to the eye. Not display:none, which
+	   would take it out of the accessibility tree along with everything else. */
+	.offscreen {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+		border: 0;
 	}
 </style>

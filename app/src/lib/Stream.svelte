@@ -198,11 +198,15 @@
 								<span class="chev"><Icon name="chevron" size={16} /></span>
 							</button>
 						{:else if entry.kind === 'commit'}
+							<!-- `aria-expanded` follows whether the panel is rendered, not whether
+							     it has finished loading: while the read is in flight the panel is
+							     on screen saying so, and announcing it as closed contradicts what
+							     is there. -->
 							<button
 								class="item commit"
 								class:open={!!expanded[entry.commit.sha]}
 								onclick={() => toggleFiles(entry.commit.sha)}
-								aria-expanded={Array.isArray(expanded[entry.commit.sha])}
+								aria-expanded={!!expanded[entry.commit.sha]}
 								aria-controls="files-{entry.commit.sha}"
 							>
 								<span class="num at">{clock(entry.at)}</span>
@@ -451,8 +455,13 @@
 	button.item:hover {
 		background: var(--surface-hover);
 	}
+	/* Not the accent. A day holds twenty blocks and a block holds several sessions,
+	   so accenting every session icon put dozens of magenta marks on screen
+	   competing with the one accent fill that means "this is the block you
+	   chose" — the accent stops reading as selection once it is also a row type.
+	   The drawn icons already tell a session from a commit from a save. */
 	.session :global(svg) {
-		color: var(--accent);
+		color: var(--text-dim);
 	}
 	.session.continued :global(svg) {
 		color: var(--text-faint);

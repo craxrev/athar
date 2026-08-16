@@ -78,7 +78,7 @@
 				<div class="outcome">
 					{#if detail.commits.length}
 						<div class="col">
-							<h2>Produced</h2>
+							<h3>Produced</h3>
 							{#each detail.commits as c (c.sha)}
 								<div class="commit">
 									<span class="subject">{c.subject}</span>
@@ -96,7 +96,7 @@
 					{/if}
 					{#if detail.files.length}
 						<div class="col">
-							<h2>Touched</h2>
+							<h3>Touched</h3>
 							<ul>
 								{#each detail.files.slice(0, 10) as f (f.path)}
 									<li>
@@ -299,9 +299,12 @@
 		min-width: 0;
 	}
 
-	h2 {
+	/* One level below the session title, and marked as one. These were `h2` beside
+	   a 30px `h2` — three peers to a screen reader where the eye reads two levels
+	   apart, with no way to navigate from the title into the columns. */
+	h3 {
 		margin: 0 0 8px;
-		font-size: 13px;
+		font-size: var(--fs-meta);
 		font-weight: 640;
 		color: var(--text-faint);
 	}
@@ -381,9 +384,11 @@
 		background: var(--fill-subtle);
 		color: var(--text-faint);
 	}
+	/* Wrote and read is what the session did to the file, which is git's own
+	   vocabulary rather than the accent's: green is content added, here as
+	   everywhere else. The accent had it, and the accent is selection. */
 	.badge.wrote {
-		color: var(--accent-tint);
-		background: var(--accent-soft);
+		color: var(--add);
 	}
 	.badge.err {
 		color: var(--del);
@@ -412,8 +417,11 @@
 		font-weight: 640;
 		color: var(--text-dim);
 	}
+	/* Your turns lead, the assistant's follow, and the ink ramp says so — the
+	   accent is selection and live state, and a two-hundred-turn transcript would
+	   have spent it a hundred times on neither. */
 	article.user .role {
-		color: var(--accent);
+		color: var(--text);
 	}
 	.at {
 		color: var(--text-faint);

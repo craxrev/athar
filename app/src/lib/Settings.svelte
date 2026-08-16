@@ -78,15 +78,34 @@
 		node.focus({ preventScroll: true });
 	}
 
+	/** The row that ran the removal is gone with it, so focus has to be handed
+	 *  somewhere deliberate — it fell to the document body, and removing two roots
+	 *  meant tabbing from the top of the pane twice. "Add a root…" is the control
+	 *  that undoes what just happened, which makes it the honest landing. */
+	let addButton = $state<HTMLElement | null>(null);
+
 	async function removeRoot(path: string) {
 		if (!config) return;
 		confirming = null;
 		config.roots = config.roots.filter((r) => r.path !== path);
 		collector.needsRebuild = true;
 		await save();
+		addButton?.focus({ preventScroll: true });
 	}
 
 	let identityDraft = $state('');
+	let identityField = $state<HTMLElement | null>(null);
+
+	/** Same reason as `removeRoot`: the row that ran this goes away with it, so
+	 *  focus lands on the field that adds one back rather than on the body. */
+	function removeIdentity(identity: string) {
+		if (!config) return;
+		config.identities = config.identities.filter((i) => i !== identity);
+		collector.needsScan = true;
+		void save();
+		identityField?.focus({ preventScroll: true });
+	}
+
 	function addIdentity() {
 		const value = identityDraft.trim().toLowerCase();
 		if (!value || !config || config.identities.includes(value)) return;
@@ -178,7 +197,7 @@
 					{/each}
 				</ul>
 				<div class="rootacts">
-					<button class="act" onclick={addRoot}>Add a root…</button>
+					<button class="act" bind:this={addButton} onclick={addRoot}>Add a root…</button>
 					<button class="act" onclick={shuffleHues}>Shuffle colours</button>
 				</div>
 				<p class="hint">
@@ -261,11 +280,7 @@
 							<button
 								class="remove"
 								aria-label="Remove identity {identity}"
-								onclick={() => {
-									config!.identities = config!.identities.filter((i) => i !== identity);
-									collector.needsScan = true;
-									void save();
-								}}
+								onclick={() => removeIdentity(identity)}
 							>
 								<Icon name="close" size={14} />
 							</button>
@@ -275,6 +290,7 @@
 				<div class="addrow">
 					<input
 						bind:value={identityDraft}
+						bind:this={identityField}
 						aria-label="Add a git identity"
 						placeholder="you@example.com"
 						onkeydown={(e) => e.key === 'Enter' && addIdentity()}

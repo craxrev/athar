@@ -10,6 +10,7 @@
 	import Settings from '$lib/Settings.svelte';
 	import Stream from '$lib/Stream.svelte';
 	import { clock, collector } from '$lib/collector.svelte';
+	import { markSelector, type Mark, type Scope } from '$lib/grain';
 	import {
 		archive,
 		type BlockDetail,
@@ -36,7 +37,6 @@
 	 *  it is not showing rather than trying to draw a year. */
 	const STREAM_LIMIT = 300;
 
-	type Scope = 'day' | 'week' | 'month' | 'all';
 	type View = 'lanes' | 'stream';
 
 	/** The landing pair is Lanes over the week: lanes at day scope is two bars on
@@ -663,42 +663,59 @@
 		!loading && !error && (view === 'lanes' ? filteredLanes.length === 0 : filteredBlocks.length === 0)
 	);
 
-	/** Every block on screen in view order, so the keyboard can walk them. */
-	/** Every block on screen in the order the eye reads them.
+	/** What the timeline drew, in the order the eye reads it.
 	 *
-	 *  In Lanes that is time order, not lane order: flat-mapping the lanes walked
-	 *  project-major, so three presses of `j` went 09:00, 11:00, 14:00 in one
-	 *  project and then back to 08:30 in the next — a keyboard walk contradicting
-	 *  the axis it walks along. */
-	let walkable = $derived.by(() => {
-		if (view !== 'lanes') return filteredBlocks.map((b) => b.id);
-		return filteredLanes
-			.flatMap((l) => l.bars)
-			.slice()
-			.sort((a, b) => a.started_ms - b.started_ms)
-			.map((b) => b.block_id);
-	});
+	 *  Lanes publishes this rather than the page reassembling it. The page's own
+	 *  version was a guess that held only while every rung drew blocks: after the
+	 *  grain ladder, a month or all-time range draws days and months, and walking
+	 *  it as blocks selected marks that were not on screen — the whole grid dimmed
+	 *  with nothing lit, and the pane described a block nobody could see. It also
+	 *  walked Lanes in time order while the week rung draws newest day first. */
+	let lanesMarks = $state<Mark[]>([]);
+	/** Empty whenever the timeline is not the thing on screen. Lanes keeps its
+	 *  last published list when a fault or an empty range replaces it, and walking
+	 *  that list would select a mark from the range before this one. */
+	let lanesDrawn = $derived(!crash && !error && filteredLanes.length > 0);
+	let walkable = $derived<Mark[]>(
+		view === 'lanes'
+			? lanesDrawn
+				? lanesMarks
+				: []
+			: filteredBlocks.map((b) => ({ kind: 'block', id: b.id }))
+	);
+
+	function positionOf(mark: Mark): boolean {
+		return mark.kind === 'block' ? mark.id === selectedBlock : mark.at === selectedPeriod;
+	}
 
 	function step(delta: number) {
 		if (walkable.length === 0) return;
-		const at = selectedBlock === null ? -1 : walkable.indexOf(selectedBlock);
+		const at = walkable.findIndex(positionOf);
 		const next = at === -1 ? (delta > 0 ? 0 : walkable.length - 1) : at + delta;
 		const target = walkable[Math.max(0, Math.min(next, walkable.length - 1))];
 		if (target === undefined) return;
-		void select(target);
+		// At either end the clamp lands back on what is already chosen, and both
+		// selectors are toggles — so the last press of `j` used to clear the
+		// selection instead of holding it. Staying put is the honest answer.
+		if (at !== -1 && positionOf(target)) return;
+		if (target.kind === 'block') void select(target.id);
+		else selectPeriod(target.at, target.kind);
 		reveal(target);
 	}
 
-	/** Bring a keyboard-chosen block into view.
+	/** Bring a keyboard-chosen mark into view.
 	 *
 	 *  Walking with j/k moved the selection and the detail pane but never the
 	 *  viewport, so past the fold the highlight went somewhere the user could not
-	 *  see and the pane described a block off screen. Deferred a frame because the
-	 *  element may not have rendered yet when the range or view just changed. */
-	function reveal(blockId: number) {
+	 *  see and the pane described something off screen. Deferred a frame because
+	 *  the element may not have rendered yet when the range or view just changed.
+	 *  The selector comes from the same module that types the mark, so the
+	 *  attribute and the lookup cannot drift — they did once, when a rewrite of
+	 *  the timeline dropped `data-block` and this quietly found nothing. */
+	function reveal(mark: Mark) {
 		requestAnimationFrame(() => {
 			document
-				.querySelector(`[data-block="${blockId}"]`)
+				.querySelector(markSelector(mark))
 				?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 		});
 	}
@@ -728,8 +745,11 @@
 		{
 			group: 'Moving',
 			keys: [
-				['J  ↓', 'Next block'],
-				['K  ↑', 'Previous block'],
+				// Named for what the ladder actually draws, which is not always a
+				// block: a month or an all-time range draws days and months, and
+				// those are what these walk there.
+				['J  ↓', 'Next mark — block, day or month'],
+				['K  ↑', 'Previous mark'],
 				['⏎', 'Open the selected block’s session'],
 				['/', 'Filter']
 			]
@@ -1087,9 +1107,13 @@
 					{/if}
 
 					{#if query}
+						<!-- The same rendering of the same value the filter chip above uses. A
+						     raw path here could run the width of the pane, and printed one
+						     narrowing two different ways in two places a line apart. -->
 						<p class="scopes">
-							Narrowed to {project ?? category ?? 'this range'}, but not to “{query}” — a
-							text filter runs over what is loaded, so these figures do not follow it.
+							Narrowed to {project ? shortPath(project, 2) : (category ?? 'this range')}, but
+							not to “{query}” — a text filter runs over what is loaded, so these figures do
+							not follow it.
 						</p>
 					{/if}
 
@@ -1211,6 +1235,7 @@
 							onSelectPeriod={selectPeriod}
 							{allShape}
 							onShape={(next) => (allShape = next)}
+							bind:marks={lanesMarks}
 						/>
 					{/key}
 				{:else}
