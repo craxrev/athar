@@ -448,18 +448,23 @@
 		const forProject = project;
 		const forCategory = category;
 		void archiveVersion;
-		loading = true;
 
-		(wanted === 'stream'
-			? archive.timeline(
-					from,
-					to,
-					STREAM_LIMIT,
-					forProject ?? undefined,
-					forCategory ?? undefined
-				)
-			: Promise.resolve<BlockDetail[]>([])
-		)
+		// Lanes draws no blocks, so this effect has nothing to fetch and must not
+		// report on a fetch it did not make. It used to resolve an empty promise
+		// and clear `error` on the way through — wiping a fault the *lanes* effect
+		// had recorded, because that effect does not depend on the view and so
+		// does not re-run to set it again. Switching to Stream and back therefore
+		// cleared the archive's own error and the recovery button with it, and
+		// only stepping the range brought either back.
+		if (wanted !== 'stream') {
+			blocks = [];
+			loading = false;
+			return;
+		}
+
+		loading = true;
+		archive
+			.timeline(from, to, STREAM_LIMIT, forProject ?? undefined, forCategory ?? undefined)
 			.then((b) => {
 				blocks = b;
 				error = null;
@@ -1248,15 +1253,43 @@
 							<p class="counted">
 								<b class="num">{status?.records ?? 0}</b> records so far
 							</p>
-						{:else if status && status.records === 0}
+						{:else if !status || status.records === 0}
+							<!-- `!status` is the actual first run, and it was the one case this
+							     branch could not match. With no archive on disk every command
+							     fails, so `status` stays null — and the welcome was gated on it
+							     being non-null, which left it reachable only in the odd case of
+							     an archive file holding nothing. A brand new window landed on
+							     "Nothing recorded in this range" instead: true, useless, and
+							     offering no way forward. -->
 							<h2>Nothing archived yet</h2>
 							<p>
 								athar reads Claude Code sessions, git history and file saves, and keeps
 								them after those sources delete their own.
 							</p>
-							<button class="act strong" onclick={() => collector.run('scan')}>
-								Read my history
-							</button>
+							{#if !status?.roots?.length}
+								<!-- Claude Code sits at a fixed path and needs no configuration, so a
+								     scan is worth offering on its own. Git and file changes are not:
+								     with no root there is nothing for them to read, and offering the
+								     scan without saying so is how you get a scan that looks broken. -->
+								<p class="reach">
+									Git and file changes need a scanned root. Claude Code sessions are
+									read without one.
+								</p>
+							{/if}
+							<div class="acts">
+								<button class="act strong" onclick={() => collector.run('scan')}>
+									Read my history
+								</button>
+								<button
+									class="act"
+									onclick={() => {
+										rememberFocus();
+										settingsOpen = true;
+									}}
+								>
+									Add a root…
+								</button>
+							</div>
 						{:else if activeFilters.length}
 							<h2>Nothing matches these filters</h2>
 							<p>Narrowed to:</p>

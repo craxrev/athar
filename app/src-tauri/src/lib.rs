@@ -39,11 +39,23 @@ fn with_conn<T, F>(archive: &Archive, f: F) -> Reply<T>
 where
     F: FnOnce(&Connection, &Config) -> anyhow::Result<T>,
 {
-    let guard = archive.conn.lock().map_err(|_| Failure {
+    let mut guard = archive.conn.lock().map_err(|_| Failure {
         message: "archive lock poisoned".into(),
     })?;
+    // The archive is created by the collector, which on a first run happens long
+    // after this window opened. Opening it only at startup meant the window held
+    // its opening verdict for the whole session: the first scan built the
+    // archive, and the window went on reporting that there was none until it was
+    // restarted — with a "Scan now" button that could never succeed. Retried
+    // here, so the run that creates the archive is the run that reveals it.
+    if guard.is_none() {
+        *guard = paths::db_file()
+            .ok()
+            .filter(|p| p.exists())
+            .and_then(|p| api::open_readonly(&p).ok());
+    }
     let conn = guard.as_ref().ok_or_else(|| Failure {
-        message: "no archive yet — run `athar scan` to build one".into(),
+        message: "no archive yet — run a scan to build one".into(),
     })?;
     f(conn, &archive.config).map_err(Into::into)
 }
