@@ -200,10 +200,11 @@
 
 	let filterField = $state<HTMLInputElement | null>(null);
 
-	/// Bumped when the collector has written since the last check, which makes the
-	/// data effect below refetch. Plain `let`, not state: reading it inside the
-	/// polling effect would make that effect depend on itself.
-	let lastSeenScan: number | null = null;
+	/// What the last poll saw, so the data effects below refetch when it changes.
+	/// Plain `let`, not state: reading these inside the polling effect would make
+	/// that effect depend on itself.
+	let lastSeenArchive: number | null = null;
+	let lastSeenRun: number | null = null;
 	let archiveVersion = $state(0);
 
 	/** The range as two numbers rather than an object.
@@ -336,11 +337,24 @@
 	async function pollStatus() {
 		try {
 			const next = await archive.status();
-			// Keyed on what was archived, not on scans: a scan that finds nothing
-			// still finishes, and reloading every view for it would be work for an
-			// unchanged answer.
-			if (next.last_archived_ms !== lastSeenScan) {
-				lastSeenScan = next.last_archived_ms;
+			// Two markers, because they answer different questions and only one of
+			// them used to be asked.
+			//
+			// `last_archived_ms` is the newest origin read — it moves when a source
+			// file is ingested. Keying on it alone was meant to avoid reloading for
+			// a scan that found nothing, and it is wrong: every run ends by
+			// re-deriving, and a derive can change every answer on screen without
+			// archiving a single record. Adding a scanned root refolds the projects
+			// — `athar-app/app` stops being its own project and joins the repository
+			// above it — while `origins` sits untouched, so the window went on
+			// drawing the old grouping until it was restarted.
+			//
+			// `last_scan_ms` is the finish mark of any run, rebuild included, so it
+			// catches exactly that case. The cost is one extra pair of queries after
+			// a scan that changed nothing, once an hour.
+			if (next.last_archived_ms !== lastSeenArchive || next.last_scan_ms !== lastSeenRun) {
+				lastSeenArchive = next.last_archived_ms;
+				lastSeenRun = next.last_scan_ms;
 				archiveVersion += 1;
 			}
 			status = next;
