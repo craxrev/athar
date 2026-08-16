@@ -5,7 +5,18 @@
 	import { archive, type LoreConfig, type Paths } from './archive';
 	import { collector } from './collector.svelte';
 
-	let { onClose }: { onClose: () => void } = $props();
+	let {
+		onClose,
+		onSaved
+	}: {
+		onClose: () => void;
+		/** The configuration decides a project's category, and the window derives
+		 *  that at query time — so a saved root changes the answer to every lane
+		 *  query, not just what this pane shows. Without telling the page, the
+		 *  timeline kept the lanes it had fetched before the save and the new
+		 *  category stayed grey until something else happened to refetch. */
+		onSaved: () => void;
+	} = $props();
 
 	let config = $state<LoreConfig | null>(null);
 	/** Which file the values above came from. Sent back on save so an edit made
@@ -39,6 +50,7 @@
 			// it here rather than waiting for the next scan keeps the swatch in
 			// this list honest the moment the field is committed.
 			setCategories(config.roots.map((r) => r.category));
+			onSaved();
 			error = null;
 			saved = true;
 			setTimeout(() => (saved = false), 2000);
@@ -52,6 +64,7 @@
 				config = current.config;
 				revision = current.revision;
 				setCategories(config.roots.map((r) => r.category));
+				onSaved();
 				error = `${error}. Reloaded; your last change was not saved.`;
 			} catch {
 				// Leave the original failure standing; it is the more useful one.

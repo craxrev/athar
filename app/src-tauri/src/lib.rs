@@ -15,7 +15,17 @@ use tauri::{Manager, State};
 /// single connection behind a mutex is simpler and faster than a pool.
 struct Archive {
     conn: Mutex<Option<Connection>>,
-    config: Config,
+    /// Behind a lock because it is not a startup constant.
+    ///
+    /// A lane's category is not stored on the row — `api::category` derives it
+    /// from this config at query time, by matching the project's path against
+    /// the configured roots. So this copy going stale does not merely delay a
+    /// setting; it makes every project under a newly added root answer
+    /// `uncategorized`, which the palette then draws in neutral grey because an
+    /// uncategorised path is the absence of a category rather than one of them.
+    /// The scan interval reads from here too, so editing that did nothing until
+    /// a restart either.
+    config: Mutex<Config>,
 }
 
 /// Every command returns this, so the UI can render a real failure instead of a
@@ -57,7 +67,10 @@ where
     let conn = guard.as_ref().ok_or_else(|| Failure {
         message: "no archive yet — run a scan to build one".into(),
     })?;
-    f(conn, &archive.config).map_err(Into::into)
+    let config = archive.config.lock().map_err(|_| Failure {
+        message: "config lock poisoned".into(),
+    })?;
+    f(conn, &config).map_err(Into::into)
 }
 
 #[tauri::command]
@@ -178,10 +191,22 @@ fn read_config() -> Reply<ConfigView> {
 }
 
 #[tauri::command]
-fn write_config(config: Config, revision: Option<String>) -> Reply<ConfigView> {
+fn write_config(
+    archive: State<Archive>,
+    config: Config,
+    revision: Option<String>,
+) -> Reply<ConfigView> {
     let path = paths::config_file()?;
     config.validate()?;
     config.save_over(&path, revision.as_deref())?;
+    // Adopted here, not just written to disk. Every query answers with the
+    // window's own copy, so a save that updated only the file left the next lane
+    // query matching paths against the roots as they were when the window
+    // opened — a project under a root added a moment ago came back
+    // `uncategorized`, and drew grey until the app was restarted.
+    if let Ok(mut held) = archive.config.lock() {
+        *held = config.clone();
+    }
     Ok(ConfigView {
         revision: Config::revision(&path),
         config,
@@ -286,7 +311,7 @@ pub fn run() {
                 .and_then(|p| api::open_readonly(&p).ok());
             app.manage(Archive {
                 conn: Mutex::new(conn),
-                config,
+                config: Mutex::new(config),
             });
             Ok(())
         })

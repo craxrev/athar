@@ -1018,6 +1018,14 @@
 						settingsOpen = false;
 						restoreFocus();
 					}}
+					onSaved={() => {
+						// A lane's category is derived from the config, so a saved root
+						// changes what the archive answers and not merely what settings
+						// displays. Status carries the scan interval, which the same save
+						// may also have changed.
+						archiveVersion += 1;
+						void pollStatus();
+					}}
 				/>
 	{:else if reader}
 		<Reader
