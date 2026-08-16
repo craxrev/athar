@@ -72,11 +72,6 @@ enum ConfigCommand {
 }
 
 fn main() -> Result<()> {
-    // The window normally does this first, but the CLI is usable on its own and
-    // must not build a second, empty archive beside the one it should inherit.
-    if let Ok(Some(from)) = paths::migrate_legacy_profile() {
-        eprintln!("moved the archive from {}", from.display());
-    }
     match Cli::parse().command {
         Command::Scan => scan(),
         Command::Stats => show_stats(),

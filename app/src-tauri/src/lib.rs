@@ -306,13 +306,6 @@ pub fn run() {
 
     builder
         .setup(|app| {
-            // Before the config is read or the archive opened, because both look
-            // where this may just have moved things to. The window is the process
-            // that normally starts first, and the collector it spawns finds the
-            // move already done.
-            if let Ok(Some(from)) = paths::migrate_legacy_profile() {
-                eprintln!("athar: moved the archive from {}", from.display());
-            }
             let config = Config::load().unwrap_or_default();
             // A missing archive is an empty state, not a startup failure: the
             // window should open and say what to do about it.
