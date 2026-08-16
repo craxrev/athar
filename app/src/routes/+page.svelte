@@ -1648,15 +1648,24 @@
 		font-size: 13.5px;
 	}
 
-	/* Tier one: where the time went. */
+	/* Tier one: where the time went.
+
+	   Baseline, not flex-start. The two figures are deliberately different sizes —
+	   19px against 15px — so aligning their boxes at the top sat the smaller one's
+	   text visibly high against the larger. `flex-start` was right only while each
+	   figure carried a block gloss beneath it and the two read as columns; with
+	   the glosses gone they are two figures on one line, and a line has a
+	   baseline. */
 	.time {
 		display: flex;
 		flex-wrap: wrap;
-		align-items: flex-start;
-		gap: 4px 22px;
+		align-items: baseline;
+		gap: 6px 22px;
 	}
+	/* Brighter than the figure beside it, and the same size: the hierarchy between
+	   these two metrics is carried by the numerals, so a half-pixel difference in
+	   their labels reads as a mistake rather than as rank. */
 	.time .lead {
-		font-size: 14px;
 		color: var(--text-dim);
 	}
 	.digest b.big {
@@ -1685,6 +1694,10 @@
 	.census {
 		display: flex;
 		flex-wrap: wrap;
+		/* One of these metrics carries an icon and is an inline-flex of its own;
+		   baseline keeps its numerals on the same line as the plain ones rather
+		   than centring the pair against the row. */
+		align-items: baseline;
 		gap: 4px 18px;
 		margin-top: 9px;
 	}
