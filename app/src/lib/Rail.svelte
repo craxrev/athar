@@ -5,6 +5,7 @@
 	import { clock } from './collector.svelte';
 
 	let {
+		width,
 		scope,
 		projects,
 		category,
@@ -18,6 +19,9 @@
 		onCategory,
 		onProject
 	}: {
+		/** Owned by the page, which is the only place that knows what the centre
+		 *  pane has left to give. */
+		width: number;
 		scope: 'day' | 'week' | 'month' | 'all';
 		projects: { path: string; label: string; category: string; ms: number }[];
 		category: string | null;
@@ -98,7 +102,7 @@
 	const share = (ms: number, peak: number) => (peak > 0 ? (ms / peak) * 100 : 0);
 </script>
 
-<nav class="rail">
+<nav class="rail" style="width: {width}px">
 	<div class="drag" data-tauri-drag-region></div>
 
 	<div class="brand">
@@ -236,7 +240,6 @@
 		   here, and only here. Dense content lives on solid ground. */
 		display: flex;
 		flex-direction: column;
-		width: 244px;
 		flex: none;
 		min-height: 0;
 		overflow: hidden;

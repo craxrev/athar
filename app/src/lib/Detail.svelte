@@ -16,11 +16,15 @@
 	};
 
 	let {
+		width,
 		block,
 		loading = false,
 		error = null,
 		onOpenSession
 	}: {
+		/** Owned by the page, which is the only place that knows what the centre
+		 *  pane has left to give. */
+		width: number;
 		block: BlockDetail | null;
 		/** A selection is being read. The pane must say so rather than keep
 		 *  describing the block that was selected before it. */
@@ -30,7 +34,7 @@
 	} = $props();
 </script>
 
-<aside class="detail">
+<aside class="detail" style="width: {width}px">
 	<div class="drag" data-tauri-drag-region></div>
 
 	{#if loading}
@@ -156,7 +160,6 @@
 	.detail {
 		display: flex;
 		flex-direction: column;
-		width: 372px;
 		flex: none;
 		min-height: 0;
 		overflow: hidden;

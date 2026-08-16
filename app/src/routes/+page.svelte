@@ -7,6 +7,7 @@
 	import { setCategories } from '$lib/palette.svelte';
 	import Rail from '$lib/Rail.svelte';
 	import Reader from '$lib/Reader.svelte';
+	import Resizer from '$lib/Resizer.svelte';
 	import Settings from '$lib/Settings.svelte';
 	import Stream from '$lib/Stream.svelte';
 	import { clock, collector } from '$lib/collector.svelte';
@@ -76,6 +77,40 @@
 	 *  cannot disagree. The outer panes simply become mutually exclusive: detail is
 	 *  the answer to a selection, the rail is how you ask the next question, and
 	 *  both stay one keystroke away. */
+	/* ---- pane widths ---------------------------------------------------------
+	   The outer panes were fixed at 244 and 372, which are good defaults and
+	   nobody else's business but the reader's: how much room a project list or a
+	   commit message wants depends on the names in them.
+
+	   No grid was needed for this, which the layout note used to assume. A width
+	   on a `flex: none` item resizes exactly as well and keeps the property that
+	   made flex right in the first place — a hidden pane reserves nothing, where a
+	   grid track would sit there empty. */
+	const RAIL = { min: 190, max: 420, base: 244 };
+	const DETAIL = { min: 300, max: 620, base: 372 };
+	/** What the middle pane may never fall below. The timeline is the window's
+	 *  reason to exist; a splitter that can squeeze it to nothing is a splitter
+	 *  that can break the app, and "the user chose it" is not a defence when the
+	 *  only way back is dragging a 9px edge you can no longer see. */
+	const CENTRE_MIN = 420;
+
+	function storedWidth(key: string, base: number): number {
+		const raw = Number(localStorage.getItem(key));
+		return Number.isFinite(raw) && raw > 0 ? raw : base;
+	}
+	/** What the reader asked for, which is not always what fits. Kept whole so
+	 *  that narrowing the window and widening it again returns the pane to the
+	 *  width they chose rather than to the one the narrow window allowed. */
+	let railPref = $state(storedWidth('lore.railWidth', RAIL.base));
+	let detailPref = $state(storedWidth('lore.detailWidth', DETAIL.base));
+	let resizing = $state(false);
+	let winWidth = $state(1280);
+
+	$effect(() => {
+		localStorage.setItem('lore.railWidth', String(railPref));
+		localStorage.setItem('lore.detailWidth', String(detailPref));
+	});
+
 	const TIGHT = 1120;
 	let tight = $state(false);
 	$effect(() => {
@@ -141,6 +176,26 @@
 	 *  silent — a stuck view with no cause on screen — which is worse than a crash. */
 	let crash = $state<string | null>(null);
 	let loading = $state(true);
+
+	/** Which outer panes are actually on screen. The reader and settings replace
+	 *  the centre rather than sitting beside it, so neither pane — nor its
+	 *  splitter — exists while one of them is up. */
+	let showRail = $derived(railOpen && !reader && !settingsOpen);
+	let showDetail = $derived(detailOpen && !reader && !settingsOpen);
+
+	/* The two limits resolve in order rather than in terms of each other, which
+	   would be a cycle. The rail is sized first and reserves only the detail
+	   pane's minimum; the detail pane then takes what is genuinely left. At the
+	   worst case — 1121px with both panes dragged to their maxima — this lands the
+	   rail at 401, the detail at 300 and the centre at exactly its floor. */
+	let railLimit = $derived(
+		Math.max(RAIL.min, Math.min(RAIL.max, winWidth - CENTRE_MIN - (showDetail ? DETAIL.min : 0)))
+	);
+	let railWidth = $derived(Math.max(RAIL.min, Math.min(railLimit, railPref)));
+	let detailLimit = $derived(
+		Math.max(DETAIL.min, Math.min(DETAIL.max, winWidth - CENTRE_MIN - (showRail ? railWidth : 0)))
+	);
+	let detailWidth = $derived(Math.max(DETAIL.min, Math.min(detailLimit, detailPref)));
 
 	let filterField = $state<HTMLInputElement | null>(null);
 
@@ -740,7 +795,10 @@
 				['L', 'Lanes'],
 				['S', 'Stream'],
 				['⌘B', 'Scope rail'],
-				['⇧⌘B', 'Detail pane']
+				['⇧⌘B', 'Detail pane'],
+				// Contextual rather than global — the edge has to hold focus first —
+				// but an accelerator nobody can find is not an accelerator.
+				['⇥ then ←  →', 'Resize a pane edge']
 			]
 		},
 		{
@@ -906,17 +964,19 @@
 	}
 </script>
 
-<svelte:window onkeydown={onKey} />
+<svelte:window onkeydown={onKey} bind:innerWidth={winWidth} />
 
 <main
 	class="shell"
 	class:rail-closed={!railOpen}
+	class:resizing
 >
 	<h1 class="offscreen">lore — archive of your work</h1>
 	<p class="offscreen" role="status" aria-live="polite">{announcement}</p>
 
-	{#if !reader && !settingsOpen && railOpen}
+	{#if showRail}
 		<Rail
+			width={railWidth}
 			{scope}
 			projects={railProjects}
 			{category}
@@ -933,6 +993,16 @@
 			}}
 			onCategory={(c) => (category = c)}
 			onProject={(p) => (project = p)}
+		/>
+		<Resizer
+			value={railWidth}
+			min={RAIL.min}
+			max={railLimit}
+			base={RAIL.base}
+			side="left"
+			label="Scope rail width"
+			onChange={(w) => (railPref = w)}
+			onActive={(on) => (resizing = on)}
 		/>
 	{/if}
 
@@ -1243,9 +1313,19 @@
 			</div>
 		</div>
 
-		{#if detailOpen}
+		{#if showDetail}
+			<Resizer
+				value={detailWidth}
+				min={DETAIL.min}
+				max={detailLimit}
+				base={DETAIL.base}
+				side="right"
+				label="Detail pane width"
+				onChange={(w) => (detailPref = w)}
+				onActive={(on) => (resizing = on)}
+			/>
 			{#if selectedPeriod !== null}
-				<aside class="periodpane">
+				<aside class="periodpane" style="width: {detailWidth}px">
 					<PeriodPanel
 						lanes={filteredLanes}
 						at={selectedPeriod}
@@ -1255,6 +1335,7 @@
 				</aside>
 			{:else}
 				<Detail
+					width={detailWidth}
 					block={selectedDetail}
 					loading={detailLoading}
 					error={detailError}
@@ -1399,6 +1480,13 @@
 		height: 100vh;
 		background: var(--ground);
 		overflow: hidden;
+	}
+	/* While an edge is being dragged the pointer is captured by the separator, but
+	   a drag across text still selects it. The cursor is held here too so it does
+	   not flicker back to a caret every time the pointer crosses a pane. */
+	.shell.resizing {
+		user-select: none;
+		cursor: col-resize;
 	}
 
 	.centre {
@@ -1731,7 +1819,6 @@
 	.periodpane {
 		display: flex;
 		flex-direction: column;
-		width: 372px;
 		flex: none;
 		min-height: 0;
 		overflow: hidden;

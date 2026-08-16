@@ -461,12 +461,45 @@ it is known" were good writing and the wrong register beside a list of counts.
 ## Layout
 
 Three panes in a row flexbox, sized by the panes themselves rather than by a
-parent track list: the rail is a fixed `244px`, the detail pane a fixed `372px`,
-both `flex: none`, and the centre takes `flex: 1` with `min-width: 0` so it
-absorbs every remaining pixel. The middle pane never collapses; the outer two do,
-by keyboard (`⌘B`, `⇧⌘B`) and automatically by width. Reach for a grid only if a
-pane ever needs to be resizable — the widths are owned by the panes today, which
-is why a hidden pane leaves no reserved track behind.
+parent track list: the outer two are `flex: none` at a width the reader sets, and
+the centre takes `flex: 1` with `min-width: 0` so it absorbs every remaining
+pixel. The middle pane never collapses; the outer two do, by keyboard (`⌘B`,
+`⇧⌘B`) and automatically by width.
+
+**The outer panes are resizable, and this did not need the grid the note here
+used to reserve for it.** A width on a `flex: none` item drags exactly as well,
+and it keeps the property that made flex right to begin with: a hidden pane
+reserves nothing, where a grid track would sit there empty. `244px` and `372px`
+went from being the widths to being the defaults — good ones, and nobody's
+business but the reader's, since how much room a project list or a commit subject
+wants depends on the names in it.
+
+| Pane | Min | Default | Max |
+|---|---|---|---|
+| Scope rail | 190 | 244 | 420 |
+| Detail | 300 | 372 | 620 |
+
+**The centre pane has a floor of 420px and it outranks both.** A splitter that can
+squeeze the timeline to nothing can break the window, and "the reader chose it" is
+no defence when the way back is a 9px edge they can no longer find. The two limits
+resolve in order rather than in terms of each other, which would be a cycle: the
+rail is sized first and reserves only the detail pane's minimum, then the detail
+pane takes what is genuinely left. At 1121px — one pixel above the threshold where
+both panes can still be open — with both dragged to their maxima, that lands the
+rail at 401, the detail at 300, and the centre at exactly 420.
+
+What is stored is the width **asked for**, not the width that fit, so narrowing
+the window and widening it again returns a pane to the reader's choice rather than
+to whatever the narrow window allowed. It sits in `localStorage` beside the view,
+the range and the hue seed — display preferences, all of them.
+
+The edge itself is a real `separator`: focusable, carrying `aria-valuenow` and its
+limits, answering ← and → (with `shift` for a coarse step, `home`/`end` for the
+limits, `enter` to reset). It takes **no layout width at all** — the grab zone and
+the lit line are pseudo elements straddling the 1px divider already drawn there —
+so adding the handle moved nothing on screen. Its arrow keys stop propagating,
+because the window binds the same two keys to stepping the range and sizing a pane
+must not also walk the timeline underneath it.
 
 | Threshold | Behaviour |
 |---|---|
