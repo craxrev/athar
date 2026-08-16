@@ -2,7 +2,7 @@
 //!
 //! Everything here is recomputed from `raw_records` by [`rebuild`] and is never a
 //! source of truth. When an adapter improves, these are rebuilt rather than
-//! migrated — which is why the raw record is archived first, and why lore can
+//! migrated — which is why the raw record is archived first, and why athar can
 //! reinterpret history whose source files no longer exist.
 //!
 //! Two projections carry the product:
@@ -11,7 +11,7 @@
 //!     an idle gap. This is how hours are accounted for with no timer running.
 //!   - **Commit links.** Which session a commit came out of, and on what
 //!     evidence. The tier is recorded rather than smoothed away, because a link
-//!     lore witnessed in a transcript and one it inferred from timing are not the
+//!     athar witnessed in a transcript and one it inferred from timing are not the
 //!     same claim.
 
 use std::collections::{HashMap, HashSet};
@@ -46,7 +46,7 @@ pub fn rebuild(conn: &mut Connection, config: &Config) -> Result<DeriveStats> {
 
     // Raw records keep the exact path they were recorded with; the projection
     // folds each one to its project. Because this happens at rebuild, changing
-    // the configured roots is `lore rebuild`, never a re-ingest.
+    // the configured roots is `athar rebuild`, never a re-ingest.
     let canonical = canonical_projects(conn, config)?;
     stats.projects = canonical.values().collect::<HashSet<_>>().len();
 
@@ -94,7 +94,7 @@ fn canonical_projects(conn: &Connection, config: &Config) -> Result<HashMap<i64,
 
         // A path still on disk is re-folded every time, so changing the roots is
         // a rebuild. A path whose folder is gone keeps the decision made while
-        // lore could still see its repository.
+        // athar could still see its repository.
         let canonical = match (on_disk, remembered) {
             (false, Some(stored)) => stored,
             _ => {
@@ -267,7 +267,7 @@ fn read_sessions(
     }
 
     // A session whose transcript Claude Code has deleted still has its prompts,
-    // in the history file lore archived separately. Without this those sessions
+    // in the history file athar archived separately. Without this those sessions
     // reported nothing typed at all — on this machine, 936 of them, holding seven
     // thousand prompts between them. Where a transcript survives it is the better
     // record and the history is the same prompts again, so it is not added.
@@ -864,12 +864,12 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lore-derive-{}-{}",
+            "athar-derive-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        db::open_writable(&dir.join("lore.db")).unwrap()
+        db::open_writable(&dir.join("athar.db")).unwrap()
     }
 
     const MIN: i64 = 60_000;
@@ -1333,7 +1333,7 @@ mod tests {
     fn a_deleted_project_keeps_the_grouping_decided_while_it_existed() {
         use crate::config::Root;
 
-        let dir = std::env::temp_dir().join(format!("lore-fold-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("athar-fold-{}", std::process::id()));
         let root = dir.join("freelance");
         let malek = root.join("beecoop/malek");
         std::fs::create_dir_all(malek.join(".git")).unwrap();

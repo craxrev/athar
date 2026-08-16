@@ -1,3 +1,5 @@
+import { readPref, writePref } from './prefs';
+
 /** Category colour, derived rather than declared.
  *
  *  Categories come from the scanned roots, which are configuration: a person can
@@ -11,14 +13,14 @@
  *
  *  The first attempt at a palette failed for a reason worth recording: it was
  *  generated at one flat lightness and chroma across the wheel, which is
- *  mechanically even and looks nothing like lore. This system's colours are not
+ *  mechanically even and looks nothing like athar. This system's colours are not
  *  flat — its warm tones sit light (`uncertain-amber` at L 0.79, `git-add` at
  *  0.75) and its cool ones deep and saturated (`accent-magenta` at L 0.64 /
  *  C 0.22, the old category blue at 0.66 / 0.18). A palette ignoring that curve
  *  produces colours that are individually fine and collectively foreign.
  *
  *  So the curve is the source. Lightness and chroma are interpolated between
- *  lore's own chromatic tokens at the nearest hues, and only the hue is chosen
+ *  athar's own chromatic tokens at the nearest hues, and only the hue is chosen
  *  freely. Every entry is a sibling of a colour already in the system.
  *
  *  Two hues are withheld, both measured — nothing sits within 22° of
@@ -57,11 +59,10 @@ const NEUTRAL = { solid: 'var(--text-faint)', tint: 'var(--text-dim)' };
  *  a different set of colours on request. It holds a display preference and
  *  nothing else — the same place, and the same kind of thing, as which view and
  *  range the window reopens on. */
-const SEED_KEY = 'lore.hueSeed';
+const SEED_KEY = 'hueSeed';
 
 function storedSeed(): number {
-	if (typeof localStorage === 'undefined') return 0;
-	const raw = Number(localStorage.getItem(SEED_KEY));
+	const raw = Number(readPref(SEED_KEY));
 	return Number.isFinite(raw) ? raw >>> 0 : 0;
 }
 
@@ -72,13 +73,7 @@ let seed = $state(storedSeed());
  *  pressed nine more times to escape a pairing. */
 export function shuffleHues(): void {
 	seed = Math.floor(Math.random() * 0xffffffff) >>> 0;
-	if (typeof localStorage !== 'undefined') {
-		try {
-			localStorage.setItem(SEED_KEY, String(seed));
-		} catch {
-			// Unwritable storage costs the arrangement at the next launch, nothing more.
-		}
-	}
+	writePref(SEED_KEY, String(seed));
 }
 
 /** mulberry32 — small, fast, and good enough to shuffle ten items. */

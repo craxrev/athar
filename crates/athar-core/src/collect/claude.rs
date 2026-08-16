@@ -2,7 +2,7 @@
 //!
 //! Reads transcripts that Claude Code has already written to disk, on a
 //! schedule, and copies them somewhere permanent. Nothing is hooked into the
-//! harness and nothing watches live, so work done while lore was not running is
+//! harness and nothing watches live, so work done while athar was not running is
 //! still archived — the evidence outlives the moment.
 //!
 //! This matters because the source deletes itself: `cleanupPeriodDays` defaults
@@ -253,7 +253,7 @@ impl Record {
             Ok(v) => v,
             Err(_) => {
                 // Unreadable lines are archived rather than discarded: a format
-                // lore does not understand yet is still evidence, and the source
+                // athar does not understand yet is still evidence, and the source
                 // file will not exist in 30 days to re-read.
                 let mut v = Value::String(text.to_string());
                 let truncated = truncate::apply(&mut v);
@@ -335,7 +335,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = std::env::temp_dir().join(format!(
-            "lore-test-{}-{}",
+            "athar-test-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
@@ -360,7 +360,7 @@ mod tests {
             ],
         );
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let first = ingest_file(&mut conn, SOURCE_TRANSCRIPT, &path).unwrap();
         assert_eq!(first.inserted, 2);
         assert_eq!(count(&conn), 2);
@@ -402,7 +402,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_file(&mut conn, SOURCE_TRANSCRIPT, &path).unwrap();
         assert_eq!(stats.inserted, 1);
 
@@ -429,7 +429,7 @@ mod tests {
             ],
         );
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_file(&mut conn, SOURCE_TRANSCRIPT, &path).unwrap();
         assert_eq!(stats.dropped, 2);
         assert_eq!(stats.inserted, 1);
@@ -446,7 +446,7 @@ mod tests {
     fn archives_lines_it_cannot_parse() {
         let dir = temp();
         let path = transcript(&dir, "s3.jsonl", &["not json at all"]);
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_file(&mut conn, SOURCE_TRANSCRIPT, &path).unwrap();
         assert_eq!(stats.unparsed, 1);
         assert_eq!(stats.inserted, 1);
@@ -464,7 +464,7 @@ mod tests {
                 r#"{"type":"user","uuid":"b","sessionId":"s"}"#,
             ],
         );
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_file(&mut conn, SOURCE_TRANSCRIPT, &path).unwrap();
         assert_eq!(count(&conn), 2);
 
@@ -488,7 +488,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_file(&mut conn, SOURCE_HISTORY, &path).unwrap();
         let (ts, kind, project): (i64, String, String) = conn
             .query_row(

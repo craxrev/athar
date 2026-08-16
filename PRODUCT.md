@@ -40,22 +40,22 @@ Developer work leaves evidence across systems that were never designed to be rea
 - Git garbage-collects unreachable commits (deleted branches, pre-rebase history) after roughly 30 days
 - Ordinary file saves leave nothing behind but a modified timestamp that the next save overwrites
 
-lore reads all three on a schedule and keeps what it finds in a database it owns. The sources are transient; lore's copy is permanent.
+athar reads all three on a schedule and keeps what it finds in a database it owns. The sources are transient; athar's copy is permanent.
 
 Success is being able to answer "what did I do on this day" — and "how has my work changed over these months" — from a record that still exists long after every original source has erased it.
 
 ## Positioning
 
-The mechanism is **archival, not observation.** lore does not sit in the loop: no hooks installed in the user's harnesses, no live filesystem watcher, no daemon that must be running at the moment work happens. It reads artifacts that already exist on disk, on a schedule, and copies them somewhere permanent before their owners delete them.
+The mechanism is **archival, not observation.** athar does not sit in the loop: no hooks installed in the user's harnesses, no live filesystem watcher, no daemon that must be running at the moment work happens. It reads artifacts that already exist on disk, on a schedule, and copies them somewhere permanent before their owners delete them.
 
 This produces two properties a live-observation tracker cannot have:
 
-- Work done while lore was not running is still captured, because the evidence outlives the moment
+- Work done while athar was not running is still captured, because the evidence outlives the moment
 - Retention is unbounded, because the archive is not subject to the sources' cleanup policies
 
-The one requirement this creates: lore must run at least once inside each source's retention window (~30 days) or that window's history is lost for good.
+The one requirement this creates: athar must run at least once inside each source's retention window (~30 days) or that window's history is lost for good.
 
-Scanning happens **while the window is open, and only then** — once on open, then on the configured interval. There is no scheduled agent. An OS scheduler would make the guarantee automatic, and lore had one (a `launchd` user agent) before it was removed deliberately: it required an install step, kept a copy of the collector that could fall behind the app, and existed only on macOS, so every other platform would have needed its own implementation of the same idea. Opening the window is now the act that archives, and the cost of not opening it for a month is stated plainly in settings rather than hidden behind a daemon.
+Scanning happens **while the window is open, and only then** — once on open, then on the configured interval. There is no scheduled agent. An OS scheduler would make the guarantee automatic, and athar had one (a `launchd` user agent) before it was removed deliberately: it required an install step, kept a copy of the collector that could fall behind the app, and existed only on macOS, so every other platform would have needed its own implementation of the same idea. Opening the window is now the act that archives, and the cost of not opening it for a month is stated plainly in settings rather than hidden behind a daemon.
 
 ## Operating Context
 
@@ -63,7 +63,7 @@ The user works under a single configured project root (52 GB, ~307K files exclud
 
 Measured across the three project groups: **13 git repositories at project level, and 43 project directories with no git at all** (49 `.git` directories exist in total once nested ones are counted). The majority of the user's research work is not version-controlled. This is a defining fact about the product: for most projects, filesystem evidence and Claude transcripts are the *only* record that exists.
 
-Reviewing happens after the fact, at a desk, on the same machine that produced the work — not during the work itself. lore is opened deliberately to look something up or take stock, not left open as a monitor.
+Reviewing happens after the fact, at a desk, on the same machine that produced the work — not during the work itself. athar is opened deliberately to look something up or take stock, not left open as a monitor.
 
 ## Capabilities and Constraints
 
@@ -88,11 +88,11 @@ The value of the in-repo case is uncommitted work: an afternoon of editing that 
 
 **What is deliberately not stored:** source code. Git already stores it more efficiently — measured on the user's own repos, printing every patch as text came to 5.9 MB for a 194-commit repo and 221 MB for a 2,182-commit repo, against 133 KB and 2.4 MB of metadata respectively. Diffs are fetched live from git when the user opens a commit. Large tool outputs (file dumps, grep results) are truncated on archive; they are the bulk of transcript volume and are not read.
 
-**What counts as a project.** A recorded path is often deeper than the project it belongs to: a session's working directory can be any subdirectory, and dependency trees carry their own repositories. Walking down from a configured root, the project is the **shallowest git repository** in the chain; where the chain holds no repository, it is the top-level folder under that root. Both halves are needed — a blanket top-level rule would merge a folder of separate client projects into one, and a repository-only rule would miss the research directories that were never version-controlled. A path under no configured root is its own project and stays uncategorized, because lore has no basis to fold it.
+**What counts as a project.** A recorded path is often deeper than the project it belongs to: a session's working directory can be any subdirectory, and dependency trees carry their own repositories. Walking down from a configured root, the project is the **shallowest git repository** in the chain; where the chain holds no repository, it is the top-level folder under that root. Both halves are needed — a blanket top-level rule would merge a folder of separate client projects into one, and a repository-only rule would miss the research directories that were never version-controlled. A path under no configured root is its own project and stays uncategorized, because athar has no basis to fold it.
 
 This folding happens when derived tables are rebuilt, never at ingest: raw records keep the exact path they were recorded with, so changing the configured roots is a rebuild rather than a re-ingest.
 
-**Correlation lore derives:**
+**Correlation athar derives:**
 
 - Activity blocks — contiguous work clustered by project and idle gap
 - Session → commit attribution. Commits made by the AI are **certain**, because `git commit` appears as a recorded Bash tool call in the transcript. Other commits in the same repo and time block are attributed to the user.
@@ -106,14 +106,14 @@ This folding happens when derived tables are rebuilt, never at ingest: raw recor
 - A first scan looks back a bounded window (30 days by default). An mtime records only the last save, so older ones say little beyond "untouched since", and without a bound a first scan would archive every file ever written. Anything outside that window is simply absent, never approximated.
 - Because most projects are not in git, a missed scan is genuinely lost work for those projects, where commits would otherwise have carried exact history. This is the strongest argument for a short scan interval.
 - Commands the user ran in their own terminal are invisible; only harness-run commands are captured
-- Anything older than the sources' retention that lore never scanned in time does not exist and is not recoverable
+- Anything older than the sources' retention that athar never scanned in time does not exist and is not recoverable
 - Shell history was considered as a source and **rejected** by the user
 
 **Architecture constraint:** archived raw records are immutable and append-only; every derived table is rebuildable from them. Collector adapters are pluggable, but Claude Code is the only implementation in v1 (Codex and opencode data exist on the machine and are deliberately out of scope).
 
 ## Brand Commitments
 
-Working name **lore**, inferred from the project directory `lore-app` — *not confirmed by the user*.
+Working name **athar**, inferred from the project directory `athar-app` — *not confirmed by the user*.
 
 **Standing visual preference, confirmed after two direction re-rolls:** no metaphor world. A clean, modern, dark product UI executed impeccably. The user reviewed and rejected roughly twenty-six metaphor-driven worlds; the conventional path is the deliberate commitment, not a fallback.
 
@@ -142,12 +142,12 @@ All figures below were measured on the user's machine during planning and are re
 
 No users besides the author, no external validation, no benchmarks, no pricing, no deployment. Future work must not fabricate any.
 
-Reference product: **Scribe** (getscribe.ai), unreleased, private beta — captures commits, file saves, and AI sessions into an auto-billing timeline. lore shares its capture premise but deliberately excludes invoicing and billing.
+Reference product: **Scribe** (getscribe.ai), unreleased, private beta — captures commits, file saves, and AI sessions into an auto-billing timeline. athar shares its capture premise but deliberately excludes invoicing and billing.
 
 ## Product Principles
 
-1. **Archive, don't mirror.** The sources delete themselves. lore's copy is the durable record, and the design must never imply that history begins where the sources' retention begins.
-2. **Never duplicate what another system stores better.** Metadata lives in lore; content is fetched live from the system that already holds it.
+1. **Archive, don't mirror.** The sources delete themselves. athar's copy is the durable record, and the design must never imply that history begins where the sources' retention begins.
+2. **Never duplicate what another system stores better.** Metadata lives in athar; content is fetched live from the system that already holds it.
 3. **Evidence over estimation.** Every entry traces to a real artifact on disk. Time is derived from timestamps that actually exist — nothing is invented to fill a gap.
 4. **State the gaps.** Coverage is uneven by design (exact for git and transcripts, coarse for file saves, absent for terminal work). The interface must make the difference legible rather than presenting a smooth, uniformly confident record.
 5. **Everything derived is rebuildable.** Raw records are immutable; interpretations can always be recomputed as adapters improve.

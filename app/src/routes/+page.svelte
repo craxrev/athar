@@ -12,6 +12,7 @@
 	import Stream from '$lib/Stream.svelte';
 	import { clock, collector } from '$lib/collector.svelte';
 	import { markSelector, type Mark, type Scope } from '$lib/grain';
+	import { readPref, writePref } from '$lib/prefs';
 	import {
 		archive,
 		type BlockDetail,
@@ -44,15 +45,15 @@
 	 *  an empty axis, and lanes over a month is where the shape of the work shows.
 	 *  After that the last used view and range are remembered — switching view by
 	 *  itself when the range changes would make the app unpredictable. */
-	let view = $state<View>((localStorage.getItem('lore.view') as View) ?? 'lanes');
+	let view = $state<View>((readPref('view') as View) ?? 'lanes');
 	/** Years or months at the widest grain. It lives here rather than inside the
 	 *  timeline because the timeline is remounted whenever a filter changes, and
 	 *  a view choice that resets when you narrow to a project is a view choice
 	 *  the reader has to keep making. */
 	let allShape = $state<'years' | 'months'>(
-		(localStorage.getItem('lore.allShape') as 'years' | 'months') ?? 'years'
+		(readPref('allShape') as 'years' | 'months') ?? 'years'
 	);
-	let scope = $state<Scope>((localStorage.getItem('lore.scope') as Scope) ?? 'week');
+	let scope = $state<Scope>((readPref('scope') as Scope) ?? 'week');
 	/** How many periods back from the present the range sits. Zero is now.
 	 *
 	 *  Without this the range derived purely from `Date.now()`, so there was no way
@@ -95,20 +96,20 @@
 	const CENTRE_MIN = 420;
 
 	function storedWidth(key: string, base: number): number {
-		const raw = Number(localStorage.getItem(key));
+		const raw = Number(readPref(key));
 		return Number.isFinite(raw) && raw > 0 ? raw : base;
 	}
 	/** What the reader asked for, which is not always what fits. Kept whole so
 	 *  that narrowing the window and widening it again returns the pane to the
 	 *  width they chose rather than to the one the narrow window allowed. */
-	let railPref = $state(storedWidth('lore.railWidth', RAIL.base));
-	let detailPref = $state(storedWidth('lore.detailWidth', DETAIL.base));
+	let railPref = $state(storedWidth('railWidth', RAIL.base));
+	let detailPref = $state(storedWidth('detailWidth', DETAIL.base));
 	let resizing = $state(false);
 	let winWidth = $state(1280);
 
 	$effect(() => {
-		localStorage.setItem('lore.railWidth', String(railPref));
-		localStorage.setItem('lore.detailWidth', String(detailPref));
+		writePref('railWidth', String(railPref));
+		writePref('detailWidth', String(detailPref));
 	});
 
 	const TIGHT = 1120;
@@ -308,9 +309,9 @@
 	});
 
 	$effect(() => {
-		localStorage.setItem('lore.view', view);
-		localStorage.setItem('lore.scope', scope);
-		localStorage.setItem('lore.allShape', allShape);
+		writePref('view', view);
+		writePref('scope', scope);
+		writePref('allShape', allShape);
 	});
 
 	/** Category colour is dealt from the configured roots, sorted, so it depends
@@ -692,7 +693,7 @@
 	/** Every narrowing currently applied, each with the control that lifts it.
 	 *
 	 *  The empty state used to branch on the query alone, so filtering to a project
-	 *  and pressing 1 for Today produced "lore may not have been running" — the
+	 *  and pressing 1 for Today produced "athar may not have been running" — the
 	 *  archive blamed for a filter, with the cause off screen if the rail was
 	 *  closed. */
 	let activeFilters = $derived.by(() => {
@@ -971,7 +972,7 @@
 	class:rail-closed={!railOpen}
 	class:resizing
 >
-	<h1 class="offscreen">lore — archive of your work</h1>
+	<h1 class="offscreen">athar — archive of your work</h1>
 	<p class="offscreen" role="status" aria-live="polite">{announcement}</p>
 
 	{#if showRail}
@@ -1240,7 +1241,7 @@
 							<!-- Gated on the collector, not on the record count. Gated on
 							     `records === 0` this branch vanished the instant the first record
 							     landed — the counter died exactly as it would first have moved,
-							     and handed a running scan the words "lore may not have been
+							     and handed a running scan the words "athar may not have been
 							     running". -->
 							<h2>Reading your history</h2>
 							<p>Scanning Claude Code sessions, git repositories and file timestamps.</p>
@@ -1250,7 +1251,7 @@
 						{:else if status && status.records === 0}
 							<h2>Nothing archived yet</h2>
 							<p>
-								lore reads Claude Code sessions, git history and file saves, and keeps
+								athar reads Claude Code sessions, git history and file saves, and keeps
 								them after those sources delete their own.
 							</p>
 							<button class="act strong" onclick={() => collector.run('scan')}>
@@ -1272,7 +1273,7 @@
 							<h2>Nothing recorded in this range</h2>
 							<!-- The cause worth naming, because it is the one the reader can act
 							     on and the one the product's guarantee rests on. -->
-							<p>lore scans only while its window is open. Try a wider range.</p>
+							<p>athar scans only while its window is open. Try a wider range.</p>
 						{/if}
 					</div>
 				{:else if view === 'lanes'}

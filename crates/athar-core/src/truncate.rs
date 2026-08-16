@@ -26,7 +26,7 @@ const THINKING_HEAD: usize = 1200;
 /// Tool output: file dumps and grep results, kept only for identification.
 const TOOL_RESULT_HEAD: usize = 800;
 /// Tool inputs: keeps paths, commands and short arguments intact while cutting
-/// the file contents that `Write` and `Edit` carry. lore does not archive source
+/// the file contents that `Write` and `Edit` carry. athar does not archive source
 /// code — git already stores it, far more efficiently.
 const TOOL_INPUT_HEAD: usize = 2048;
 /// Backstop for any string no rule above claimed. Set well above a realistic

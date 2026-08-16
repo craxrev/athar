@@ -125,7 +125,7 @@
 							{#if c.unreachable}
 								<span class="note amber">
 									<Icon name="warn" size={14} />
-									No ref reaches this commit. Git will collect it; lore kept it.
+									No ref reaches this commit. Git will collect it; athar kept it.
 								</span>
 							{/if}
 						</div>

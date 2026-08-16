@@ -229,6 +229,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "athar-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "athar-core",
+ "chrono",
+ "clap",
+ "serde_json",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
+name = "athar-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "directories",
+ "pulldown-cmark",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml 1.1.4+spec-1.1.0",
+]
+
+[[package]]
+name = "athar-desktop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "athar-core",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-single-instance",
+]
+
+[[package]]
 name = "atk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2141,48 +2183,6 @@ name = "log"
 version = "0.4.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
-
-[[package]]
-name = "lore-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "clap",
- "lore-core",
- "serde_json",
- "toml 1.1.4+spec-1.1.0",
-]
-
-[[package]]
-name = "lore-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "directories",
- "pulldown-cmark",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "toml 1.1.4+spec-1.1.0",
-]
-
-[[package]]
-name = "lore-desktop"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "lore-core",
- "rusqlite",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-single-instance",
-]
 
 [[package]]
 name = "markup5ever"

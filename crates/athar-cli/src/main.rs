@@ -1,11 +1,11 @@
-//! `lore` — the collector, driven from the command line.
+//! `athar` — the collector, driven from the command line.
 //!
 //! The CLI exists so ingestion can be iterated on and verified without the UI
 //! in the way. The desktop app reads the same database, read-only.
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use lore_core::{
+use athar_core::{
     collect::{claude, file, git},
     derive,
     config::Config,
@@ -13,7 +13,7 @@ use lore_core::{
 };
 
 #[derive(Parser)]
-#[command(name = "lore", about = "A permanent record of developer work", version)]
+#[command(name = "athar", about = "A permanent record of developer work", version)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -37,7 +37,7 @@ enum Command {
     /// Inspect or create the configuration file.
     #[command(subcommand)]
     Config(ConfigCommand),
-    /// Remove archived records of kinds lore no longer keeps.
+    /// Remove archived records of kinds athar no longer keeps.
     ///
     /// Reports by default. The archive is append-only, so removing from it is a
     /// deliberate act and has to be asked for.
@@ -72,6 +72,11 @@ enum ConfigCommand {
 }
 
 fn main() -> Result<()> {
+    // The window normally does this first, but the CLI is usable on its own and
+    // must not build a second, empty archive beside the one it should inherit.
+    if let Ok(Some(from)) = paths::migrate_legacy_profile() {
+        eprintln!("moved the archive from {}", from.display());
+    }
     match Cli::parse().command {
         Command::Scan => scan(),
         Command::Stats => show_stats(),
@@ -104,7 +109,7 @@ fn config(cmd: ConfigCommand) -> Result<()> {
                 if !path.is_dir() {
                     eprintln!("warning: {} is not a directory", path.display());
                 }
-                cfg.roots.push(lore_core::config::Root {
+                cfg.roots.push(athar_core::config::Root {
                     path,
                     category: category.to_string(),
                 });
@@ -182,7 +187,7 @@ fn scan() -> Result<()> {
     }
 
     if config.roots.is_empty() {
-        println!("git         no roots configured — run `lore config init --root ...`");
+        println!("git         no roots configured — run `athar config init --root ...`");
     } else {
         let g = git::scan(&mut conn, &config)?;
         println!("git");
@@ -310,7 +315,7 @@ fn day_view(date: Option<&str>) -> Result<()> {
 
     let rows = stats::blocks_between(&conn, from, to, None)?;
     if rows.is_empty() {
-        println!("\nnothing recorded. lore may not have been running, or nothing happened.");
+        println!("\nnothing recorded. athar may not have been running, or nothing happened.");
         return Ok(());
     }
 
@@ -401,7 +406,7 @@ fn duration(ms: i64) -> String {
 }
 
 fn check(session: Option<&str>) -> Result<()> {
-    use lore_core::api;
+    use athar_core::api;
     let config = Config::load()?;
     let conn = api::open_readonly(&paths::db_file()?)?;
 
@@ -473,7 +478,7 @@ fn check(session: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// Removes records whose kind lore has stopped archiving.
+/// Removes records whose kind athar has stopped archiving.
 ///
 /// These are already skipped on ingest, so this is only about the bytes stored
 /// before that decision. Derived tables never read these kinds, so nothing needs
@@ -485,7 +490,7 @@ fn prune(apply: bool) -> Result<()> {
     let mut total_rows = 0i64;
     let mut total_bytes = 0i64;
     println!("{:<24}{:>9}{:>11}", "kind", "records", "stored");
-    for kind in lore_core::truncate::DROPPED_KINDS {
+    for kind in athar_core::truncate::DROPPED_KINDS {
         let (rows, bytes): (i64, Option<i64>) = conn.query_row(
             "SELECT count(*), sum(length(json)) FROM raw_records WHERE kind = ?1",
             [kind],
@@ -509,12 +514,12 @@ fn prune(apply: bool) -> Result<()> {
     );
 
     if !apply {
-        println!("reporting only — run `lore prune --apply` to remove them");
+        println!("reporting only — run `athar prune --apply` to remove them");
         return Ok(());
     }
 
     let mut removed = 0usize;
-    for kind in lore_core::truncate::DROPPED_KINDS {
+    for kind in athar_core::truncate::DROPPED_KINDS {
         removed += conn.execute("DELETE FROM raw_records WHERE kind = ?1", [kind])?;
     }
     // Space is returned to the filesystem rather than left as free pages: the

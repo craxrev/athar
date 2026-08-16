@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    lore_desktop_lib::run()
+    athar_desktop_lib::run()
 }

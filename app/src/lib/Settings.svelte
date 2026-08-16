@@ -148,7 +148,7 @@
 			<section class="group">
 				<h2>Scanned roots</h2>
 				<p class="note">
-					Where lore looks for git repositories and file changes. A project's category
+					Where athar looks for git repositories and file changes. A project's category
 					comes from the root it sits under. Claude Code's own directory is fixed, not
 					configured.
 				</p>
@@ -219,7 +219,7 @@
 					<!-- The 30-day fact leads rather than trailing a clause: it is the one
 					     thing in this pane the product's guarantee depends on. -->
 					<span class="why">
-						Only while this window is open; nothing runs in the background. Open lore at
+						Only while this window is open; nothing runs in the background. Open athar at
 						least monthly, or the sources delete that history themselves.
 					</span>
 				</label>
@@ -297,7 +297,7 @@
 			<section class="group">
 				<h2>Excluded directories</h2>
 				<p class="note">
-					Pruned during the walk. Inside a repository lore asks git, so
+					Pruned during the walk. Inside a repository athar asks git, so
 					<span class="mono">.gitignore</span> already applies.
 				</p>
 				<p class="chips">

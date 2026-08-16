@@ -3,20 +3,20 @@
 //! Reads commit metadata — never content. Measured on real repositories,
 //! printing every patch as text came to 5.9 MB for a 194-commit repo and 221 MB
 //! for a 2,182-commit repo, against 133 KB and 2.4 MB of metadata. Git already
-//! stores the code, compressed, two directories away; lore asks it for a diff
+//! stores the code, compressed, two directories away; athar asks it for a diff
 //! when someone opens a commit.
 //!
 //! Two things make this worth archiving rather than querying live:
 //!
 //!   - Git garbage-collects unreachable commits about 30 days after a branch is
 //!     deleted or a history rewritten. Reading `--reflog` catches that work while
-//!     it still exists, and lore then keeps it permanently. Records carry
+//!     it still exists, and athar then keeps it permanently. Records carry
 //!     `unreachable: true` so a deleted branch's commits stay identifiable.
 //!   - Repositories get deleted, and their history goes with them.
 //!
 //! The collector shells out to `git` rather than linking a library: `git` is
 //! present by definition wherever there are repositories to read, and it handles
-//! packed refs, worktrees and reflog expiry correctly without lore reimplementing
+//! packed refs, worktrees and reflog expiry correctly without athar reimplementing
 //! any of it.
 
 use std::collections::{HashMap, HashSet};
@@ -40,7 +40,7 @@ pub const SOURCE: &str = "git";
 /// It is part of every repository's fingerprint, so improving this adapter re-reads
 /// history that is still on disk instead of leaving old records in their old shape.
 /// A repository that no longer exists keeps whatever was archived from it — the
-/// evidence cannot be re-read, and lore does not discard it.
+/// evidence cannot be re-read, and athar does not discard it.
 const ADAPTER_VERSION: u32 = 2;
 
 /// Commits touching more files than this store a marker instead of the full list.
@@ -323,7 +323,7 @@ impl Commit {
             "committed_at_ms": self.committed_at_ms,
             "author_name": self.author_name,
             "author_email": self.author_email,
-            // What pointed at this commit when lore scanned — not the branch it
+            // What pointed at this commit when athar scanned — not the branch it
             // was made on, which a commit object does not record.
             "refs_at_scan": self.refs_at_scan,
             // The branch it was actually made on, recovered from the reflog. Only
@@ -333,7 +333,7 @@ impl Commit {
             "message": self.message,
             "files": files,
             // A commit no ref can reach: a deleted branch or rewritten history.
-            // Git will collect it; lore has already kept it.
+            // Git will collect it; athar has already kept it.
             "unreachable": unreachable,
         });
         if self.files_omitted > 0 {
@@ -348,7 +348,7 @@ impl Commit {
 /// A commit object records no branch, so this is the only place the answer exists
 /// — and only while the reflog still holds the entry, on the machine where the
 /// commit happened. Absent for anything older than the reflog window, which is
-/// honest: lore does not guess a branch it cannot see.
+/// honest: athar does not guess a branch it cannot see.
 fn reflog_branches(repo: &Path) -> HashMap<String, String> {
     let Ok(out) = git(repo, &["reflog", "--all", "--format=%H\x1f%gD\x1f%gs"]) else {
         return HashMap::new();
@@ -509,7 +509,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = std::env::temp_dir().join(format!(
-            "lore-git-test-{}-{}",
+            "athar-git-test-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
@@ -538,7 +538,7 @@ mod tests {
         init_repo(&repo);
         commit(&repo, "a.txt", "one\ntwo\n", "feat: add a");
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_repo(&mut conn, &repo, &[]).unwrap();
         assert_eq!(stats.commits_inserted, 1);
 
@@ -563,7 +563,7 @@ mod tests {
         init_repo(&repo);
         commit(&repo, "a.txt", "x", "one");
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_repo(&mut conn, &repo, &[]).unwrap();
         let second = ingest_repo(&mut conn, &repo, &[]).unwrap();
         assert_eq!(second.repos_unchanged, 1);
@@ -593,7 +593,7 @@ mod tests {
         git(&repo, &["checkout", "-q", "main"]).unwrap();
         git(&repo, &["branch", "-qD", "throwaway"]).unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_repo(&mut conn, &repo, &[]).unwrap();
         assert_eq!(stats.commits_inserted, 2);
         assert_eq!(stats.commits_unreachable, 1);
@@ -623,7 +623,7 @@ mod tests {
         commit(&repo, "theirs.txt", "y", "theirs");
         git(&repo, &["config", "user.email", "me@example.com"]).unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_repo(&mut conn, &repo, &[]).unwrap();
         assert_eq!(stats.commits_inserted, 1);
         assert_eq!(stats.commits_foreign, 1);
@@ -650,7 +650,7 @@ mod tests {
         git(&repo, &["checkout", "-q", "-b", "feature/side"]).unwrap();
         commit(&repo, "b.txt", "y", "on the feature branch");
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_repo(&mut conn, &repo, &[]).unwrap();
 
         // A commit object records no branch; the reflog is the only witness.
@@ -684,7 +684,7 @@ mod tests {
         init_repo(&repo);
         commit(&repo, "a.txt", "x", "only commit");
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_repo(&mut conn, &repo, &[]).unwrap();
 
         // An unchanged repository read by the same adapter refreshes nothing.
@@ -720,7 +720,7 @@ mod tests {
         git(&repo, &["add", "-A"]).unwrap();
         git(&repo, &["commit", "-q", "-m", "subject line", "-m", "body line one\nbody line two"]).unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_repo(&mut conn, &repo, &[]).unwrap();
         let msg: String = conn
             .query_row("SELECT json_extract(json,'$.message') FROM raw_records", [], |r| r.get(0))

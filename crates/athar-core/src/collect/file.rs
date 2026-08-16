@@ -20,7 +20,7 @@
 //! is incomplete is *coverage*: three saves inside one scan interval leave one
 //! mtime, so a per-file change count is a floor, never a total. Record identity
 //! is `(path, mtime)`, which makes rescanning idempotent while letting a file
-//! accumulate one record per change lore actually witnessed.
+//! accumulate one record per change athar actually witnessed.
 
 use std::collections::HashSet;
 use std::ffi::OsStr;
@@ -221,7 +221,7 @@ fn write_changes(
 }
 
 /// Dirty and untracked files, straight from git. Deletions are skipped: a removed
-/// file has no mtime, so lore cannot say when it happened and will not guess.
+/// file has no mtime, so athar cannot say when it happened and will not guess.
 fn git_changes(repo: &Path, cutoff_ms: i64, stats: &mut FileStats) -> Result<Vec<Change>> {
     let out = match git(
         repo,
@@ -391,7 +391,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = std::env::temp_dir().join(format!(
-            "lore-file-test-{}-{}",
+            "athar-file-test-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
@@ -431,7 +431,7 @@ mod tests {
         fs::write(project.join("notes.md"), "hello").unwrap();
         fs::write(project.join("src").join("main.c"), "int main(){}").unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_project(&mut conn, &project, &excludes(), 0).unwrap();
         assert_eq!(stats.non_git, 1);
         assert_eq!(stats.changes_recorded, 2);
@@ -456,8 +456,8 @@ mod tests {
         run(&repo, &["add", "-A"]);
         run(&repo, &["commit", "-q", "-m", "first"]);
 
-        // Clean and committed: git's job, not lore's.
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        // Clean and committed: git's job, not athar's.
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_project(&mut conn, &repo, &excludes(), 0).unwrap();
         assert_eq!(stats.repos, 1);
         assert_eq!(stats.changes_recorded, 0);
@@ -494,7 +494,7 @@ mod tests {
         run(&repo, &["add", "-A"]);
         run(&repo, &["commit", "-q", "-m", "other"]);
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_project(&mut conn, &repo, &excludes(), 0).unwrap();
         assert_eq!(count(&conn), 0);
 
@@ -516,7 +516,7 @@ mod tests {
         let file = project.join("notes.md");
         fs::write(&file, "first").unwrap();
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         ingest_project(&mut conn, &project, &excludes(), 0).unwrap();
         assert_eq!(count(&conn), 1);
 
@@ -550,7 +550,7 @@ mod tests {
         fs::write(&stale, "x").unwrap();
         set_mtime(&stale, chrono::Utc::now().timestamp_millis() - 400 * 86_400_000);
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let cutoff = cutoff(30);
         let stats = ingest_project(&mut conn, &project, &excludes(), cutoff).unwrap();
 
@@ -578,7 +578,7 @@ mod tests {
         run(&inner, &["add", "-A"]);
         run(&inner, &["commit", "-q", "-m", "first"]);
 
-        let mut conn = db::open_writable(&dir.join("lore.db")).unwrap();
+        let mut conn = db::open_writable(&dir.join("athar.db")).unwrap();
         let stats = ingest_project(&mut conn, &project, &excludes(), 0).unwrap();
         assert_eq!(stats.non_git, 1);
         assert_eq!(stats.repos, 1, "the nested repository was handled as a repo");

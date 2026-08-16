@@ -77,7 +77,7 @@ export function relative(ms: number | null, now: number = Date.now()): string {
 	return `${Math.round(hours / 24)}d ago`;
 }
 
-/** How long a source keeps its own history before deleting it. lore has to run at
+/** How long a source keeps its own history before deleting it. athar has to run at
  *  least once inside this window or that stretch is gone from every source at once. */
 export const RETENTION_DAYS = 30;
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "lore",
+  "productName": "athar",
   "version": "0.1.0",
-  "identifier": "dev.lore.app",
+  "identifier": "dev.athar.app",
   "build": {
     "frontendDist": "../build",
     "devUrl": "http://localhost:5183",
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "lore",
+        "title": "athar",
         "width": 1280,
         "height": 820,
         "minWidth": 880,
@@ -37,6 +37,6 @@
     "active": true,
     "targets": ["app", "dmg"],
     "icon": ["icons/icon.png"],
-    "externalBin": ["binaries/lore-collector"]
+    "externalBin": ["binaries/athar-collector"]
   }
 }

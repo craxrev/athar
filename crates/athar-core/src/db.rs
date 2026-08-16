@@ -8,7 +8,7 @@ use crate::paths;
 
 const SCHEMA: &str = include_str!("schema.sql");
 
-/// An origin lore has read, and where it stopped.
+/// An origin athar has read, and where it stopped.
 #[derive(Debug, Clone, Copy)]
 pub struct OriginCursor {
     pub id: i64,
@@ -242,12 +242,12 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lore-db-{}-{}",
+            "athar-db-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        open_writable(&dir.join("lore.db")).unwrap()
+        open_writable(&dir.join("athar.db")).unwrap()
     }
 
     #[test]

@@ -1,10 +1,10 @@
--- lore schema.
+-- athar schema.
 --
 -- Two tiers, one direction:
 --
 --   source -> adapter -> raw_records -> projector -> derived tables
 --
--- `raw_records` is the archive: append-only, immutable, and the reason lore
+-- `raw_records` is the archive: append-only, immutable, and the reason athar
 -- survives Claude Code's 30-day cleanup and git's garbage collection. Every
 -- derived table is rebuildable from it, so adapters can improve without needing
 -- source material that no longer exists.
@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS meta (
     value TEXT NOT NULL
 );
 
--- Everything lore reads from: a transcript file, or a git repository.
+-- Everything athar reads from: a transcript file, or a git repository.
 --
 -- For line-based origins the cursor is a byte offset, so a rescan never
 -- re-parses what it already archived; `inode` and `size` detect rotation or
@@ -78,7 +78,7 @@ CREATE INDEX IF NOT EXISTS raw_records_project ON raw_records (project_id, ts_ms
 -- ── Derived tables ────────────────────────────────────────────────────────────
 --
 -- Everything below is a projection of `raw_records` and is rebuilt wholesale by
--- `lore rebuild`. Nothing here is a source of truth: as adapters improve, these
+-- `athar rebuild`. Nothing here is a source of truth: as adapters improve, these
 -- are recomputed rather than migrated. That is the whole point of archiving the
 -- raw record first.
 
@@ -153,8 +153,8 @@ CREATE TABLE IF NOT EXISTS commit_files (
 --   strong  — the commit's files are files this session wrote
 --   weak    — only time and project coincide; the user likely committed by hand
 --
--- The tier is stored rather than hidden because a link lore inferred and a link
--- lore witnessed are not the same claim.
+-- The tier is stored rather than hidden because a link athar inferred and a link
+-- athar witnessed are not the same claim.
 CREATE TABLE IF NOT EXISTS commit_links (
     sha          TEXT PRIMARY KEY,
     session_id   TEXT NOT NULL,
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS commit_links (
 -- chain. That evidence disappears when a project is deleted, so the decision is
 -- remembered: a path that still exists is re-folded on every rebuild and follows
 -- changes to the configured roots, while a path whose folder is gone keeps the
--- grouping decided when lore could still see it. Without this, deleting a
+-- grouping decided when athar could still see it. Without this, deleting a
 -- project silently re-folded its history into the parent folder and merged it
 -- with unrelated siblings.
 CREATE TABLE IF NOT EXISTS project_map (

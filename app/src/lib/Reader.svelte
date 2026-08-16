@@ -68,7 +68,7 @@
 				<p class="banner">
 					<Icon name="warn" size={16} />
 					<span>
-						Claude Code deleted this transcript. Only the prompts lore archived remain;
+						Claude Code deleted this transcript. Only the prompts athar archived remain;
 						the replies are gone.
 					</span>
 				</p>

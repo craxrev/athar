@@ -81,7 +81,7 @@ pub struct CommitSummary {
     pub insertions: i64,
     pub deletions: i64,
     pub file_count: i64,
-    /// A commit no ref can reach. Git will collect it; lore already kept it.
+    /// A commit no ref can reach. Git will collect it; athar already kept it.
     pub unreachable: bool,
     /// `certain` | `strong` | `weak` | absent.
     pub tier: Option<String>,
@@ -217,7 +217,7 @@ pub struct CollectorStatus {
     pub roots: Vec<String>,
     /// Sessions whose transcript the source has already deleted, and which now
     /// exist only here.
-    pub sessions_only_in_lore: i64,
+    pub sessions_only_in_athar: i64,
 }
 
 /// Opens the archive read-only. A missing database is an error the caller shows
@@ -1040,7 +1040,7 @@ pub fn status(conn: &Connection, config: &Config) -> Result<CollectorStatus> {
         commits: one("SELECT count(*) FROM commits")?,
         file_changes: one("SELECT count(*) FROM raw_records WHERE kind='file_change'")?,
         origins: one("SELECT count(*) FROM origins")?,
-        sessions_only_in_lore: one("SELECT count(*) FROM sessions WHERE has_transcript = 0")?,
+        sessions_only_in_athar: one("SELECT count(*) FROM sessions WHERE has_transcript = 0")?,
         earliest_ms: earliest,
         latest_ms: latest,
         scan_interval_mins: config.scan_interval_mins,
@@ -1094,12 +1094,12 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
-            "lore-api-{}-{}",
+            "athar-api-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        db::open_writable(&dir.join("lore.db")).unwrap()
+        db::open_writable(&dir.join("athar.db")).unwrap()
     }
 
     /// `line_no` is per-origin, so transcript and history get their own.

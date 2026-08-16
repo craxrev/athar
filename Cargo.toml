@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/lore-core", "crates/lore-cli", "app/src-tauri"]
+members = ["crates/athar-core", "crates/athar-cli", "app/src-tauri"]
 
 [workspace.package]
 edition = "2021"

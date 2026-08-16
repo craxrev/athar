@@ -1,5 +1,5 @@
 ---
-name: lore
+name: athar
 description: A dark, evidence-first record of developer work, where every claim shows how it was established.
 colors:
   ground: "#0b0c0f"
@@ -180,11 +180,11 @@ components:
     typography: "{typography.meta}"
 ---
 
-# lore — design system
+# athar — design system
 
 ## Overview
 
-lore reads what other systems leave behind and keeps it after they delete it. The
+athar reads what other systems leave behind and keeps it after they delete it. The
 interface exists to make an uneven record legible without smoothing it, so the
 governing idea is not an aesthetic but a discipline: **every figure on screen
 carries how it was established.**
@@ -429,7 +429,7 @@ contradiction against a multi-day span.
 
 Plain and short. The reader is one developer looking at their own work on their
 own machine, so domain words are free — commit, mtime, reflog, block, session,
-rebuild all land without help. What does not land is lore explaining itself.
+rebuild all land without help. What does not land is athar explaining itself.
 
 **One rule decides every string: keep what qualifies a figure, cut what explains
 the build.** The copy had drifted into this document's own register — compound
@@ -440,7 +440,7 @@ to watch for.
 
 - **A heading that already states the case gets no restating sentence.** If the
   body has nothing new, it goes.
-- **Say the cause only when the reader can act on it.** "lore scans only while
+- **Say the cause only when the reader can act on it.** "athar scans only while
   its window is open" earns its place on an empty range, because opening the
   window is the fix. "The collector ships inside this app" does not.
 - **A floored count says `at least` on the figure, never in a footnote below it.**
@@ -639,7 +639,7 @@ character stands in for an icon anywhere.
   `uncertain-amber`, each with the ring icon that matches its certainty. The detail
   pane spells the reasoning out in a sentence.
 - **Honesty flags** are amber pills: `prompts only` where the source deleted a
-  transcript, `only in lore` where git will collect a commit lore has kept.
+  transcript, `only in athar` where git will collect a commit athar has kept.
 - **Digest** runs two tiers, because a flat strip of six equal figures led with
   none of them. The time tier carries elapsed in the `figure` token (19px mono) and
   across-projects a step below it (15px), on purpose: elapsed is wall clock with
@@ -827,7 +827,7 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
   exception and sets at 400.
 - Use the accent as a glow, a gradient, or a decorative fill.
 - Extend vibrancy beyond the scope rail, or add blur for atmosphere.
-- Print a figure lore cannot support — no `0m` for a real block, no clock range
+- Print a figure athar cannot support — no `0m` for a real block, no clock range
   without dates across days, no total where the data only supports a floor, no
   digest over a range holding nothing.
 - Introduce a second accent, or let a category hue carry state.
@@ -841,7 +841,7 @@ verbatim as its `aria-label`, so the one channel the shape cannot reach gets it.
   is the metaphor the anti-reference was written against, and revoking the ban
   did not revoke that.
 - Borrow a word or a colour across the attribution and evidence axes.
-- Explain lore's architecture in a pane. The reader came for an answer, not for
+- Explain athar's architecture in a pane. The reader came for an answer, not for
   how the answer is built; that belongs here.
 - Follow a heading with a sentence that restates it.
 - Leave a figure unlabelled about what it covers. The digest is narrowed by the

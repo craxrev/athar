@@ -32,11 +32,11 @@ class Collector {
 		return this.running ?? this.observed;
 	}
 
-	/** Scans while the window is open, which is the only schedule lore has.
+	/** Scans while the window is open, which is the only schedule athar has.
 	 *
 	 *  There is no installed agent and no OS scheduler: nothing to register, keep
 	 *  current, or reimplement per platform. The cost is plain — a source deletes
-	 *  its own history within about 30 days, so lore has to be opened inside that
+	 *  its own history within about 30 days, so athar has to be opened inside that
 	 *  window or the history is gone. Opening it is the act that archives.
 	 *
 	 *  Runs once on open, because a window opened after days away has the most to

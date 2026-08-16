@@ -363,14 +363,14 @@ mod tests {
     /// The rest of the turn must not vanish into a code block that never closes.
     #[test]
     fn a_fence_cut_by_truncation_still_closes() {
-        let blocks = parse("before\n\n```sh\nlore scan\nlore rebui");
+        let blocks = parse("before\n\n```sh\nathar scan\nathar rebui");
         assert_eq!(
             blocks,
             vec![
                 Block::Paragraph { spans: vec![text("before")] },
                 Block::Code {
                     lang: Some("sh".into()),
-                    text: "lore scan\nlore rebui".into()
+                    text: "athar scan\nathar rebui".into()
                 },
             ]
         );

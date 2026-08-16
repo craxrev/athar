@@ -1,4 +1,4 @@
-//! lore's desktop shell.
+//! athar's desktop shell.
 //!
 //! The window is a reader. The collector process owns every write; this opens the
 //! same SQLite file read-only, so a scan can never be blocked by the app being
@@ -6,7 +6,7 @@
 
 use std::sync::Mutex;
 
-use lore_core::{api, config::Config, paths};
+use athar_core::{api, config::Config, paths};
 use rusqlite::Connection;
 use serde::Serialize;
 use tauri::{Manager, State};
@@ -43,7 +43,7 @@ where
         message: "archive lock poisoned".into(),
     })?;
     let conn = guard.as_ref().ok_or_else(|| Failure {
-        message: "no archive yet — run `lore scan` to build one".into(),
+        message: "no archive yet — run `athar scan` to build one".into(),
     })?;
     f(conn, &archive.config).map_err(Into::into)
 }
@@ -62,7 +62,7 @@ fn status(archive: State<Archive>) -> Reply<api::CollectorStatus> {
 #[tauri::command]
 fn collector_run(archive: State<Archive>) -> Reply<Option<String>> {
     with_conn(&archive, |c, _| {
-        Ok(lore_core::db::current_run(c).map(|r| r.action))
+        Ok(athar_core::db::current_run(c).map(|r| r.action))
     })
 }
 
@@ -181,9 +181,9 @@ fn write_config(config: Config, revision: Option<String>) -> Reply<ConfigView> {
 ///
 /// Nothing is installed anywhere. The binary the window runs is the one it was
 /// built with, so it can never be an older build than the window, and a machine
-/// with no scheduler of its own is not a machine lore cannot archive on.
+/// with no scheduler of its own is not a machine athar cannot archive on.
 fn collector() -> Option<std::path::PathBuf> {
-    lore_core::collector::beside(&std::env::current_exe().ok()?)
+    athar_core::collector::beside(&std::env::current_exe().ok()?)
 }
 
 #[derive(Serialize)]
@@ -258,6 +258,13 @@ pub fn run() {
 
     builder
         .setup(|app| {
+            // Before the config is read or the archive opened, because both look
+            // where this may just have moved things to. The window is the process
+            // that normally starts first, and the collector it spawns finds the
+            // move already done.
+            if let Ok(Some(from)) = paths::migrate_legacy_profile() {
+                eprintln!("athar: moved the archive from {}", from.display());
+            }
             let config = Config::load().unwrap_or_default();
             // A missing archive is an empty state, not a startup failure: the
             // window should open and say what to do about it.
@@ -288,5 +295,5 @@ pub fn run() {
             run_collector
         ])
         .run(tauri::generate_context!())
-        .expect("error while running lore");
+        .expect("error while running athar");
 }

@@ -243,9 +243,9 @@
 								{#if entry.commit.unreachable}
 									<span
 										class="flag amber"
-										title="No ref reaches this commit. Git will collect it; lore kept it."
+										title="No ref reaches this commit. Git will collect it; athar kept it."
 									>
-										<Icon name="warn" size={14} /> only in lore
+										<Icon name="warn" size={14} /> only in athar
 									</span>
 								{/if}
 								<span class="chev disclose" class:turned={!!expanded[entry.commit.sha]}>

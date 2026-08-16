@@ -101,7 +101,7 @@ impl Config {
     /// Loads the config file, falling back to defaults when it does not exist.
     ///
     /// A missing file is not an error: the Claude source needs no configuration
-    /// at all, so `lore scan` works on a fresh machine. Only the git and file
+    /// at all, so `athar scan` works on a fresh machine. Only the git and file
     /// sources need roots, and there is no safe default for those — guessing
     /// where someone keeps their code would be worse than asking.
     pub fn load() -> Result<Self> {
@@ -214,7 +214,7 @@ impl Config {
     /// which is a folder of separate client projects rather than a project.
     ///
     /// Returns `None` for a path under no configured root; that path is its own
-    /// project and stays uncategorized, because lore has no basis to fold it.
+    /// project and stays uncategorized, because athar has no basis to fold it.
     pub fn canonical_project(&self, path: &Path) -> Option<PathBuf> {
         let root = self
             .roots
@@ -258,7 +258,7 @@ impl Config {
 }
 
 const CONFIG_HEADER: &str = "\
-# lore configuration.
+# athar configuration.
 #
 # This file lives outside any repository on purpose: scan roots are personal
 # paths and must never become committable.
@@ -328,7 +328,7 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static SEQ: AtomicU64 = AtomicU64::new(0);
         let base = std::env::temp_dir().join(format!(
-            "lore-config-{}-{}",
+            "athar-config-{}-{}",
             std::process::id(),
             SEQ.fetch_add(1, Ordering::Relaxed)
         ));

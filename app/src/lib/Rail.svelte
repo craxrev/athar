@@ -52,7 +52,7 @@
 
 	/** How long a source keeps its own history before deleting it.
 	 *
-	 *  This is the single number the product depends on: lore has to run at least
+	 *  This is the single number the product depends on: athar has to run at least
 	 *  once inside this window or that stretch is gone for good, from every source
 	 *  at once. The footer used to report a timestamp in green — an archive five
 	 *  days from permanent loss looked exactly like one scanned this morning. */
@@ -109,7 +109,7 @@
 		<span class="mark" aria-hidden="true">
 			<i style="width: 15px"></i><i style="width: 11px"></i><i style="width: 7px"></i>
 		</span>
-		<span class="name">lore</span>
+		<span class="name">athar</span>
 	</div>
 
 	<section>
