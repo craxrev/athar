@@ -249,10 +249,16 @@
 	   Each rung derives the days it draws from the range it was handed, never
 	   from a date of its own: the rail owns which period is on screen. */
 
+	/** Chronological, so a week reads Monday down to Sunday. Reversed, the rung
+	 *  put Sunday at the top and read the week backwards against every other
+	 *  calendar surface here — the tile sheet walks a month forwards, and the
+	 *  range bar names both ends in that order. Only the two rungs that stack
+	 *  whole months or years run newest-first, where the unit is the thing being
+	 *  ordered rather than the days inside it. */
 	let weekDays = $derived.by(() => {
 		const out: number[] = [];
 		for (let t = startOfDay(fromMs); t < toMs; t = nextDay(t)) out.push(t);
-		return out.reverse();
+		return out;
 	});
 
 	/** The days of the range as tiles, grouped by the month each falls in.
@@ -423,7 +429,7 @@
 					.map((s) => s.blockId)
 			);
 		if (grain === 'days')
-			// Row by row, newest day first, and left to right inside a row — the order
+			// Row by row, oldest day first, and left to right inside a row — the order
 			// the rung actually draws. A day's spans arrive project-major, which is
 			// not how a strip reads; sorting every bar in the range by start time, as
 			// the page used to, was wrong the other way and walked against the rows.
@@ -474,7 +480,6 @@
 				{#each [0, 3, 6, 9, 12, 15, 18, 21] as h (h)}
 					<span
 						class="hour"
-						class:first={h === 0}
 						class:quarter={h % 6 !== 0}
 						class:half={h % 12 !== 0}
 						style="left: {(h / 24) * 100}%">{String(h).padStart(2, '0')}:00</span
@@ -537,7 +542,6 @@
 				{#each [0, 3, 6, 9, 12, 15, 18, 21] as h (h)}
 					<span
 						class="hour"
-						class:first={h === 0}
 						class:quarter={h % 6 !== 0}
 						class:half={h % 12 !== 0}
 						style="left: {(h / 24) * 100}%">{String(h).padStart(2, '0')}:00</span
@@ -854,6 +858,10 @@
 			display: none;
 		}
 	}
+	/* Centred on its own tick, midnight included: left-aligning that one label
+	   put it half a label to the right of the mark it named, alone among eight.
+	   Its overhang lands in the axis's first cell, which is empty on both rungs
+	   and wide enough for it — `container-type` contains layout, never paint. */
 	.hour {
 		position: absolute;
 		top: 7px;
@@ -864,10 +872,6 @@
 		color: var(--text-faint);
 		white-space: nowrap;
 	}
-	.hour.first {
-		transform: none;
-	}
-
 	/* ---- marks ------------------------------------------------------------
 	   Hue says whose work it was; texture says how well the span is known. Two
 	   questions, two channels — see DESIGN.md's Two Axes Rule. */
